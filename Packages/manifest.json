@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.unity.multiplayer.center": "1.0.1",
+    "com.coplaydev.unity-mcp": "file:D:/03_Dev/05_Game/unityMCP/unity-mcp/MCPForUnity",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",
     "com.unity.modules.ai": "1.0.0",
