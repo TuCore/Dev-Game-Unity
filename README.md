@@ -8,7 +8,7 @@
 
 ## 🌟 Tính năng Nổi bật (Core Features)
 
-- 🔍 **Cơ chế Khám bệnh & Sửa chữa Chuyên sâu (FPP):** Cầm nắm, lật mở và "bắt bệnh" qua 4 mini-game riêng biệt: *Khám bệnh (dò mạch), Hàn mạch, Nối dây, và Lắp ráp/Vệ sinh.* 
+- 🔍 **Cơ chế Khám bệnh & Sửa chữa Chuyên sâu (FPP):** Cầm nắm, lật mở và "bắt bệnh" qua 4 mini-game riêng biệt: _Khám bệnh (dò mạch), Hàn mạch, Nối dây, và Lắp ráp/Vệ sinh._
 - 🎲 **Không Bao Giờ Nhàm Chán (Randomization):** Vị trí lỗi của mỗi món đồ (tụ điện hỏng, dây đứt, mạch cháy) được hệ thống chọn ngẫu nhiên, không có 2 lần sửa nào giống hệt nhau.
 - ⚖️ **Lựa chọn Chiến lược (Nhanh vs. Kỹ):** Sửa nhanh để kịp khách tiếp theo nhưng rủi ro cao, hay sửa kỹ để đảm bảo uy tín và nhận "tip"? Mỗi quyết định đều ảnh hưởng đến chất lượng sản phẩm cuối cùng.
 - 🇻🇳 **Đậm đà Bản sắc Địa phương:** Lắng nghe tiếng rao ve chai, tiếng mưa rơi rả rích trên mái tôn, giao tiếp với các NPC đặc trưng (bà chủ trọ, sinh viên, khách "đại gia").
@@ -39,10 +39,11 @@ Assets/
 ## 🚀 Hướng dẫn Cài đặt (Getting Started)
 
 1. **Yêu cầu hệ thống:**
-   - Unity Version: *[Sử dụng phiên bản Unity mới nhất mà team thống nhất, VD: 2022.3 LTS]*
+   - Unity Version: _[Sử dụng phiên bản Unity mới nhất mà team thống nhất, VD: 2022.3 LTS]_
    - Git & Git LFS (Bắt buộc phải cài đặt Git LFS cho các file Art/Audio lớn).
 
 2. **Clone dự án:**
+
    ```bash
    git clone <repo-url>
    cd Dev-Game-Unity
@@ -67,7 +68,9 @@ Assets/
 ---
 
 ## 👨‍💻 Đội ngũ Phát triển (The Team)
+
 Dự án được phân chia nhiệm vụ rõ ràng:
+
 - **Người 1 (Core & Setup):** Hạ tầng, Save System, Events.
 - **Người 2 (Player & Tương tác):** Camera FPP, Tương tác cơ bản, Mini-game Diagnosis & Cleaning.
 - **Người 3 (Logic Sửa chữa):** Hệ thống Minigame lõi, Soldering & Rewiring.
@@ -75,4 +78,5 @@ Dự án được phân chia nhiệm vụ rõ ràng:
 - **Người 5 (Tiến trình & Mở rộng):** Skill Tree, Sự kiện, Quản lý thợ phụ.
 
 ---
-*Vui lòng tham khảo các file [GDD](ANH-THO-DIEN-GAME-DESIGN-DOCUMENT.md) và [Tài liệu Cấu trúc](ANH-THO-DIEN-FOLDER-STRUCTURE-TEAM.md) để biết chi tiết thiết kế hệ thống của dự án.*
+
+_Vui lòng tham khảo các file [GDD](ANH-THO-DIEN-GAME-DESIGN-DOCUMENT.md) và [Tài liệu Cấu trúc](ANH-THO-DIEN-FOLDER-STRUCTURE-TEAM.md) để biết chi tiết thiết kế hệ thống của dự án._
