@@ -14,6 +14,7 @@ namespace DevGameUnity.NPC
         public float arrivalDistance = 0.65f;
         public float gravity = -24f;
         public float walkDistance = 20f; // Quãng đường đi thẳng
+        public bool loopPatrol = true; // Đi qua đi lại liên tục
 
         [Header("Delivery")]
         public GameObject deliveryPrefab;
@@ -56,7 +57,7 @@ namespace DevGameUnity.NPC
 
         private void Update()
         {
-            if (delivered)
+            if (delivered && !loopPatrol)
             {
                 ApplyGravity();
                 return;
@@ -67,9 +68,24 @@ namespace DevGameUnity.NPC
 
             if (toTarget.magnitude <= arrivalDistance)
             {
-                DeliverCarriedObject();
-                ApplyGravity();
-                return;
+                if (!delivered && deliveryPrefab != null)
+                {
+                    DeliverCarriedObject();
+                }
+
+                if (loopPatrol)
+                {
+                    var temp = patrolPointA;
+                    patrolPointA = patrolPointB;
+                    patrolPointB = temp;
+                }
+                else
+                {
+                    if (animator != null) animator.speed = 0f;
+                    delivered = true;
+                    ApplyGravity();
+                    return;
+                }
             }
 
             var direction = toTarget.sqrMagnitude > 0.001f ? toTarget.normalized : transform.forward;
@@ -90,10 +106,6 @@ namespace DevGameUnity.NPC
         private void DeliverCarriedObject()
         {
             delivered = true;
-            if (animator != null)
-            {
-                animator.speed = 0f;
-            }
 
             if (deliveryPrefab == null)
             {
