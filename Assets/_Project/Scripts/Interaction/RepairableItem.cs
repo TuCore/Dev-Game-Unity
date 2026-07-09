@@ -1,61 +1,99 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class RepairableItem : MonoBehaviour, IInteractable
+public class RepairableItem : MonoBehaviour
 {
-    [Header("Cấu hình sửa chữa")]
-    [SerializeField] private int difficultyLevel = 1;
-    [SerializeField] private List<string> possibleFaults = new List<string> { "Đứt dây", "Cháy tụ", "Hỏng IC", "Lỏng giắc" };
+    [Header("Minigame Settings")]
+    [Tooltip("Danh sách lỗi có thể xuất hiện trên đồ vật này")]
+    [SerializeField] private List<string> faultPool = new List<string> { "Đứt dây", "Cháy tụ", "Hỏng IC" };
     
-    private MinigameManager _minigameManager;
-    private IMinigame _solderMinigame;
+    [Tooltip("Độ khó của minigame (1 = Dễ, 3 = Khó)")]
+    [Range(1, 5)]
+    [SerializeField] private int difficultyLevel = 1;
 
-    private void Start()
-    {
-        // Tự động tìm hệ thống Minigame trong Scene
-        _minigameManager = FindAnyObjectByType<MinigameManager>();
-        _solderMinigame = FindAnyObjectByType<SolderingMinigame>();
-    }
-
-    public string GetInteractionPrompt()
-    {
-        return $"Nhấn [F] để Sửa {gameObject.name.Replace("Interactable_", "")}";
-    }
-
-    public void Interact()
-    {
-        // Interface yêu cầu có hàm này, nhưng nút F sẽ do RaycastInteract gọi thẳng vào StartRepair()
-    }
+    [Header("Economy")]
+    [Tooltip("Tiền công cơ bản khi sửa xong")]
+    [SerializeField] private float baseReward = 50000f;
 
     public void StartRepair()
     {
-        if (_minigameManager != null && _solderMinigame != null)
+        MinigameManager manager = FindObjectOfType<MinigameManager>();
+        
+        if (manager != null)
         {
-            if (!_minigameManager.IsMinigameActive)
+            if (manager.IsMinigameActive)
             {
-                _minigameManager.StartMinigame(_solderMinigame, possibleFaults, difficultyLevel);
-                
-                // Đăng ký nhận kết quả khi sửa xong
-                _minigameManager.OnMinigameCompleted += OnRepairDone;
+                Debug.Log("Minigame đang chạy rồi, không thể mở thêm!");
+                return;
+            }
+
+            SolderingMinigame solderingGame = FindObjectOfType<SolderingMinigame>(true);
+            
+            if (solderingGame != null)
+            {
+                // Đăng ký sự kiện hoàn thành minigame
+                manager.OnMinigameCompleted += OnRepairDone;
+                manager.StartMinigame(solderingGame, faultPool, difficultyLevel);
             }
             else
             {
-                Debug.Log("Đang có một minigame khác chạy rồi!");
+                Debug.LogError("Không tìm thấy SolderingMinigame trong Scene! Hãy kéo Prefab vào Scene.");
             }
         }
         else
         {
-            Debug.LogWarning("Không tìm thấy MinigameManager hoặc SolderingMinigame trong Scene! Bạn đã kéo UI vào scene chưa?");
+            Debug.LogError("Không tìm thấy MinigameManager trong Scene! Hãy kéo Prefab vào Scene.");
         }
     }
 
     private void OnRepairDone(RepairQuality quality)
     {
-        // Gỡ đăng ký để không bị gọi lặp lại vào lần sau
-        _minigameManager.OnMinigameCompleted -= OnRepairDone;
-        
-        Debug.Log($"Đã sửa xong {gameObject.name} với chất lượng: {quality}");
-        
-        // Gợi ý: Có thể thêm hiệu ứng (Particle System), hoặc đổi material sang mới cứng tại đây
+        // Gỡ event ngay để tránh bị gọi lặp lại vào lần sau
+        MinigameManager manager = FindObjectOfType<MinigameManager>();
+        if (manager != null) manager.OnMinigameCompleted -= OnRepairDone;
+
+        // Tính tiền thưởng dựa trên chất lượng sửa (Pass hết = Perfect)
+        float reward = 0f;
+        switch (quality)
+        {
+            case RepairQuality.Perfect: 
+                reward = baseReward * 1.5f; // Thưởng thêm 50% nếu hoàn hảo
+                break;
+            case RepairQuality.Good: 
+                reward = baseReward; 
+                break;
+            case RepairQuality.Passable: 
+                reward = baseReward * 0.5f; // Bị trừ nửa tiền nếu làm ẩu
+                break;
+            case RepairQuality.Broken: 
+                reward = 0f; // Sửa hỏng thì không có tiền
+                break;
+        }
+
+        if (reward > 0)
+        {
+            // Tìm hoặc tự tạo EconomyManager nếu chưa có
+            EconomyManager economy = FindObjectOfType<EconomyManager>();
+            if (economy == null)
+            {
+                GameObject ecoObj = new GameObject("EconomyManager");
+                economy = ecoObj.AddComponent<EconomyManager>();
+            }
+
+            // Tìm hoặc tự tạo MoneyUI để hiển thị tiền lên màn hình
+            MoneyUI moneyUI = FindObjectOfType<MoneyUI>();
+            if (moneyUI == null)
+            {
+                economy.gameObject.AddComponent<MoneyUI>();
+            }
+
+            // Cộng tiền vào tài khoản
+            economy.AddCash(reward);
+            Debug.Log($"[Tiền công] Sửa thành công ({quality})! Nhận được: {reward} VNĐ");
+        }
+        else
+        {
+            Debug.Log("[Tiền công] Bạn đã làm hỏng món đồ, không nhận được đồng nào!");
+        }
     }
 }

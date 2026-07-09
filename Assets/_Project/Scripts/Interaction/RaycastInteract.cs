@@ -17,6 +17,7 @@ public class RaycastInteract : MonoBehaviour
     private TextMeshProUGUI _promptText;
     private GameObject _placementGhost;
     private float _heldItemRotationOffset = 0f; // Lưu góc xoay tuỳ chỉnh
+    private MinigameManager _minigameManager;
 
     private void Start()
     {
@@ -25,6 +26,8 @@ public class RaycastInteract : MonoBehaviour
         {
             _cam = Camera.main;
         }
+        
+        _minigameManager = FindObjectOfType<MinigameManager>();
 
         // Tự tạo một HoldPosition nếu chưa gán trong Editor
         if (holdPosition == null && _cam != null)
@@ -80,6 +83,16 @@ public class RaycastInteract : MonoBehaviour
         outline.effectColor = Color.black;
         outline.effectDistance = new Vector2(2, -2);
         
+        // Đảm bảo có EconomyManager và MoneyUI ngay từ đầu để hiển thị số tiền luôn
+        if (FindObjectOfType<EconomyManager>() == null)
+        {
+            canvas.gameObject.AddComponent<EconomyManager>();
+        }
+        if (FindObjectOfType<MoneyUI>() == null)
+        {
+            canvas.gameObject.AddComponent<MoneyUI>();
+        }
+
         _promptText.text = "";
     }
 
@@ -109,6 +122,13 @@ public class RaycastInteract : MonoBehaviour
 
     private void Update()
     {
+        // Nếu minigame đang bật thì tắt chữ và cấm nhặt/thả/sửa
+        if (_minigameManager != null && _minigameManager.IsMinigameActive)
+        {
+            if (_promptText != null) _promptText.text = "";
+            return;
+        }
+
         // Xoá text ở đầu mỗi frame
         if (_promptText != null) _promptText.text = "";
 
@@ -190,14 +210,13 @@ public class RaycastInteract : MonoBehaviour
         // 2. Nếu tay đang trống, tìm đồ để nhặt/tương tác
         if (isHit)
         {
+            string promptText = "";
+            
+            // Xử lý đồ vật có thể nhặt/tương tác bằng E
             IInteractable interactable = hit.collider.GetComponent<IInteractable>();
             if (interactable != null)
             {
-                // Hiện gợi ý lên UI
-                if (_promptText != null)
-                {
-                    _promptText.text = interactable.GetInteractionPrompt();
-                }
+                promptText += interactable.GetInteractionPrompt();
                 
                 // Nhấn phím E để tương tác
                 if (Input.GetKeyDown(KeyCode.E))
@@ -208,12 +227,32 @@ public class RaycastInteract : MonoBehaviour
                         pickup.Pickup(holdPosition, heldItemScale);
                         _currentlyHeldItem = pickup;
                         _heldItemRotationOffset = 0f; // Đặt lại góc xoay khi nhặt đồ mới
+                        return; // Đã nhặt thì ngưng xử lý bên dưới
                     }
                     else
                     {
                         interactable.Interact();
                     }
                 }
+            }
+
+            // Xử lý đồ vật có thể sửa chữa bằng F
+            RepairableItem repairable = hit.collider.GetComponent<RepairableItem>();
+            if (repairable != null)
+            {
+                if (!string.IsNullOrEmpty(promptText)) promptText += "\n";
+                promptText += "Nhấn [F] để Sửa chữa";
+                
+                if (Input.GetKeyDown(KeyCode.F))
+                {
+                    repairable.StartRepair();
+                }
+            }
+
+            // Hiển thị chữ lên màn hình
+            if (_promptText != null)
+            {
+                _promptText.text = promptText;
             }
         }
     }

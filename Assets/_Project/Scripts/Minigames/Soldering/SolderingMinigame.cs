@@ -134,8 +134,15 @@ public class SolderingMinigame : MonoBehaviour, IMinigame
         else // Miss
         {
             _misses++;
-            // Tùy chọn: Cho phép thử lại mối hàn này hoặc bỏ qua tăng index
-            _currentJointIndex++;
+            
+            // Fail 1 lần là kết thúc ngay lập tức
+            _isActive = false;
+            if (uiController != null)
+            {
+                uiController.ShowUI(false);
+            }
+            OnMinigameCompleted?.Invoke(RepairQuality.Broken);
+            return; // Ngắt dòng lệnh, không gọi coroutine chạy joint tiếp theo nữa
         }
 
         // Đợi một khoảng ngắn để người chơi thấy hiệu ứng trước khi qua điểm tiếp theo

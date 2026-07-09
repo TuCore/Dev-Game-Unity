@@ -881,7 +881,7 @@ Animator:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 371977409}
   m_Enabled: 1
-  m_Avatar: {fileID: 0}
+  m_Avatar: {fileID: 9000000, guid: 3ea706b6daaabd84f86ef0b9534887a9, type: 3}
   m_Controller: {fileID: 9100000, guid: 9f41e9e7aaa18934e8754c399e4f4715, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
@@ -1337,6 +1337,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1370492619}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1370492622}
   m_SourcePrefab: {fileID: 100100000, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
 --- !u!1 &591375856
 GameObject:
@@ -1574,6 +1577,24 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &829664998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 829664989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a3dcd27d538c4f4087e202b56425dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RepairableItem
+  faultPool:
+  - "\u0110\u1EE9t d\xE2y"
+  - "Ch\xE1y t\u1EE5"
+  - "H\u1ECFng IC"
+  difficultyLevel: 2
+  baseReward: 50000
 --- !u!1 &960095598
 GameObject:
   m_ObjectHideFlags: 0
@@ -2132,6 +2153,24 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1370492622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1370492617}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a3dcd27d538c4f4087e202b56425dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RepairableItem
+  faultPool:
+  - "\u0110\u1EE9t d\xE2y"
+  - "Ch\xE1y t\u1EE5"
+  - "H\u1ECFng IC"
+  difficultyLevel: 4
+  baseReward: 50000
 --- !u!1 &1394189842
 GameObject:
   m_ObjectHideFlags: 0
@@ -2215,6 +2254,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1284730262767229441, guid: 4aee94b329173554c9658d9ccb21625e, type: 3}
+      propertyPath: m_Avatar
+      value: 
+      objectReference: {fileID: 9000000, guid: 4eef7f774c707dd4fb7a153a5f4284d7, type: 3}
     - target: {fileID: 2891698006440303280, guid: 4aee94b329173554c9658d9ccb21625e, type: 3}
       propertyPath: m_LocalScale.x
       value: 3
@@ -2698,6 +2741,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 891155090a95b0849828482ddcf5256c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 829664993}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 891155090a95b0849828482ddcf5256c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 829664998}
   m_SourcePrefab: {fileID: 100100000, guid: 891155090a95b0849828482ddcf5256c, type: 3}
 --- !u!1 &1768113234
 GameObject:

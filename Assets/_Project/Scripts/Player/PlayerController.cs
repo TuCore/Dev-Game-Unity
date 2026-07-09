@@ -68,10 +68,32 @@ public class PlayerController : MonoBehaviour
         _controller.Move(_velocity * Time.deltaTime);
     }
 
+    private bool _wasLocked;
+
     private bool IsGameplayInputLocked()
     {
         CacheMinigameManager();
-        return minigameManager != null && minigameManager.IsMinigameActive;
+        bool isLocked = minigameManager != null && minigameManager.IsMinigameActive;
+
+        if (isLocked)
+        {
+            _wasLocked = true;
+            return true;
+        }
+        else if (_wasLocked)
+        {
+            // Tránh tình trạng nhả minigame ra mà input Space/Chuột vẫn còn dính ở frame đó
+            // Phải đợi người chơi nhả hết phím nhảy/chuột ra thì mới cho phép di chuyển tiếp
+            if (Input.GetButton("Jump") || Input.GetMouseButton(0))
+            {
+                return true;
+            }
+            
+            // Xoá cờ nếu các phím đã được nhả
+            _wasLocked = false;
+        }
+
+        return false;
     }
 
     private void CacheMinigameManager()
@@ -81,6 +103,5 @@ public class PlayerController : MonoBehaviour
             minigameManager = FindAnyObjectByType<MinigameManager>();
         }
     }
-
 }
 
