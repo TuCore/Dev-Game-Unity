@@ -1,5 +1,6 @@
 {
   "dependencies": {
+<<<<<<< Updated upstream
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
       "depth": 0,
@@ -57,6 +58,8 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+=======
+>>>>>>> Stashed changes
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,
