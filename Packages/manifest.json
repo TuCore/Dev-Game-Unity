@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": "file:D:/03_Dev/05_Game/unityMCP/unity-mcp/MCPForUnity",
+    "com.ivanmurzak.unity.mcp": "0.82.4",
+    "com.ivanmurzak.unity.mcp.inputsystem": "1.0.10",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",
     "com.unity.modules.ai": "1.0.0",
@@ -34,6 +35,17 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
-  }
+    "com.unity.modules.xr": "1.0.0",
+    "com.ivanmurzak.unity.mcp.tilemap": "1.0.9"
+  },
+  "scopedRegistries": [
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.ivanmurzak",
+        "extensions.unity"
+      ]
+    }
+  ]
 }

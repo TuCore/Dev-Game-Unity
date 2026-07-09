@@ -1,20 +1,55 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": {
-      "version": "file:D:/03_Dev/05_Game/unityMCP/unity-mcp/MCPForUnity",
+    "com.ivanmurzak.unity.mcp": {
+      "version": "file:com.ivanmurzak.unity.mcp",
       "depth": 0,
-      "source": "local",
+      "source": "embedded",
       "dependencies": {
-        "com.unity.modules.animation": "1.0.0",
-        "com.unity.modules.imageconversion": "1.0.0",
-        "com.unity.modules.physics": "1.0.0",
-        "com.unity.modules.physics2d": "1.0.0",
+        "com.unity.test-framework": "1.1.33",
         "com.unity.modules.uielements": "1.0.0",
-        "com.unity.modules.screencapture": "1.0.0",
-        "com.unity.modules.unitywebrequest": "1.0.0",
-        "com.unity.nuget.newtonsoft-json": "3.0.2",
-        "com.unity.test-framework": "1.1.31"
+        "extensions.unity.playerprefsex": "2.1.5"
       }
+    },
+    "com.ivanmurzak.unity.mcp.inputsystem": {
+      "version": "1.0.10",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.ivanmurzak.unity.mcp": "0.82.4",
+        "com.unity.inputsystem": "1.7.0"
+      },
+      "url": "https://package.openupm.com"
+    },
+    "com.ivanmurzak.unity.mcp.tilemap": {
+      "version": "1.0.9",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.ivanmurzak.unity.mcp": "0.82.4",
+        "com.unity.modules.tilemap": "1.0.0",
+        "com.unity.2d.tilemap.extras": "3.1.3"
+      },
+      "url": "https://package.openupm.com"
+    },
+    "com.unity.2d.tilemap": {
+      "version": "1.0.0",
+      "depth": 2,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.modules.tilemap": "1.0.0",
+        "com.unity.modules.uielements": "1.0.0"
+      }
+    },
+    "com.unity.2d.tilemap.extras": {
+      "version": "6.0.2",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.2d.tilemap": "1.0.0",
+        "com.unity.modules.tilemap": "1.0.0",
+        "com.unity.modules.jsonserialize": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
     },
     "com.unity.ext.nunit": {
       "version": "2.0.5",
@@ -22,11 +57,13 @@
       "source": "builtin",
       "dependencies": {}
     },
-    "com.unity.nuget.newtonsoft-json": {
-      "version": "3.2.2",
+    "com.unity.inputsystem": {
+      "version": "1.19.0",
       "depth": 1,
       "source": "registry",
-      "dependencies": {},
+      "dependencies": {
+        "com.unity.modules.uielements": "1.0.0"
+      },
       "url": "https://packages.unity.com"
     },
     "com.unity.test-framework": {
@@ -38,6 +75,13 @@
         "com.unity.modules.imgui": "1.0.0",
         "com.unity.modules.jsonserialize": "1.0.0"
       }
+    },
+    "extensions.unity.playerprefsex": {
+      "version": "2.1.5",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://package.openupm.com"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
