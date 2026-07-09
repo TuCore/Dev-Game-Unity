@@ -84,13 +84,19 @@ public class RaycastInteract : MonoBehaviour
         outline.effectDistance = new Vector2(2, -2);
         
         // Đảm bảo có EconomyManager và MoneyUI ngay từ đầu để hiển thị số tiền luôn
-        if (FindObjectOfType<EconomyManager>() == null)
+        if (FindFirstObjectByType<EconomyManager>() == null)
         {
             canvas.gameObject.AddComponent<EconomyManager>();
         }
-        if (FindObjectOfType<MoneyUI>() == null)
+        if (FindFirstObjectByType<MoneyUI>() == null)
         {
             canvas.gameObject.AddComponent<MoneyUI>();
+        }
+        
+        // Sinh ra hệ thống Điện thoại (Phone UI)
+        if (FindFirstObjectByType<PhoneUIBuilder>() == null)
+        {
+            canvas.gameObject.AddComponent<PhoneUIBuilder>();
         }
 
         _promptText.text = "";

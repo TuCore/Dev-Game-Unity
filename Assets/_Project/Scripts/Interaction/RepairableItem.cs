@@ -1,9 +1,14 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Minigames.Diagnosis;
+
+public enum MinigameType { Soldering, Diagnosis }
 
 public class RepairableItem : MonoBehaviour
 {
     [Header("Minigame Settings")]
+    [Tooltip("Chọn loại minigame để chơi khi sửa món đồ này")]
+    [SerializeField] private MinigameType minigameToPlay = MinigameType.Soldering;
     [Tooltip("Danh sách lỗi có thể xuất hiện trên đồ vật này")]
     [SerializeField] private List<string> faultPool = new List<string> { "Đứt dây", "Cháy tụ", "Hỏng IC" };
     
@@ -27,17 +32,25 @@ public class RepairableItem : MonoBehaviour
                 return;
             }
 
-            SolderingMinigame solderingGame = FindObjectOfType<SolderingMinigame>(true);
+            IMinigame targetMinigame = null;
+            if (minigameToPlay == MinigameType.Soldering)
+            {
+                targetMinigame = FindObjectOfType<SolderingMinigame>(true);
+            }
+            else if (minigameToPlay == MinigameType.Diagnosis)
+            {
+                targetMinigame = FindObjectOfType<DiagnosisMinigame>(true);
+            }
             
-            if (solderingGame != null)
+            if (targetMinigame != null)
             {
                 // Đăng ký sự kiện hoàn thành minigame
                 manager.OnMinigameCompleted += OnRepairDone;
-                manager.StartMinigame(solderingGame, faultPool, difficultyLevel);
+                manager.StartMinigame(targetMinigame, faultPool, difficultyLevel);
             }
             else
             {
-                Debug.LogError("Không tìm thấy SolderingMinigame trong Scene! Hãy kéo Prefab vào Scene.");
+                Debug.LogError($"Không tìm thấy {minigameToPlay} trong Scene! Hãy kéo Prefab vào Scene.");
             }
         }
         else

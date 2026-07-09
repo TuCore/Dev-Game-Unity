@@ -97,22 +97,22 @@ namespace Minigames.Diagnosis.Editor
                 nodeRect.sizeDelta = new Vector2(50, 50); // Phóng to hơn một chút để dễ bấm
 
                 Image nodeImg = nodeObj.AddComponent<Image>();
-                Color highlightColor = new Color(1f, 0.85f, 0f, 0.65f); // Màu vàng đồng dạ quang 65%
-                nodeImg.color = highlightColor;
+                nodeImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+                Color defaultColor = new Color(1f, 1f, 1f, 0.7f); // Màu trắng đục
+                nodeImg.color = defaultColor;
 
                 Button btn = nodeObj.AddComponent<Button>();
                 DiagnosisNode diagnosisNode = nodeObj.AddComponent<DiagnosisNode>();
                 diagnosisNode.NodeId = $"Node_{i + 1}";
                 
-                // Ép màu mặc định (unprobedColor) của Node thành màu dạ quang để không bị đè về màu trắng mờ
                 SerializedObject so = new SerializedObject(diagnosisNode);
-                so.FindProperty("unprobedColor").colorValue = highlightColor;
+                so.FindProperty("unprobedColor").colorValue = defaultColor;
                 so.ApplyModifiedProperties();
                 
                 allNodes.Add(diagnosisNode);
             }
 
-            // 5. Nút Hoàn Thành nguỵ trang thành dải đồng (Pad)
+            // 5. Nút Hoàn Thành giao diện hiện đại (Minimalist / Sci-Fi)
             GameObject finishBtnObj = new GameObject("FinishDiagnosisButton");
             finishBtnObj.transform.SetParent(boardObj.transform, false);
 
@@ -120,36 +120,46 @@ namespace Minigames.Diagnosis.Editor
             finishRect.anchorMin = new Vector2(0.5f, 0);
             finishRect.anchorMax = new Vector2(0.5f, 0);
             finishRect.pivot = new Vector2(0.5f, 0);
-            finishRect.anchoredPosition = new Vector2(0, 50); // Nằm sát mép dưới bo mạch
-            finishRect.sizeDelta = new Vector2(300, 60);
+            finishRect.anchoredPosition = new Vector2(0, 40); // Sát viền dưới hơn một chút
+            finishRect.sizeDelta = new Vector2(240, 50); // Nhỏ gọn, tinh tế hơn
 
             Image finishImg = finishBtnObj.AddComponent<Image>();
-            finishImg.color = new Color(0.9f, 0.7f, 0.2f); // Màu vàng đồng
+            finishImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            finishImg.type = Image.Type.Sliced;
+            finishImg.color = new Color(0.05f, 0.08f, 0.12f, 0.95f); // Nền xám đen mờ (Dark Minimalist)
+
+            // Viền ngoài (Outline) phát sáng nhẹ
+            UnityEngine.UI.Outline btnOutline = finishBtnObj.AddComponent<UnityEngine.UI.Outline>();
+            btnOutline.effectColor = new Color(0.2f, 0.9f, 0.5f, 0.8f); // Màu xanh lá Neon
+            btnOutline.effectDistance = new Vector2(2, -2);
 
             Button finishBtn = finishBtnObj.AddComponent<Button>();
             finishBtnObj.AddComponent<FinishDiagnosisUIHelper>(); 
 
-            // Text của nút (Chữ in lụa trắng)
-            GameObject textObj = new GameObject("SilkscreenText");
+            // Text của nút chuyển sang dùng TextMeshProUGUI
+            GameObject textObj = new GameObject("TextTMP");
             textObj.transform.SetParent(finishBtnObj.transform, false);
             
-            Text txt = textObj.AddComponent<Text>();
-            txt.text = "DIAGNOSIS COMPLETE";
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            txt.fontSize = 24;
-            txt.fontStyle = FontStyle.Bold;
-            txt.alignment = TextAnchor.MiddleCenter;
-            txt.color = new Color(1f, 1f, 1f, 0.9f); 
+            TMPro.TextMeshProUGUI txt = textObj.AddComponent<TMPro.TextMeshProUGUI>();
+            txt.text = "<b>HOÀN THÀNH</b>"; // Bỏ ký tự ✓ gây lỗi font
+            txt.alignment = TMPro.TextAlignmentOptions.Center;
+            txt.color = new Color(0.2f, 0.9f, 0.5f, 1f); // Cùng màu viền (Neon Green)
+            txt.fontSize = 22; // Chữ nhỏ gọn, sắc nét
+            txt.characterSpacing = 2f; // Kéo dãn khoảng cách chữ cho hiện đại
             
             RectTransform textRect = textObj.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
             textRect.sizeDelta = Vector2.zero;
 
+            // Thêm viền mờ cho chữ (Glow)
+            UnityEngine.UI.Shadow textShadow = textObj.AddComponent<UnityEngine.UI.Shadow>();
+            textShadow.effectColor = new Color(0.2f, 0.9f, 0.5f, 0.3f);
+            textShadow.effectDistance = new Vector2(0, 0);
+
             // 6. Tạo Manager
             GameObject managerObj = new GameObject("DiagnosisManager");
             DiagnosisMinigame minigameScript = managerObj.AddComponent<DiagnosisMinigame>();
-            managerObj.AddComponent<DemoMinigameRunner>();
 
             // Nối dây
             SerializedObject serializedManager = new SerializedObject(minigameScript);

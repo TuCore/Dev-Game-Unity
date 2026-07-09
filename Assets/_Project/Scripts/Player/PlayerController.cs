@@ -73,7 +73,8 @@ public class PlayerController : MonoBehaviour
     private bool IsGameplayInputLocked()
     {
         CacheMinigameManager();
-        bool isLocked = minigameManager != null && minigameManager.IsMinigameActive;
+        bool isLocked = (minigameManager != null && minigameManager.IsMinigameActive) || 
+                        (PhoneManager.Instance != null && PhoneManager.Instance.IsPhoneOpen);
 
         if (isLocked)
         {
