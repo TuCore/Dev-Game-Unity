@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System;
+using TMPro;
 
 namespace Minigames.Diagnosis
 {
@@ -23,10 +24,13 @@ namespace Minigames.Diagnosis
         [SerializeField] private string nodeId;
         
         [Header("Visual Feedback")]
-        [SerializeField] private Color unprobedColor = Color.white;
+        [SerializeField] private Color unprobedColor = new Color(1f, 1f, 1f, 0.7f); // Trắng đục
         [SerializeField] private Color normalColor = Color.green;
         [SerializeField] private Color warningColor = Color.yellow;
         [SerializeField] private Color faultColor = Color.red;
+
+        [Header("UI Elements")]
+        [SerializeField] private TextMeshProUGUI numberText;
 
         // Cho 2D UI
         private Image _nodeImage;
@@ -41,6 +45,9 @@ namespace Minigames.Diagnosis
         public string NodeId { get => nodeId; set => nodeId = value; }
         public NodeState CurrentState => _currentState;
         public bool HasFault => _hasFault;
+        public int NodeNumber { get => _nodeNumber; }
+        
+        private int _nodeNumber;
 
         public event Action<DiagnosisNode> OnNodeProbed;
 
@@ -57,11 +64,41 @@ namespace Minigames.Diagnosis
             }
         }
 
-        public void Setup(string id, bool hasFault)
+        public void Setup(string id, bool hasFault, int number)
         {
             this.nodeId = id;
             this._hasFault = hasFault;
             this._currentState = NodeState.Unprobed;
+            this._nodeNumber = number;
+            
+            // Ép cứng lại màu trắng đục (bỏ qua màu vàng đã lưu trong Scene)
+            this.unprobedColor = new Color(1f, 1f, 1f, 0.7f);
+            
+            if (numberText == null)
+            {
+                GameObject textObj = new GameObject("NumberText_AutoCreated");
+                textObj.transform.SetParent(this.transform, false);
+                numberText = textObj.AddComponent<TextMeshProUGUI>();
+                numberText.alignment = TextAlignmentOptions.Center;
+                numberText.fontSize = 32;
+                numberText.color = Color.black;
+                numberText.raycastTarget = false; // Tránh block click của Node
+                
+                RectTransform rt = textObj.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = Vector2.zero;
+                    rt.anchorMax = Vector2.one;
+                    rt.sizeDelta = Vector2.zero;
+                    rt.anchoredPosition = Vector2.zero;
+                }
+            }
+            
+            if (numberText != null)
+            {
+                numberText.text = number.ToString();
+            }
+            
             UpdateVisuals();
         }
 

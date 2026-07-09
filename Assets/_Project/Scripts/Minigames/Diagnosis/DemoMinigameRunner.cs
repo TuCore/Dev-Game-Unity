@@ -30,30 +30,37 @@ namespace Minigames.Diagnosis
             if (minigame != null)
             {
                 minigame.OnMinigameFinished += HandleMinigameFinished;
-                Debug.Log("<color=green>[Demo] Đã sẵn sàng! Bấm phím SPACE để gọi khách hàng giả và bắt đầu chơi.</color>");
+                Debug.Log("<color=green>[Demo] Đã sẵn sàng! Bấm phím P để gọi khách hàng giả và bắt đầu chơi.</color>");
             }
         }
 
         private void Update()
         {
             // Nhấn Space để gọi Minigame
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Input.GetKeyDown(KeyCode.P))
             {
                 if (minigame != null && !minigame.IsActive)
                 {
                     Debug.Log("<color=yellow>[Demo] Khởi động Minigame với các lỗi giả lập...</color>");
-                    
                     List<string> faultsToInject = mockFaults;
                     if (randomizeFaults)
                     {
                         faultsToInject = GenerateRandomFaults(randomFaultCount);
                     }
                     
-                    // Khởi tạo minigame với danh sách lỗi
-                    minigame.Initialize(faultsToInject, 2); 
-                    
-                    // Kích hoạt minigame
-                    minigame.StartMinigame();
+                    MinigameManager manager = FindAnyObjectByType<MinigameManager>();
+                    if (manager != null)
+                    {
+                        manager.StartMinigame(minigame, faultsToInject, 2);
+                    }
+                    else
+                    {
+                        // Khởi tạo minigame với danh sách lỗi (fallback)
+                        minigame.Initialize(faultsToInject, 2); 
+                        
+                        // Kích hoạt minigame
+                        minigame.StartMinigame();
+                    }
                 }
             }
         }
@@ -82,11 +89,40 @@ namespace Minigames.Diagnosis
             return randomFaults;
         }
 
-        // Hàm này sẽ tự động chạy khi người chơi bấm nút "Hoàn Thành" trong Minigame
         private void HandleMinigameFinished(RepairQuality quality)
         {
             Debug.Log($"<color=cyan>[Demo] Nhận được kết quả từ Minigame: {quality}! Tiền công sẽ được tính toán ở đây.</color>");
-            Debug.Log("<color=green>[Demo] Bạn có thể bấm SPACE để chơi ván mới.</color>");
+            
+            // Giả lập cộng tiền cho người dùng test
+            float reward = 0f;
+            float baseReward = 50000f;
+            switch (quality)
+            {
+                case RepairQuality.Perfect: reward = baseReward * 1.5f; break;
+                case RepairQuality.Good: reward = baseReward; break;
+                case RepairQuality.Passable: reward = baseReward * 0.5f; break;
+            }
+            
+            if (reward > 0)
+            {
+                EconomyManager economy = FindAnyObjectByType<EconomyManager>();
+                if (economy == null)
+                {
+                    GameObject ecoObj = new GameObject("EconomyManager");
+                    economy = ecoObj.AddComponent<EconomyManager>();
+                }
+                
+                MoneyUI moneyUI = FindAnyObjectByType<MoneyUI>();
+                if (moneyUI == null)
+                {
+                    economy.gameObject.AddComponent<MoneyUI>();
+                }
+                
+                economy.AddCash(reward);
+                Debug.Log($"<color=yellow>[Demo] Đã cộng {reward} VNĐ vào quỹ!</color>");
+            }
+
+            Debug.Log("<color=green>[Demo] Bạn có thể bấm P để chơi ván mới.</color>");
         }
 
         private void OnDestroy()
