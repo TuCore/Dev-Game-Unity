@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class Workbench : MonoBehaviour, IInteractable
 {
-    public string GetInteractPrompt()
+    public string GetInteractionPrompt()
     {
         return "Bấm E hoặc Click để Sửa Đồ";
     }
