@@ -44,7 +44,8 @@ public class PlayerCamera : MonoBehaviour
     private bool IsGameplayInputLocked()
     {
         CacheMinigameManager();
-        return minigameManager != null && minigameManager.IsMinigameActive;
+        return (minigameManager != null && minigameManager.IsMinigameActive) || 
+               (PhoneManager.Instance != null && PhoneManager.Instance.IsPhoneOpen);
     }
 
     private void CacheMinigameManager()
