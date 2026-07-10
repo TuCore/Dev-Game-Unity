@@ -24,8 +24,27 @@ public class RepairableItem : MonoBehaviour
     [Tooltip("Tiền công cơ bản khi sửa xong")]
     [SerializeField] private float baseReward = 50000f;
 
+    [Header("Repair Limits")]
+    [Tooltip("Số lần tối đa có thể sửa món đồ này. Đặt lớn hơn 1 nếu muốn cho phép sửa nhiều lần.")]
+    [SerializeField] private int maxRepairs = 1;
+    
+    private int _currentRepairs = 0;
+
+    public bool CanBeRepaired()
+    {
+        return _currentRepairs < maxRepairs;
+    }
+
     public void StartRepair()
     {
+        if (!CanBeRepaired())
+        {
+            Debug.Log("Món đồ này đã được sửa xong, không thể sửa thêm!");
+            if (ToastNotificationManager.Instance != null)
+                ToastNotificationManager.Instance.ShowToast("Món đồ này đã được sửa xong!", 2f);
+            return;
+        }
+
         if (!HasRequiredParts())
         {
             Debug.Log("Không đủ linh kiện để sửa chữa!");
@@ -138,6 +157,8 @@ public class RepairableItem : MonoBehaviour
 
     private void OnRepairDone(RepairQuality quality)
     {
+        _currentRepairs++;
+
         // Gỡ event ngay để tránh bị gọi lặp lại vào lần sau
         MinigameManager manager = FindObjectOfType<MinigameManager>();
         if (manager != null) manager.OnMinigameCompleted -= OnRepairDone;
@@ -147,20 +168,33 @@ public class RepairableItem : MonoBehaviour
 
         // Tính tiền thưởng dựa trên chất lượng sửa (Pass hết = Perfect)
         float reward = 0f;
+        string ratingText = "";
         switch (quality)
         {
             case RepairQuality.Perfect: 
                 reward = baseReward * 1.5f; // Thưởng thêm 50% nếu hoàn hảo
+                ratingText = "Tuyệt vời! [S+]";
                 break;
             case RepairQuality.Good: 
                 reward = baseReward; 
+                ratingText = "Khá tốt! [A]";
                 break;
             case RepairQuality.Passable: 
                 reward = baseReward * 0.5f; // Bị trừ nửa tiền nếu làm ẩu
+                ratingText = "Tạm được! [C]";
                 break;
             case RepairQuality.Broken: 
                 reward = 0f; // Sửa hỏng thì không có tiền
+                ratingText = "Làm hỏng đồ rồi! [F]";
                 break;
+        }
+
+        if (ToastNotificationManager.Instance != null)
+        {
+            if (reward > 0)
+                ToastNotificationManager.Instance.ShowToast($"Đánh giá: {ratingText}\nKhách trả {reward:N0} đ!", 4f);
+            else
+                ToastNotificationManager.Instance.ShowToast($"Đánh giá: {ratingText}\nKhách giận bỏ đi không trả đồng nào!", 4f);
         }
 
         if (reward > 0)
@@ -190,3 +224,5 @@ public class RepairableItem : MonoBehaviour
         }
     }
 }
+
+// Trigger recompile

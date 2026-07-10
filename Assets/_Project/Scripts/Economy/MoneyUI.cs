@@ -69,12 +69,61 @@ public class MoneyUI : MonoBehaviour
         }
     }
 
+    private float _lastCash = -1f;
+
     private void UpdateMoneyText(float currentCash)
     {
+        if (_lastCash >= 0 && currentCash != _lastCash)
+        {
+            float diff = currentCash - _lastCash;
+            SpawnFloatingText(diff);
+        }
+
+        _lastCash = currentCash;
+
         if (_moneyText != null)
         {
             _moneyText.text = $"Tiền: {currentCash:N0} VNĐ";
         }
+    }
+
+    private void SpawnFloatingText(float amount)
+    {
+        if (_moneyText == null) return;
+
+        GameObject floatObj = new GameObject("FloatingText");
+        floatObj.transform.SetParent(_moneyText.transform.parent, false);
+
+        RectTransform rect = floatObj.AddComponent<RectTransform>();
+        rect.anchorMin = _moneyText.rectTransform.anchorMin;
+        rect.anchorMax = _moneyText.rectTransform.anchorMax;
+        rect.pivot = _moneyText.rectTransform.pivot;
+        
+        // Vị trí xuất phát thấp hơn tiền hiện tại một chút
+        rect.anchoredPosition = _moneyText.rectTransform.anchoredPosition + new Vector2(0, -50);
+        rect.sizeDelta = new Vector2(400, 60);
+
+        TextMeshProUGUI floatText = floatObj.AddComponent<TextMeshProUGUI>();
+        floatText.fontSize = 36;
+        floatText.alignment = TextAlignmentOptions.Right;
+        floatText.fontStyle = FontStyles.Bold;
+
+        if (amount > 0)
+        {
+            floatText.text = $"+{amount:N0} đ";
+            floatText.color = new Color(0.2f, 1f, 0.2f); // Xanh lá
+        }
+        else
+        {
+            floatText.text = $"{amount:N0} đ";
+            floatText.color = new Color(1f, 0.2f, 0.2f); // Đỏ
+        }
+
+        UnityEngine.UI.Outline outline = floatObj.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = Color.black;
+        outline.effectDistance = new Vector2(2, -2);
+
+        floatObj.AddComponent<FloatingTextAnim>();
     }
 
     private void OnDestroy()
@@ -85,3 +134,5 @@ public class MoneyUI : MonoBehaviour
         }
     }
 }
+
+// Trigger recompile

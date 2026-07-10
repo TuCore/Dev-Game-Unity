@@ -49,6 +49,13 @@ namespace Minigames.Diagnosis
 
         private void Awake()
         {
+            // Tự động tìm Canvas nếu người thiết kế quên gán reference hoặc bị mất
+            if (minigameBoardUI == null)
+            {
+                Canvas c = GetComponentInChildren<Canvas>();
+                if (c != null) minigameBoardUI = c.gameObject;
+            }
+
             // Đảm bảo tắt UI board khi mới bắt đầu game
             if (minigameBoardUI != null)
                 minigameBoardUI.SetActive(false);
@@ -480,7 +487,11 @@ namespace Minigames.Diagnosis
         /// </summary>
         public void FinishDiagnosis()
         {
-            if (!IsActive) return;
+            if (!IsActive) 
+            {
+                if (minigameBoardUI != null) minigameBoardUI.SetActive(false);
+                return;
+            }
 
             IsActive = false;
 

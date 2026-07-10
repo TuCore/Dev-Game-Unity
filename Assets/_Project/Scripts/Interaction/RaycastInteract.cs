@@ -165,10 +165,8 @@ public class RaycastInteract : MonoBehaviour
 
             if (_promptText != null)
             {
-                if (isHit)
-                    _promptText.text = "Nhấn [E] Đặt | Lăn chuột để Xoay";
-                else
-                    _promptText.text = "Nhấn [E] Thả | Lăn chuột để Xoay";
+                string t = isHit ? "Nhấn [E] Đặt | Lăn chuột để Xoay" : "Nhấn [E] Thả | Lăn chuột để Xoay";
+                if (_promptText.text != t) _promptText.text = t;
             }
 
             // === TẠO BÓNG MỜ XANH (GHOST) ===
@@ -255,13 +253,17 @@ public class RaycastInteract : MonoBehaviour
             {
                 if (!string.IsNullOrEmpty(promptText)) promptText += "\n";
                 
-                if (repairable.HasRequiredParts())
+                if (!repairable.CanBeRepaired())
+                {
+                    promptText += "<color=#AAAAAA>Món đồ này đã sửa xong (Không thể sửa thêm)</color>";
+                }
+                else if (repairable.HasRequiredParts())
                 {
                     promptText += "<color=#00FF00>Nhấn [F] để Sửa chữa (Đủ đồ)</color>";
                 }
                 else
                 {
-                    promptText += $"<color=#FF4444>Chưa thể sửa ({repairable.GetMissingPartsText()})</color>";
+                    promptText += $"<color=#FF0000>Thiếu: {repairable.GetMissingPartsText()}</color>";
                 }
                 
                 if (Input.GetKeyDown(KeyCode.F))
@@ -274,7 +276,10 @@ public class RaycastInteract : MonoBehaviour
         // Luôn cập nhật (hoặc xóa) chữ hiển thị trên màn hình
         if (_promptText != null)
         {
-            _promptText.text = promptText;
+            if (_promptText.text != promptText)
+            {
+                _promptText.text = promptText;
+            }
         }
     }
 

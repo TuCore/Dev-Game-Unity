@@ -14,6 +14,10 @@ public class DeliveryBox : MonoBehaviour, IInteractable
         InventoryManager.Instance.AddItem(itemName, 1);
         
         Debug.Log($"[Shopee] Đã nhận được {itemName} từ kiện hàng!");
+        if (ToastNotificationManager.Instance != null)
+        {
+            ToastNotificationManager.Instance.ShowToast($"Đã cất {itemName} vào kho linh kiện!", 3f);
+        }
         
         // Sinh ra một chút hạt (particles) nổ hoặc âm thanh nếu có
         

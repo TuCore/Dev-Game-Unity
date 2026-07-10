@@ -18,10 +18,12 @@ public class ShopApp : BaseApp
             _economy.SpendCash(price);
             SpawnDeliveryBox(itemName);
             Debug.Log($"[S-Market] Đã thanh toán {price:N0}đ. Hàng ({itemName}) đang được giao tới!");
+            ToastNotificationManager.Instance.ShowToast($"[S-Market] Kiện hàng chứa {itemName} đang được giao tới cửa!", 4f);
         }
         else
         {
             Debug.Log($"[S-Market] Bạn không đủ {price:N0}đ để mua {itemName}!");
+            ToastNotificationManager.Instance.ShowToast($"Thẻ của bạn không đủ tiền để mua {itemName}!", 3f);
         }
     }
 
