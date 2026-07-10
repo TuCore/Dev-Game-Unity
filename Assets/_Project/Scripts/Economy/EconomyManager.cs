@@ -14,6 +14,10 @@ public class EconomyManager : MonoBehaviour
     [SerializeField] private float dailyElectricity = 5000f;  // Tiền điện
     [SerializeField] private float dailyWater = 3000f;        // Tiền nước
 
+    public float DailyRent => dailyRent;
+    public float DailyElectricity => dailyElectricity;
+    public float DailyWater => dailyWater;
+
     private float _currentCash;
 
     public float CurrentCash => _currentCash;
