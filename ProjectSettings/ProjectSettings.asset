@@ -686,14 +686,13 @@ PlayerSettings:
     PS5: UNITY_MCP_READY
     QNX: UNITY_MCP_READY
     Server: UNITY_MCP_READY
-    Standalone: UNITY_MCP_READY
+    Standalone: UNITY_MCP_READY;SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
     VisionOS: UNITY_MCP_READY
     WebGL: UNITY_MCP_READY
     Windows Store Apps: UNITY_MCP_READY
     XboxOne: UNITY_MCP_READY
     iPhone: UNITY_MCP_READY
     tvOS: UNITY_MCP_READY
-    Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

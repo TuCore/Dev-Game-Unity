@@ -27,8 +27,8 @@ public class PlayerCamera : MonoBehaviour
             return;
         }
 
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * 0.02f;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * 0.02f;
 
         // Tính toán góc xoay dọc (pitch)
         xRotation -= mouseY;
