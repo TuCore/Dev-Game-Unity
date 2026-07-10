@@ -221,10 +221,10 @@ public class RaycastInteract : MonoBehaviour
         }
 
         // 2. Nếu tay đang trống, tìm đồ để nhặt/tương tác
+        string promptText = "";
+        
         if (isHit)
         {
-            string promptText = "";
-            
             // Xử lý đồ vật có thể nhặt/tương tác bằng E
             IInteractable interactable = hit.collider.GetComponent<IInteractable>();
             if (interactable != null)
@@ -269,12 +269,21 @@ public class RaycastInteract : MonoBehaviour
                     repairable.StartRepair();
                 }
             }
+        }
 
-            // Hiển thị chữ lên màn hình
-            if (_promptText != null)
-            {
-                _promptText.text = promptText;
-            }
+        // Luôn cập nhật (hoặc xóa) chữ hiển thị trên màn hình
+        if (_promptText != null)
+        {
+            _promptText.text = promptText;
+        }
+    }
+
+    private void OnDisable()
+    {
+        // Xóa sạch chữ trên màn hình khi chuyển cảnh (script bị hủy/tắt)
+        if (_promptText != null)
+        {
+            _promptText.text = "";
         }
     }
 }

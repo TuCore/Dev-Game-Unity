@@ -6,6 +6,9 @@ using UnityEngine;
 /// </summary>
 public class EconomyManager : MonoBehaviour
 {
+    public static EconomyManager Instance { get; private set; }
+
+
     [Header("Cấu hình Kinh tế")]
     [SerializeField] private float startingCash = 50000f;   // VNĐ khởi đầu
 
@@ -32,6 +35,15 @@ public class EconomyManager : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this.gameObject);
+            return;
+        }
+        
+        Instance = this;
+        DontDestroyOnLoad(this.gameObject);
+
         _currentCash = startingCash;
     }
 
