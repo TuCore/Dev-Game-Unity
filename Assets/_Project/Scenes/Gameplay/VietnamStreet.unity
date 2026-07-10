@@ -705,6 +705,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCamera
   mouseSensitivity: 100
+  cameraHeight: 3
   playerBody: {fileID: 1989485079}
   minigameManager: {fileID: 0}
 --- !u!114 &192126853
@@ -2529,6 +2530,7 @@ MonoBehaviour:
   difficultyLevel: 2
   requiredParts: []
   baseReward: 50000
+  maxRepairs: 1
 --- !u!1 &960095598
 GameObject:
   m_ObjectHideFlags: 0
@@ -3415,6 +3417,7 @@ MonoBehaviour:
   difficultyLevel: 4
   requiredParts: []
   baseReward: 50000
+  maxRepairs: 1
 --- !u!1 &1394189842
 GameObject:
   m_ObjectHideFlags: 0
