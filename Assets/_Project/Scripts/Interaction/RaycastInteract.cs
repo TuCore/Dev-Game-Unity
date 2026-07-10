@@ -99,6 +99,13 @@ public class RaycastInteract : MonoBehaviour
             canvas.gameObject.AddComponent<PhoneUIBuilder>();
         }
 
+        // Sinh ra hệ thống Kho đồ (Inventory UI)
+        if (FindFirstObjectByType<InventoryManager>() == null)
+        {
+            GameObject invObj = new GameObject("InventoryManager");
+            invObj.AddComponent<InventoryManager>();
+        }
+
         _promptText.text = "";
     }
 
@@ -247,7 +254,15 @@ public class RaycastInteract : MonoBehaviour
             if (repairable != null)
             {
                 if (!string.IsNullOrEmpty(promptText)) promptText += "\n";
-                promptText += "Nhấn [F] để Sửa chữa";
+                
+                if (repairable.HasRequiredParts())
+                {
+                    promptText += "<color=#00FF00>Nhấn [F] để Sửa chữa (Đủ đồ)</color>";
+                }
+                else
+                {
+                    promptText += $"<color=#FF4444>Chưa thể sửa ({repairable.GetMissingPartsText()})</color>";
+                }
                 
                 if (Input.GetKeyDown(KeyCode.F))
                 {

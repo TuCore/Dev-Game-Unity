@@ -261,6 +261,35 @@ public class PhoneUIBuilder : MonoBehaviour
 
         CreateAppIcon(appsGrid.transform, "Tin Nhắn", "chat.png", phoneManager, chatApp);
 
+        // 5. Shop App (S-Market)
+        ShopApp shopApp = CreateAppScreen<ShopApp>("ShopAppScreen", screenObj.transform, "S-Market", new Color(0.12f, 0.05f, 0.02f));
+        GameObject shopContent = CreateUIObject("Content", shopApp.transform);
+        RectTransform scRect = shopContent.GetComponent<RectTransform>();
+        scRect.anchorMin = new Vector2(0, 0); scRect.anchorMax = new Vector2(1, 1);
+        scRect.offsetMin = new Vector2(20, 20); scRect.offsetMax = new Vector2(-20, -100);
+        VerticalLayoutGroup shopLayout = shopContent.AddComponent<VerticalLayoutGroup>();
+        shopLayout.spacing = 15; shopLayout.childControlHeight = false; shopLayout.childForceExpandHeight = false;
+        shopLayout.childControlWidth = false; shopLayout.childForceExpandWidth = false;
+
+        CreateShopItem(shopContent.transform, "Tụ điện", 50000, shopApp);
+        CreateShopItem(shopContent.transform, "Dây đồng", 20000, shopApp);
+        CreateShopItem(shopContent.transform, "Băng keo đen", 10000, shopApp);
+
+        CreateAppIcon(appsGrid.transform, "Shopee", "shop.png", phoneManager, shopApp);
+
+        // 6. Inventory App (Kho Đồ)
+        InventoryApp invApp = CreateAppScreen<InventoryApp>("InventoryAppScreen", screenObj.transform, "Kho Đồ", new Color(0.1f, 0.05f, 0.15f));
+        GameObject invContent = CreateUIObject("Content", invApp.transform);
+        RectTransform icRect = invContent.GetComponent<RectTransform>();
+        icRect.anchorMin = new Vector2(0, 0); icRect.anchorMax = new Vector2(1, 1);
+        icRect.offsetMin = new Vector2(20, 20); icRect.offsetMax = new Vector2(-20, -100);
+        
+        TextMeshProUGUI invTxt = CreateTextObj("InvText", invContent.transform, "", 16, TextAlignmentOptions.TopLeft).GetComponent<TextMeshProUGUI>();
+        invTxt.gameObject.SetActive(true);
+        invApp.inventoryText = invTxt;
+        
+        CreateAppIcon(appsGrid.transform, "Kho Đồ", "inventory.png", phoneManager, invApp);
+
         // Đẩy các phần tử phần cứng lên trên cùng để che App (Z-Order)
         island.transform.SetAsLastSibling();
         statusTime.transform.SetAsLastSibling();
@@ -430,6 +459,32 @@ public class PhoneUIBuilder : MonoBehaviour
         {
             field.SetValue(obj, value);
         }
+    }
+
+    private void CreateShopItem(Transform parent, string title, float price, ShopApp shopApp)
+    {
+        GameObject item = CreateCard(parent, new Vector2(360, 70), new Color(0.15f, 0.15f, 0.18f), 12);
+        
+        CreateTextObj("Title", item.transform, title, 18, TextAlignmentOptions.Left, true, new Vector2(20, 0), new Vector2(100, 0));
+        
+        GameObject valObj = CreateTextObj("Value", item.transform, price.ToString("N0") + "đ", 18, TextAlignmentOptions.Right, true, new Vector2(-110, 0), new Vector2(-110, 0));
+        valObj.GetComponent<TextMeshProUGUI>().color = new Color(1f, 0.5f, 0f);
+
+        // Buy Button
+        GameObject btnObj = CreateCard(item.transform, new Vector2(75, 40), Color.white, 8);
+        UIGradient btnGrad = btnObj.AddComponent<UIGradient>();
+        btnGrad.color1 = new Color(1f, 0.4f, 0f);
+        btnGrad.color2 = new Color(1f, 0.7f, 0f);
+        btnGrad.angle = 90f;
+        
+        RectTransform btnRect = btnObj.GetComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(1, 0.5f); btnRect.anchorMax = new Vector2(1, 0.5f);
+        btnRect.pivot = new Vector2(1, 0.5f); btnRect.anchoredPosition = new Vector2(-15, 0);
+        
+        CreateTextObj("Txt", btnObj.transform, "Mua", 16, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>().fontStyle = FontStyles.Bold;
+        
+        UnityEngine.UI.Button btn = btnObj.AddComponent<UnityEngine.UI.Button>();
+        btn.onClick.AddListener(() => shopApp.BuyItem(title, price));
     }
 
     private GameObject CreateCard(Transform parent, Vector2 size, Color bgColor, int radius = 15)

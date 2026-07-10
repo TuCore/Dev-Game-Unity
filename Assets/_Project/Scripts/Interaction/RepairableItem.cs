@@ -16,12 +16,22 @@ public class RepairableItem : MonoBehaviour
     [Range(1, 5)]
     [SerializeField] private int difficultyLevel = 1;
 
+    [Header("Requirements")]
+    [Tooltip("Danh sách linh kiện cần có (Ghi đúng tên, VD: Tụ điện, Dây đồng)")]
+    public List<string> requiredParts = new List<string>();
+
     [Header("Economy")]
     [Tooltip("Tiền công cơ bản khi sửa xong")]
     [SerializeField] private float baseReward = 50000f;
 
     public void StartRepair()
     {
+        if (!HasRequiredParts())
+        {
+            Debug.Log("Không đủ linh kiện để sửa chữa!");
+            return;
+        }
+
         MinigameManager manager = FindObjectOfType<MinigameManager>();
         
         if (manager != null)
@@ -59,11 +69,81 @@ public class RepairableItem : MonoBehaviour
         }
     }
 
+    public bool HasRequiredParts()
+    {
+        if (requiredParts == null || requiredParts.Count == 0) return true;
+        
+        Dictionary<string, int> requirements = new Dictionary<string, int>();
+        foreach(var part in requiredParts) 
+        {
+            if (string.IsNullOrWhiteSpace(part)) continue;
+            
+            if (requirements.ContainsKey(part)) requirements[part]++;
+            else requirements[part] = 1;
+        }
+        
+        if (InventoryManager.Instance == null) return false;
+
+        foreach(var kvp in requirements) 
+        {
+            if (!InventoryManager.Instance.HasItem(kvp.Key, kvp.Value)) return false;
+        }
+        return true;
+    }
+
+    public string GetMissingPartsText()
+    {
+        if (requiredParts == null || requiredParts.Count == 0) return "";
+        
+        Dictionary<string, int> requirements = new Dictionary<string, int>();
+        foreach(var part in requiredParts) 
+        {
+            if (string.IsNullOrWhiteSpace(part)) continue;
+
+            if (requirements.ContainsKey(part)) requirements[part]++;
+            else requirements[part] = 1;
+        }
+
+        List<string> missing = new List<string>();
+        foreach(var kvp in requirements) 
+        {
+            if (InventoryManager.Instance == null || !InventoryManager.Instance.HasItem(kvp.Key, kvp.Value))
+            {
+                missing.Add($"{kvp.Value}x {kvp.Key}");
+            }
+        }
+        
+        if (missing.Count > 0) return "Thiếu: " + string.Join(", ", missing);
+        return "";
+    }
+
+    private void ConsumeRequiredParts()
+    {
+        if (requiredParts == null || requiredParts.Count == 0) return;
+        
+        Dictionary<string, int> requirements = new Dictionary<string, int>();
+        foreach(var part in requiredParts) 
+        {
+            if (string.IsNullOrWhiteSpace(part)) continue;
+
+            if (requirements.ContainsKey(part)) requirements[part]++;
+            else requirements[part] = 1;
+        }
+
+        foreach(var kvp in requirements) 
+        {
+            InventoryManager.Instance.ConsumeItem(kvp.Key, kvp.Value);
+        }
+    }
+
     private void OnRepairDone(RepairQuality quality)
     {
         // Gỡ event ngay để tránh bị gọi lặp lại vào lần sau
         MinigameManager manager = FindObjectOfType<MinigameManager>();
         if (manager != null) manager.OnMinigameCompleted -= OnRepairDone;
+
+        // Trừ linh kiện sau khi đã tham gia sửa (hoặc trừ trước tuỳ design, ở đây trừ sau khi sửa xong)
+        ConsumeRequiredParts();
 
         // Tính tiền thưởng dựa trên chất lượng sửa (Pass hết = Perfect)
         float reward = 0f;
