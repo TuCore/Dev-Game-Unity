@@ -97,7 +97,6 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
     [SerializeField] private float quickWorkMultiplier = 1.6f;
     [SerializeField] private float thoroughWorkMultiplier = 1f;
     [SerializeField] private float quickQualityPenalty = 0.18f;
-    [SerializeField] private float mistakePenalty = 0.12f;
     [SerializeField] private float perfectCompletionThreshold = 0.98f;
     [SerializeField] private float goodCompletionThreshold = 0.82f;
     [SerializeField] private float passableCompletionThreshold = 0.55f;
@@ -339,7 +338,6 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
     private RepairQuality CalculateRepairQuality()
     {
         float score = CompletionRatio;
-        score -= _mistakes * mistakePenalty;
 
         if (cleaningMode == CleaningMode.Quick)
         {
@@ -347,7 +345,18 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
         }
 
         score = Mathf.Clamp01(score);
+        RepairQuality quality = GetQualityForScore(score);
 
+        for (int i = 0; i < _mistakes; i++)
+        {
+            quality = DowngradeQuality(quality);
+        }
+
+        return quality;
+    }
+
+    private RepairQuality GetQualityForScore(float score)
+    {
         if (score >= perfectCompletionThreshold)
         {
             return RepairQuality.Perfect;
@@ -364,5 +373,16 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
         }
 
         return RepairQuality.Broken;
+    }
+
+    private RepairQuality DowngradeQuality(RepairQuality quality)
+    {
+        return quality switch
+        {
+            RepairQuality.Perfect => RepairQuality.Good,
+            RepairQuality.Good => RepairQuality.Passable,
+            RepairQuality.Passable => RepairQuality.Broken,
+            _ => RepairQuality.Broken
+        };
     }
 }
