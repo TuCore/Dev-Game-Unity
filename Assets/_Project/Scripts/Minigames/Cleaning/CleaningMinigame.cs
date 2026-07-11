@@ -98,8 +98,12 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
     [SerializeField] private float thoroughWorkMultiplier = 1f;
     [SerializeField] private float quickQualityPenalty = 0.18f;
     [SerializeField] private float perfectCompletionThreshold = 0.98f;
-    [SerializeField] private float goodCompletionThreshold = 0.82f;
+    [SerializeField] private float goodCompletionThreshold = 0.8f;
     [SerializeField] private float passableCompletionThreshold = 0.55f;
+    [SerializeField] private float minimumFinishCompletionThreshold = 1f;
+    [SerializeField] private float dirtCompletionWeight = 1f;
+    [SerializeField] private float rustCompletionWeight = 1f;
+    [SerializeField] private float screwCompletionWeight = 0f;
 
     private readonly List<CleaningTask> _tasks = new List<CleaningTask>();
     private int _difficultyLevel = 1;
@@ -115,6 +119,7 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
     public float ElapsedTime => _isActive ? Time.time - _startedAt : 0f;
     public IReadOnlyList<CleaningTask> Tasks => _tasks;
     public float CompletionRatio => CalculateCompletionRatio();
+    public bool CanFinish => CompletionRatio >= minimumFinishCompletionThreshold;
 
     public event Action<RepairQuality> OnMinigameCompleted;
 
@@ -162,6 +167,18 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
 
         _isActive = false;
         return quality;
+    }
+
+    public bool TryFinishMinigame(out RepairQuality quality)
+    {
+        quality = PreviewRepairQuality();
+        if (!_isActive || !CanFinish)
+        {
+            return false;
+        }
+
+        quality = EndMinigame();
+        return true;
     }
 
     public void AbortMinigame()
@@ -326,13 +343,32 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
             return 0f;
         }
 
-        float totalProgress = 0f;
+        float totalWeightedProgress = 0f;
+        float totalWeight = 0f;
         for (int i = 0; i < _tasks.Count; i++)
         {
-            totalProgress += _tasks[i].Progress;
+            float weight = GetCompletionWeight(_tasks[i].TaskType);
+            totalWeightedProgress += _tasks[i].Progress * weight;
+            totalWeight += weight;
         }
 
-        return Mathf.Clamp01(totalProgress / _tasks.Count);
+        if (totalWeight <= 0f)
+        {
+            return 0f;
+        }
+
+        return Mathf.Clamp01(totalWeightedProgress / totalWeight);
+    }
+
+    private float GetCompletionWeight(CleaningTaskType taskType)
+    {
+        return taskType switch
+        {
+            CleaningTaskType.Dirt => dirtCompletionWeight,
+            CleaningTaskType.Rust => rustCompletionWeight,
+            CleaningTaskType.LooseScrew => screwCompletionWeight,
+            _ => 1f
+        };
     }
 
     private RepairQuality CalculateRepairQuality()
