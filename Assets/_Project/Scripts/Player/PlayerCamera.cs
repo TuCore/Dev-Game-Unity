@@ -5,6 +5,10 @@ public class PlayerCamera : MonoBehaviour
     [Header("Cấu hình nhạy chuột")]
     [SerializeField] private float mouseSensitivity = 100f;
 
+    [Header("Cấu hình Camera")]
+    [Tooltip("Chiều cao của camera so với mặt đất (thân người)")]
+    [SerializeField] private float cameraHeight = 1.85f; // Nâng lên 1.85 thay vì 1.6 như cũ
+
     [Header("References")]
     [SerializeField] private Transform playerBody; // Kéo GameObject Player (thân mình) vào đây
 
@@ -17,9 +21,12 @@ public class PlayerCamera : MonoBehaviour
         // Khóa con trỏ chuột vào giữa màn hình và ẩn nó
         CacheMinigameManager();
         Cursor.lockState = CursorLockMode.Locked;
+
+        // Tự động nâng Camera lên tầm mắt để góc nhìn không bị quá thấp
+        transform.localPosition = new Vector3(0, cameraHeight, 0);
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         // Lấy dữ liệu chuột
         if (IsGameplayInputLocked())

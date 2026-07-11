@@ -40,12 +40,17 @@ public class CustomerQueue : MonoBehaviour
     {
         if (_activeOrders.Count >= maxSimultaneousCustomers)
         {
-            Debug.Log("[CustomerQueue] Hàng đợi đã đầy!");
             return false;
         }
 
         _activeOrders.Add(order);
         OnCustomerArrived?.Invoke(order);
+        
+        if (ToastNotificationManager.Instance != null)
+        {
+            ToastNotificationManager.Instance.ShowToast("[+] Có khách mới đem đồ tới sửa kìa!", 3f);
+        }
+        
         return true;
     }
 
@@ -68,6 +73,11 @@ public class CustomerQueue : MonoBehaviour
         if (_activeOrders.Remove(order))
         {
             OnCustomerLeft?.Invoke(order);
+            
+            if (ToastNotificationManager.Instance != null)
+            {
+                ToastNotificationManager.Instance.ShowToast("[!] Khách đợi lâu quá nên bỏ về rồi!", 4f);
+            }
         }
     }
 

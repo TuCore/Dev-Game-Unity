@@ -110,3 +110,5 @@
             if (homeScreen != null) homeScreen.SetActive(true);
         }
     }
+
+// Trigger recompile

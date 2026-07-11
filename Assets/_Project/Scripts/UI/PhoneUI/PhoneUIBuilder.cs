@@ -545,3 +545,5 @@ public class PhoneUIBuilder : MonoBehaviour
         CreateTextObj("Text", card.transform, text, 15, isMine ? TextAlignmentOptions.Right : TextAlignmentOptions.Left, true, new Vector2(15, 0), new Vector2(-15, 0));
     }
 }
+
+// Trigger recompile
