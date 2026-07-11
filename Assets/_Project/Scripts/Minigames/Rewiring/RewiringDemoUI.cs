@@ -8,6 +8,10 @@ using System.Collections.Generic;
 [ExecuteAlways]
 public class RewiringDemoUI : MonoBehaviour
 {
+    [Header("Âm thanh Minigame")]
+    [SerializeField] private AudioClip zapAudioClip;
+    [SerializeField] private AudioClip successAudioClip;
+
     private RewiringController _controller;
     private Camera _mainCamera;
 
@@ -91,10 +95,17 @@ public class RewiringDemoUI : MonoBehaviour
         SetupCamera();
         SetupController();
         SetupPreviewLine();
+        PreloadAudioClips();
         if (Application.isPlaying || transform.childCount < 5)
         {
             InitializeDemoBoard(3);
         }
+    }
+
+    private void PreloadAudioClips()
+    {
+        if (zapAudioClip != null) zapAudioClip.LoadAudioData();
+        if (successAudioClip != null) successAudioClip.LoadAudioData();
     }
 
     private void SetupCamera()
@@ -676,6 +687,7 @@ public class RewiringDemoUI : MonoBehaviour
 
     public void OnTerminalBeginDrag(DemoTerminalElement startElem)
     {
+        PlayZapSound();
         _dragStartTerminal = startElem;
         RemoveWireOfColor(startElem.data.Color);
         _currentCellPath.Clear();
@@ -857,6 +869,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         BuildWireHolder(wireElem, cellPath, worldPoints);
         _wires.Add(wireElem);
+        PlayZapSound();
     }
 
     private void BuildWireHolder(DemoWireElement wireElem, List<Vector2Int> cellPath, List<Vector2> worldPoints)
@@ -1424,8 +1437,119 @@ public class RewiringDemoUI : MonoBehaviour
             _resultStyle.normal.textColor = new Color(0.2f, 1f, 0.4f);
             _resultText = "<color=#00FF88>★ HOÀN HẢO (PERFECT) - THỢ CÓ TÂM! ★</color>\n" +
                           "Đã nối thông toàn bộ mạch điện vuông vức theo từng ô, 0 ô bị đè hay chéo dây!";
+            PlaySuccessSound();
         }
     }
+
+    private AudioSource _localZapSource;
+
+    private void PlayZapSound()
+    {
+        AudioClip clipToPlay = zapAudioClip;
+#if UNITY_EDITOR
+        if (clipToPlay == null)
+        {
+            clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/_Project/Audio/SFX/Tiếng vô điện.wav");
+        }
+#endif
+        if (AudioManager.Instance != null && Application.isPlaying)
+        {
+            if (clipToPlay != null)
+                AudioManager.Instance.PlaySFX(clipToPlay, 0.45f, 1.2f, true);
+            else
+                AudioManager.Instance.PlaySFX("Tiếng vô điện", 0.45f, 1.2f, true);
+            return;
+        }
+
+        if (clipToPlay != null)
+        {
+            if (Application.isPlaying)
+            {
+                if (_localZapSource == null)
+                {
+                    _localZapSource = gameObject.GetComponent<AudioSource>();
+                    if (_localZapSource == null) _localZapSource = gameObject.AddComponent<AudioSource>();
+                    _localZapSource.playOnAwake = false;
+                    _localZapSource.loop = false;
+                }
+                if (_localZapSource.isPlaying) _localZapSource.Stop();
+                _localZapSource.pitch = 1.2f;
+                _localZapSource.PlayOneShot(clipToPlay, 0.45f);
+            }
+#if UNITY_EDITOR
+            else
+            {
+                PlayClipInEditor(clipToPlay);
+            }
+#endif
+        }
+    }
+
+    private void PlaySuccessSound()
+    {
+        AudioClip clipToPlay = successAudioClip;
+#if UNITY_EDITOR
+        if (clipToPlay == null)
+        {
+            clipToPlay = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/_Project/Audio/SFX/Tiếng báo hiệu-chính xác.mp3");
+        }
+#endif
+        if (AudioManager.Instance != null && Application.isPlaying)
+        {
+            if (clipToPlay != null)
+                AudioManager.Instance.PlaySFX(clipToPlay, 0.9f, 1.0f, false, 0.32f);
+            else
+                AudioManager.Instance.PlaySFX("Tiếng báo hiệu-chính xác", 0.9f, 1.0f, false, 0.32f);
+            return;
+        }
+
+        if (clipToPlay != null)
+        {
+            if (Application.isPlaying)
+            {
+                if (_localZapSource == null)
+                {
+                    _localZapSource = gameObject.GetComponent<AudioSource>();
+                    if (_localZapSource == null) _localZapSource = gameObject.AddComponent<AudioSource>();
+                    _localZapSource.playOnAwake = false;
+                    _localZapSource.loop = false;
+                }
+                if (_localZapSource.isPlaying) _localZapSource.Stop();
+                _localZapSource.pitch = 1.0f;
+                _localZapSource.clip = clipToPlay;
+                _localZapSource.volume = 0.9f;
+                _localZapSource.time = 0.32f;
+                _localZapSource.Play();
+            }
+#if UNITY_EDITOR
+            else
+            {
+                PlayClipInEditor(clipToPlay, 14112);
+            }
+#endif
+        }
+    }
+
+#if UNITY_EDITOR
+    private static void PlayClipInEditor(AudioClip clip, int startSample = 0)
+    {
+        try
+        {
+            System.Reflection.Assembly unityEditorAssembly = typeof(UnityEditor.AudioImporter).Assembly;
+            System.Type audioUtilClass = unityEditorAssembly.GetType("UnityEditor.AudioUtil");
+            System.Reflection.MethodInfo method = audioUtilClass.GetMethod("PlayPreviewClip",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public,
+                null,
+                new System.Type[] { typeof(AudioClip), typeof(int), typeof(bool) },
+                null);
+            if (method != null)
+            {
+                method.Invoke(null, new object[] { clip, startSample, false });
+            }
+        }
+        catch { }
+    }
+#endif
 
     private void InitGUIStyles()
     {
