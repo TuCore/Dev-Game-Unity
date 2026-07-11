@@ -21,19 +21,25 @@ public class CleaningMinigameTester : MonoBehaviour
 
         [HideInInspector] public Material runtimeMaterial;
         [HideInInspector] public Color originalColor;
-        [HideInInspector] public Texture2D eraseTexture;
-        [HideInInspector] public Color32[] originalPixels;
-        [HideInInspector] public Color32[] erasePixels;
-        [HideInInspector] public int originalVisiblePixels;
-        [HideInInspector] public int erasedVisiblePixels;
+        [HideInInspector] public int wipePasses;
+        [HideInInspector] public float swipeDistance;
+        [HideInInspector] public Vector2 lastSwipeScreenPosition;
+        [HideInInspector] public GameObject sparkleObject;
+        [HideInInspector] public Renderer sparkleRenderer;
+        [HideInInspector] public Material sparkleMaterial;
+        [HideInInspector] public float sparkleStartedAt;
+        [HideInInspector] public Collider[] spotColliders;
+        [HideInInspector] public bool[] originalColliderEnabled;
     }
 
     [Header("Test Settings")]
     [SerializeField] private int difficultyLevel = 1;
-    [SerializeField] private int clothEraseRadiusPixels = 800;
-    [SerializeField] private int clothEraseStepPixels = 24;
     [SerializeField] private int screenSpaceSpotPaddingPixels = 32;
-    [SerializeField] private byte visibleAlphaThreshold = 24;
+    [SerializeField] private float requiredSwipeDistancePixels = 70f;
+    [SerializeField] private int requiredWipePasses = 5;
+    [SerializeField] private float opacityLossPerWipe = 0.2f;
+    [SerializeField] private float sparkleFrameSeconds = 0.18f;
+    [SerializeField] private int sparkleFrameCount = 4;
     [SerializeField] private bool autoStartOnPlay = true;
     [SerializeField] private Camera interactionCamera;
 
@@ -47,18 +53,27 @@ public class CleaningMinigameTester : MonoBehaviour
     [Header("Visual Tools")]
     [SerializeField] private GameObject cleaningToolObject;
 
+    [Header("Visual Effects")]
+    [SerializeField] private Texture2D sparkleTexture1;
+    [SerializeField] private Texture2D sparkleTexture2;
+
     private CleaningMinigame _minigame;
     private int _selectedTaskIndex;
     private GameObject _screwdriverToolObject;
     private bool _showGuideMenu;
     private bool _isClothSelected;
-    private CleaningSpotBinding _lastEraseBinding;
-    private Vector2 _lastEraseTextureCoord;
+    private CleaningSpotBinding _activeSwipeBinding;
+    private bool _hasRatingResult;
+    private bool _showRatingResult;
+    private RepairQuality _lastRatingResult;
 
     private readonly List<string> _sampleFaults = new List<string>
     {
-        "dust_cover",
-        "rust_contact"
+        "dust_spot_01",
+        "dust_spot_02",
+        "dust_spot_03",
+        "dust_spot_04",
+        "dust_spot_05"
     };
 
     private void Awake()
@@ -97,36 +112,11 @@ public class CleaningMinigameTester : MonoBehaviour
             _showGuideMenu = !_showGuideMenu;
         }
 
+        UpdateSparkles();
+
         if (!_minigame.IsActive)
         {
             return;
-        }
-
-        if (Input.GetKeyDown(KeyCode.N))
-        {
-            SelectNextTask();
-        }
-
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-        {
-            SetSelectedTask(0);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            SetSelectedTask(1);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Q))
-        {
-            _minigame.SetCleaningMode(CleaningMinigame.CleaningMode.Quick);
-            Debug.Log("[CleaningTester] Mode: Quick");
-        }
-
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            _minigame.SetCleaningMode(CleaningMinigame.CleaningMode.Thorough);
-            Debug.Log("[CleaningTester] Mode: Thorough");
         }
 
         HandleMouseCleaning();
@@ -138,10 +128,6 @@ public class CleaningMinigameTester : MonoBehaviour
             LogSelectedTask();
         }
 
-        if (Input.GetKeyDown(KeyCode.Return))
-        {
-            TryFinishMinigame();
-        }
     }
 
     private void OnGUI()
@@ -165,6 +151,11 @@ public class CleaningMinigameTester : MonoBehaviour
             DrawGuideMenu();
         }
 
+        if (_showRatingResult)
+        {
+            DrawRatingResult();
+        }
+
         DrawClothCursor();
     }
 
@@ -180,7 +171,7 @@ public class CleaningMinigameTester : MonoBehaviour
             return "COMPLETED";
         }
 
-        return "ENDED EARLY / NOT FINISHED";
+        return "ENDED EARLY / INCOMPLETE";
     }
 
     private int CountCompletedTasks()
@@ -233,9 +224,10 @@ public class CleaningMinigameTester : MonoBehaviour
         GUILayout.BeginArea(new Rect(menuRect.x + 16f, menuRect.y + 34f, menuRect.width - 32f, menuRect.height - 48f));
         GUI.skin.label.fontSize = 13;
         GUILayout.Label("1. Click chọn khăn lau ở góc dưới phải.");
-        GUILayout.Label("2. Rê khăn lau qua đâu thì vết bụi hoặc gỉ sét trên đường rê sẽ mất ở đó.");
-        GUILayout.Label("3. Lau hết Dust đạt 80% thì có thể bấm FINISH.");
-        GUILayout.Label("4. Lau thêm Rust để đạt 100% và có cơ hội Perfect.");
+        GUILayout.Label("2. Rê khăn lau trên mỗi vết bụi đủ khoảng cách để tính 1 lượt lau.");
+        GUILayout.Label("3. Mỗi lượt lau làm vết bụi mờ đi 20%.");
+        GUILayout.Label("4. Lau đủ 5 lượt cho cả 5 vết bụi để hoàn thành.");
+        GUILayout.Label("5. Bấm FINISH để xem rating của lượt chơi.");
         GUILayout.Space(8f);
         GUILayout.Label("Nhấn R lần nữa để đóng hướng dẫn.");
         GUILayout.EndArea();
@@ -271,15 +263,30 @@ public class CleaningMinigameTester : MonoBehaviour
     private void DrawFinishButton()
     {
         Rect finishRect = GetFinishButtonRect();
-        bool canFinish = _minigame.IsActive && _minigame.CanFinish;
+        bool canUseFinish = _minigame.IsActive || _hasRatingResult;
 
-        GUI.enabled = canFinish;
+        GUI.enabled = canUseFinish;
         if (GUI.Button(finishRect, "FINISH"))
         {
-            TryFinishMinigame();
+            FinishAndShowRating();
         }
 
         GUI.enabled = true;
+    }
+
+    private void DrawRatingResult()
+    {
+        Rect ratingRect = new Rect((Screen.width - 260f) * 0.5f, 18f, 260f, 76f);
+        GUI.Box(ratingRect, "RESULT");
+
+        GUIStyle ratingStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 18,
+            fontStyle = FontStyle.Bold
+        };
+
+        GUI.Label(new Rect(ratingRect.x + 12f, ratingRect.y + 28f, ratingRect.width - 24f, 34f), $"Rating: {_lastRatingResult}", ratingStyle);
     }
 
     private void DrawClothCursor()
@@ -305,6 +312,9 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         _selectedTaskIndex = 0;
         _isClothSelected = false;
+        _activeSwipeBinding = null;
+        _hasRatingResult = false;
+        _showRatingResult = false;
         Cursor.visible = true;
         _minigame.Initialize(_sampleFaults, difficultyLevel);
         _minigame.SetCleaningMode(CleaningMinigame.CleaningMode.Thorough);
@@ -314,7 +324,7 @@ public class CleaningMinigameTester : MonoBehaviour
         UpdateToolVisibility();
 
         Debug.Log("[CleaningTester] Started Cleaning minigame test.");
-        Debug.Log("[CleaningTester] Drag mouse over dust/rust spots with Cloth selected. Press R to toggle the guide menu.");
+        Debug.Log("[CleaningTester] Drag the selected Cloth over each DustSpot. Five valid swipes clean one spot.");
         LogSelectedTask();
     }
 
@@ -364,48 +374,130 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         if (!_isClothSelected || interactionCamera == null || IsMouseOverBlockedUi())
         {
-            ResetEraseStroke();
+            ResetSwipeTracking();
             return;
         }
 
         CleaningSpotBinding hitBinding = FindSpotUnderMouse(out Vector2 textureCoord);
         if (hitBinding == null)
         {
-            ResetEraseStroke();
+            ResetSwipeTracking();
             return;
         }
 
         int taskIndex = FindTaskIndex(hitBinding.faultId);
         if (taskIndex < 0)
         {
-            ResetEraseStroke();
+            ResetSwipeTracking();
             return;
         }
 
         CleaningMinigame.CleaningTask task = _minigame.Tasks[taskIndex];
         if (task.Completed)
         {
-            ResetEraseStroke();
+            ResetSwipeTracking();
             return;
         }
 
         _selectedTaskIndex = taskIndex;
-
-        float previousProgress = task.Progress;
-        EraseSpotStroke(hitBinding, textureCoord);
-        float erasedProgress = GetSpotEraseProgress(hitBinding);
-        float progressDelta = Mathf.Clamp01(erasedProgress) - previousProgress;
-        if (progressDelta > 0.001f)
-        {
-            _minigame.CleanTask(taskIndex, progressDelta * task.RequiredWork);
-            UpdateVisualSpots();
-            UpdateToolVisibility();
-        }
+        TrackDustSwipe(hitBinding, taskIndex);
     }
 
-    private void ResetEraseStroke()
+    private void TrackDustSwipe(CleaningSpotBinding binding, int taskIndex)
     {
-        _lastEraseBinding = null;
+        Vector2 mousePosition = Input.mousePosition;
+        if (_activeSwipeBinding != binding)
+        {
+            _activeSwipeBinding = binding;
+            binding.swipeDistance = 0f;
+            binding.lastSwipeScreenPosition = mousePosition;
+            return;
+        }
+
+        float moveDistance = Vector2.Distance(binding.lastSwipeScreenPosition, mousePosition);
+        binding.lastSwipeScreenPosition = mousePosition;
+
+        if (moveDistance <= 0.01f)
+        {
+            return;
+        }
+
+        binding.swipeDistance += moveDistance;
+        if (binding.swipeDistance < requiredSwipeDistancePixels)
+        {
+            return;
+        }
+
+        binding.swipeDistance = 0f;
+        RegisterWipePass(binding, taskIndex);
+    }
+
+    private void ResetSwipeTracking()
+    {
+        _activeSwipeBinding = null;
+    }
+
+    private void RegisterWipePass(CleaningSpotBinding binding, int taskIndex)
+    {
+        if (binding.wipePasses >= requiredWipePasses)
+        {
+            return;
+        }
+
+        binding.wipePasses++;
+        float progressPerPass = 1f / Mathf.Max(1, requiredWipePasses);
+        CleaningMinigame.CleaningTask task = _minigame.Tasks[taskIndex];
+        _minigame.CleanTask(taskIndex, progressPerPass * task.RequiredWork);
+
+        float alpha = Mathf.Clamp01(1f - binding.wipePasses * opacityLossPerWipe);
+        SetMaterialAlpha(binding.runtimeMaterial, alpha, binding.originalColor);
+
+        if (binding.wipePasses >= requiredWipePasses)
+        {
+            binding.spotRenderer.enabled = false;
+            SetSpotCollidersEnabled(binding, false);
+            ActivateSparkle(binding);
+            ResetSwipeTracking();
+        }
+
+        UpdateVisualSpots();
+        Debug.Log($"[CleaningTester] Wiped {binding.faultId}: {binding.wipePasses}/{requiredWipePasses}");
+    }
+
+    private void ActivateSparkle(CleaningSpotBinding binding)
+    {
+        if (binding.sparkleObject == null || binding.sparkleMaterial == null)
+        {
+            return;
+        }
+
+        binding.sparkleStartedAt = Time.time;
+        binding.sparkleMaterial.mainTexture = sparkleTexture1 != null ? sparkleTexture1 : sparkleTexture2;
+        binding.sparkleObject.SetActive(true);
+    }
+
+    private void UpdateSparkles()
+    {
+        for (int i = 0; i < spotBindings.Count; i++)
+        {
+            CleaningSpotBinding binding = spotBindings[i];
+            if (binding.sparkleObject == null || !binding.sparkleObject.activeSelf || binding.sparkleMaterial == null)
+            {
+                continue;
+            }
+
+            int frame = Mathf.FloorToInt((Time.time - binding.sparkleStartedAt) / Mathf.Max(0.01f, sparkleFrameSeconds));
+            if (frame >= Mathf.Max(1, sparkleFrameCount))
+            {
+                binding.sparkleObject.SetActive(false);
+                continue;
+            }
+
+            Texture2D sparkleTexture = frame % 2 == 0
+                ? sparkleTexture1 != null ? sparkleTexture1 : sparkleTexture2
+                : sparkleTexture2 != null ? sparkleTexture2 : sparkleTexture1;
+            binding.sparkleMaterial.mainTexture = sparkleTexture;
+        }
     }
 
     private CleaningSpotBinding FindSpotUnderMouse(out Vector2 textureCoord)
@@ -572,26 +664,45 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         _isClothSelected = false;
         Cursor.visible = true;
+        _lastRatingResult = quality;
+        _hasRatingResult = true;
         UpdateToolVisibility();
         Debug.Log($"[CleaningTester] Completed. Final quality: {quality}");
     }
 
-    private void TryFinishMinigame()
+    private void FinishAndShowRating()
     {
-        if (!_minigame.TryFinishMinigame(out RepairQuality quality))
+        if (_minigame.IsActive)
         {
-            Debug.Log($"[CleaningTester] Finish locked. Clean at least 80%. Current quality preview: {quality}");
-            return;
+            RepairQuality quality = _minigame.EndMinigame();
+            _lastRatingResult = quality;
+            _hasRatingResult = true;
         }
 
-        UpdateToolVisibility();
-        Debug.Log($"[CleaningTester] Finished manually. Quality: {quality}");
+        if (_hasRatingResult)
+        {
+            _showRatingResult = true;
+            _isClothSelected = false;
+            Cursor.visible = true;
+            UpdateToolVisibility();
+            Debug.Log($"[CleaningTester] Rating shown: {_lastRatingResult}");
+        }
     }
 
     private void AutoBindSceneSpots()
     {
-        TryAddBinding("dust_cover", "DustSpot_01");
-        TryAddBinding("rust_contact", "RustSpot_01");
+        for (int i = spotBindings.Count - 1; i >= 0; i--)
+        {
+            if (spotBindings[i] == null || !_sampleFaults.Contains(spotBindings[i].faultId))
+            {
+                spotBindings.RemoveAt(i);
+            }
+        }
+
+        for (int i = 0; i < _sampleFaults.Count; i++)
+        {
+            TryAddBinding(_sampleFaults[i], $"DustSpot_{i + 1:00}");
+        }
     }
 
     private void AutoBindSceneTools()
@@ -632,12 +743,23 @@ public class CleaningMinigameTester : MonoBehaviour
         {
             clothCursorTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Prefabs/UI/Cloth_Mouse.png");
         }
+
+        if (sparkleTexture1 == null)
+        {
+            sparkleTexture1 = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/Textures/Minigames/Cleaning/Sparkle_1.png");
+        }
+
+        if (sparkleTexture2 == null)
+        {
+            sparkleTexture2 = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/Textures/Minigames/Cleaning/Sparkle_2.png");
+        }
 #endif
     }
 
     private void TryAddBinding(string faultId, string objectName)
     {
-        if (FindSpotBinding(faultId) != null)
+        CleaningSpotBinding existingBinding = FindSpotBinding(faultId);
+        if (existingBinding != null && existingBinding.spotRenderer != null)
         {
             return;
         }
@@ -653,6 +775,12 @@ public class CleaningMinigameTester : MonoBehaviour
         if (spotRenderer == null)
         {
             Debug.LogWarning($"[CleaningTester] Visual spot has no Renderer: {objectName}");
+            return;
+        }
+
+        if (existingBinding != null)
+        {
+            existingBinding.spotRenderer = spotRenderer;
             return;
         }
 
@@ -697,23 +825,56 @@ public class CleaningMinigameTester : MonoBehaviour
 
             binding.runtimeMaterial = binding.spotRenderer.material;
             binding.originalColor = GetMaterialColor(binding.runtimeMaterial);
-
-            Texture2D sourceTexture = binding.runtimeMaterial.mainTexture as Texture2D;
-            if (sourceTexture == null)
-            {
-                Debug.LogWarning($"[CleaningTester] Spot material has no Texture2D: {binding.faultId}");
-                continue;
-            }
-
-            binding.eraseTexture = CreateReadableTextureCopy(sourceTexture, $"{sourceTexture.name}_RuntimeErase");
-            binding.originalPixels = binding.eraseTexture.GetPixels32();
-            binding.erasePixels = new Color32[binding.originalPixels.Length];
-            Array.Copy(binding.originalPixels, binding.erasePixels, binding.originalPixels.Length);
-            binding.originalVisiblePixels = CountVisiblePixels(binding.originalPixels);
-            binding.erasedVisiblePixels = 0;
-
-            binding.runtimeMaterial.mainTexture = binding.eraseTexture;
+            CacheSpotColliders(binding);
+            CreateSparkleForBinding(binding);
         }
+    }
+
+    private void CacheSpotColliders(CleaningSpotBinding binding)
+    {
+        if (binding.spotColliders != null || binding.spotRenderer == null)
+        {
+            return;
+        }
+
+        binding.spotColliders = binding.spotRenderer.GetComponentsInChildren<Collider>(true);
+        binding.originalColliderEnabled = new bool[binding.spotColliders.Length];
+        for (int i = 0; i < binding.spotColliders.Length; i++)
+        {
+            binding.originalColliderEnabled[i] = binding.spotColliders[i] != null && binding.spotColliders[i].enabled;
+        }
+    }
+
+    private void CreateSparkleForBinding(CleaningSpotBinding binding)
+    {
+        if (binding.sparkleObject != null || binding.spotRenderer == null)
+        {
+            return;
+        }
+
+        GameObject sparkleObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        sparkleObject.name = $"{binding.spotRenderer.name}_Sparkle";
+        sparkleObject.transform.SetPositionAndRotation(
+            binding.spotRenderer.transform.position + binding.spotRenderer.transform.forward * 0.02f,
+            binding.spotRenderer.transform.rotation);
+        sparkleObject.transform.localScale = binding.spotRenderer.transform.lossyScale * 1.08f;
+
+        Collider sparkleCollider = sparkleObject.GetComponent<Collider>();
+        if (sparkleCollider != null)
+        {
+            Destroy(sparkleCollider);
+        }
+
+        Renderer sparkleRenderer = sparkleObject.GetComponent<Renderer>();
+        Shader sparkleShader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Texture");
+        Material sparkleMaterial = new Material(sparkleShader);
+        sparkleMaterial.mainTexture = sparkleTexture1 != null ? sparkleTexture1 : sparkleTexture2;
+        sparkleRenderer.material = sparkleMaterial;
+
+        binding.sparkleObject = sparkleObject;
+        binding.sparkleRenderer = sparkleRenderer;
+        binding.sparkleMaterial = sparkleMaterial;
+        binding.sparkleObject.SetActive(false);
     }
 
     private void ResetVisualSpots()
@@ -727,18 +888,18 @@ public class CleaningMinigameTester : MonoBehaviour
             }
 
             binding.spotRenderer.enabled = true;
+            binding.wipePasses = 0;
+            binding.swipeDistance = 0f;
+            RestoreSpotColliders(binding);
 
             if (binding.runtimeMaterial == null)
             {
                 binding.runtimeMaterial = binding.spotRenderer.material;
             }
 
-            if (binding.eraseTexture != null && binding.originalPixels != null)
+            if (binding.sparkleObject != null)
             {
-                Array.Copy(binding.originalPixels, binding.erasePixels, binding.originalPixels.Length);
-                binding.eraseTexture.SetPixels32(binding.erasePixels);
-                binding.eraseTexture.Apply();
-                binding.erasedVisiblePixels = 0;
+                binding.sparkleObject.SetActive(false);
             }
 
             SetMaterialAlpha(binding.runtimeMaterial, 1f, binding.originalColor);
@@ -756,13 +917,47 @@ public class CleaningMinigameTester : MonoBehaviour
                 continue;
             }
 
-            if (task.Completed || GetSpotEraseProgress(binding) >= 0.995f)
+            if (task.Completed || binding.wipePasses >= requiredWipePasses)
             {
                 binding.spotRenderer.enabled = false;
+                SetSpotCollidersEnabled(binding, false);
                 continue;
             }
 
             binding.spotRenderer.enabled = true;
+            RestoreSpotColliders(binding);
+        }
+    }
+
+    private void RestoreSpotColliders(CleaningSpotBinding binding)
+    {
+        if (binding.spotColliders == null || binding.originalColliderEnabled == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < binding.spotColliders.Length; i++)
+        {
+            if (binding.spotColliders[i] != null && i < binding.originalColliderEnabled.Length)
+            {
+                binding.spotColliders[i].enabled = binding.originalColliderEnabled[i];
+            }
+        }
+    }
+
+    private void SetSpotCollidersEnabled(CleaningSpotBinding binding, bool enabled)
+    {
+        if (binding.spotColliders == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < binding.spotColliders.Length; i++)
+        {
+            if (binding.spotColliders[i] != null)
+            {
+                binding.spotColliders[i].enabled = enabled;
+            }
         }
     }
 
@@ -856,131 +1051,6 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         return -1;
-    }
-
-    private void EraseSpotStroke(CleaningSpotBinding binding, Vector2 textureCoord)
-    {
-        if (_lastEraseBinding != binding)
-        {
-            EraseSpotAt(binding, textureCoord);
-            _lastEraseBinding = binding;
-            _lastEraseTextureCoord = textureCoord;
-            return;
-        }
-
-        int width = binding.eraseTexture != null ? binding.eraseTexture.width : 1;
-        int height = binding.eraseTexture != null ? binding.eraseTexture.height : 1;
-        Vector2 pixelStart = new Vector2(_lastEraseTextureCoord.x * width, _lastEraseTextureCoord.y * height);
-        Vector2 pixelEnd = new Vector2(textureCoord.x * width, textureCoord.y * height);
-        float pixelDistance = Vector2.Distance(pixelStart, pixelEnd);
-        int steps = Mathf.Max(1, Mathf.CeilToInt(pixelDistance / Mathf.Max(1, clothEraseStepPixels)));
-
-        for (int i = 1; i <= steps; i++)
-        {
-            float t = (float)i / steps;
-            EraseSpotAt(binding, Vector2.Lerp(_lastEraseTextureCoord, textureCoord, t));
-        }
-
-        _lastEraseTextureCoord = textureCoord;
-    }
-
-    private void EraseSpotAt(CleaningSpotBinding binding, Vector2 textureCoord)
-    {
-        if (binding.eraseTexture == null || binding.erasePixels == null || binding.originalVisiblePixels <= 0)
-        {
-            return;
-        }
-
-        int width = binding.eraseTexture.width;
-        int height = binding.eraseTexture.height;
-        int centerX = Mathf.RoundToInt(textureCoord.x * (width - 1));
-        int centerY = Mathf.RoundToInt(textureCoord.y * (height - 1));
-        int radius = Mathf.Max(1, clothEraseRadiusPixels);
-        int radiusSquared = radius * radius;
-        bool changed = false;
-
-        int minX = Mathf.Max(0, centerX - radius);
-        int maxX = Mathf.Min(width - 1, centerX + radius);
-        int minY = Mathf.Max(0, centerY - radius);
-        int maxY = Mathf.Min(height - 1, centerY + radius);
-
-        for (int y = minY; y <= maxY; y++)
-        {
-            int dy = y - centerY;
-            for (int x = minX; x <= maxX; x++)
-            {
-                int dx = x - centerX;
-                if (dx * dx + dy * dy > radiusSquared)
-                {
-                    continue;
-                }
-
-                int pixelIndex = y * width + x;
-                if (binding.originalPixels[pixelIndex].a <= visibleAlphaThreshold || binding.erasePixels[pixelIndex].a <= visibleAlphaThreshold)
-                {
-                    continue;
-                }
-
-                Color32 pixel = binding.erasePixels[pixelIndex];
-                pixel.a = 0;
-                binding.erasePixels[pixelIndex] = pixel;
-                binding.erasedVisiblePixels++;
-                changed = true;
-            }
-        }
-
-        if (changed)
-        {
-            binding.eraseTexture.SetPixels32(binding.erasePixels);
-            binding.eraseTexture.Apply();
-        }
-    }
-
-    private float GetSpotEraseProgress(CleaningSpotBinding binding)
-    {
-        if (binding.originalVisiblePixels <= 0)
-        {
-            return 1f;
-        }
-
-        return Mathf.Clamp01((float)binding.erasedVisiblePixels / binding.originalVisiblePixels);
-    }
-
-    private int CountVisiblePixels(Color32[] pixels)
-    {
-        int visibleCount = 0;
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            if (pixels[i].a > visibleAlphaThreshold)
-            {
-                visibleCount++;
-            }
-        }
-
-        return visibleCount;
-    }
-
-    private Texture2D CreateReadableTextureCopy(Texture2D sourceTexture, string textureName)
-    {
-        RenderTexture previousActive = RenderTexture.active;
-        RenderTexture renderTexture = RenderTexture.GetTemporary(
-            sourceTexture.width,
-            sourceTexture.height,
-            0,
-            RenderTextureFormat.ARGB32,
-            RenderTextureReadWrite.Default);
-
-        Graphics.Blit(sourceTexture, renderTexture);
-        RenderTexture.active = renderTexture;
-
-        Texture2D readableCopy = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.RGBA32, false);
-        readableCopy.name = textureName;
-        readableCopy.ReadPixels(new Rect(0f, 0f, sourceTexture.width, sourceTexture.height), 0, 0);
-        readableCopy.Apply();
-
-        RenderTexture.active = previousActive;
-        RenderTexture.ReleaseTemporary(renderTexture);
-        return readableCopy;
     }
 
     private Color GetMaterialColor(Material material)

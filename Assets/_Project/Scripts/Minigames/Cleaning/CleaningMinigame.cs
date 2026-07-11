@@ -100,9 +100,9 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
     [SerializeField] private float perfectCompletionThreshold = 0.98f;
     [SerializeField] private float goodCompletionThreshold = 0.8f;
     [SerializeField] private float passableCompletionThreshold = 0.55f;
-    [SerializeField] private float minimumFinishCompletionThreshold = 0.8f;
-    [SerializeField] private float dirtCompletionWeight = 0.8f;
-    [SerializeField] private float rustCompletionWeight = 0.2f;
+    [SerializeField] private float minimumFinishCompletionThreshold = 1f;
+    [SerializeField] private float dirtCompletionWeight = 1f;
+    [SerializeField] private float rustCompletionWeight = 1f;
     [SerializeField] private float screwCompletionWeight = 0f;
 
     private readonly List<CleaningTask> _tasks = new List<CleaningTask>();
