@@ -13,6 +13,9 @@ using UnityEditor;
 [RequireComponent(typeof(CleaningMinigame))]
 public class CleaningMinigameTester : MonoBehaviour
 {
+    private const float MinOrbitVerticalAngle = -45f;
+    private const float MaxOrbitVerticalAngle = 30f;
+
     [Serializable]
     private class CleaningSpotBinding
     {
@@ -32,23 +35,49 @@ public class CleaningMinigameTester : MonoBehaviour
         [HideInInspector] public bool[] originalColliderEnabled;
     }
 
+    [Serializable]
+    private class ScrewBinding
+    {
+        public string objectName;
+        public GameObject screwObject;
+
+        [HideInInspector] public Vector3 hiddenLocalPosition;
+        [HideInInspector] public Vector3 installedLocalPosition;
+        [HideInInspector] public Quaternion originalLocalRotation;
+        [HideInInspector] public Renderer[] renderers;
+        [HideInInspector] public Collider[] colliders;
+        [HideInInspector] public bool installed;
+        [HideInInspector] public bool isAnimating;
+        [HideInInspector] public float animationStartedAt;
+    }
+
     [Header("Test Settings")]
     [SerializeField] private int difficultyLevel = 1;
     [SerializeField] private int screenSpaceSpotPaddingPixels = 32;
+    [SerializeField] private int screenSpaceScrewPaddingPixels = 24;
     [SerializeField] private float requiredSwipeDistancePixels = 70f;
     [SerializeField] private int requiredWipePasses = 5;
     [SerializeField] private float opacityLossPerWipe = 0.2f;
     [SerializeField] private float sparkleFrameSeconds = 0.18f;
     [SerializeField] private int sparkleFrameCount = 4;
+    [SerializeField] private float screwInstallDuration = 0.45f;
+    [SerializeField] private float screwInstallSpinDegrees = 540f;
+    [SerializeField] private float screwHiddenLocalY = -0.03f;
+    [SerializeField] private float screwInstalledLocalY = 0f;
+    [SerializeField] private float wrongInteractionPenalty = 5f;
     [SerializeField] private bool autoStartOnPlay = true;
     [SerializeField] private Camera interactionCamera;
 
     [Header("UI Textures")]
     [SerializeField] private Texture2D clothButtonTexture;
     [SerializeField] private Texture2D clothCursorTexture;
+    [SerializeField] private Texture2D screwButtonTexture;
 
     [Header("Visual Spots")]
     [SerializeField] private List<CleaningSpotBinding> spotBindings = new List<CleaningSpotBinding>();
+
+    [Header("Visual Screws")]
+    [SerializeField] private List<ScrewBinding> screwBindings = new List<ScrewBinding>();
 
     [Header("Visual Tools")]
     [SerializeField] private GameObject cleaningToolObject;
@@ -57,15 +86,25 @@ public class CleaningMinigameTester : MonoBehaviour
     [SerializeField] private Texture2D sparkleTexture1;
     [SerializeField] private Texture2D sparkleTexture2;
 
+    [Header("Camera Orbit")]
+    [SerializeField] private Transform orbitTarget;
+    [SerializeField] private float orbitHorizontalSpeed = 80f;
+    [SerializeField] private float orbitVerticalSpeed = 55f;
+
     private CleaningMinigame _minigame;
     private int _selectedTaskIndex;
     private GameObject _screwdriverToolObject;
     private bool _showGuideMenu;
     private bool _isClothSelected;
+    private bool _isScrewSelected;
+    private bool _screwPhaseActive;
+    private bool _screwPhaseCompleted;
     private CleaningSpotBinding _activeSwipeBinding;
     private bool _hasRatingResult;
     private bool _showRatingResult;
     private RepairQuality _lastRatingResult;
+    private float _orbitVerticalAngle;
+    private float _score;
 
     private readonly List<string> _sampleFaults = new List<string>
     {
@@ -81,10 +120,13 @@ public class CleaningMinigameTester : MonoBehaviour
         _minigame = GetComponent<CleaningMinigame>();
         _minigame.OnMinigameCompleted += HandleMinigameCompleted;
         AutoBindSceneSpots();
+        AutoBindSceneScrews();
         AutoBindSceneTools();
         AutoBindInteractionCamera();
+        AutoBindOrbitTarget();
         AutoBindUiTextures();
         PrepareSpotMaterials();
+        PrepareScrews();
     }
 
     private void Start()
@@ -113,13 +155,36 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         UpdateSparkles();
+        UpdateScrewAnimations();
+        HandleCameraOrbit();
+
+        if (_screwPhaseActive)
+        {
+            if (_isClothSelected)
+            {
+                HandleWrongClothOnScrews();
+            }
+            else
+            {
+                HandleMouseScrewInstall();
+            }
+
+            return;
+        }
 
         if (!_minigame.IsActive)
         {
             return;
         }
 
-        HandleMouseCleaning();
+        if (_isScrewSelected)
+        {
+            HandleWrongScrewOnDust();
+        }
+        else
+        {
+            HandleMouseCleaning();
+        }
 
         if (Input.GetKeyDown(KeyCode.X))
         {
@@ -142,9 +207,11 @@ public class CleaningMinigameTester : MonoBehaviour
         GUI.skin.box.fontSize = 12;
 
         DrawCleaningProgressHud();
+        DrawScoreHud();
         DrawGuideHint();
         DrawFinishButton();
         DrawClothButton();
+        DrawScrewButton();
 
         if (_showGuideMenu)
         {
@@ -188,9 +255,108 @@ public class CleaningMinigameTester : MonoBehaviour
         return completedCount;
     }
 
+    private bool AreDustTasksComplete()
+    {
+        if (_minigame.Tasks.Count == 0)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < _minigame.Tasks.Count; i++)
+        {
+            if (!_minigame.Tasks[i].Completed)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private int CountInstalledScrews()
+    {
+        int installedCount = 0;
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            if (screwBindings[i] != null && screwBindings[i].installed)
+            {
+                installedCount++;
+            }
+        }
+
+        return installedCount;
+    }
+
+    private float GetScrewCompletionRatio()
+    {
+        if (screwBindings.Count == 0)
+        {
+            return 1f;
+        }
+
+        return Mathf.Clamp01((float)CountInstalledScrews() / screwBindings.Count);
+    }
+
+    private bool AreAllScrewsInstalled()
+    {
+        return screwBindings.Count > 0 && CountInstalledScrews() >= screwBindings.Count;
+    }
+
+    private float GetOverallCompletionRatio()
+    {
+        int totalDustPasses = Mathf.Max(1, _sampleFaults.Count) * Mathf.Max(1, requiredWipePasses);
+        int completedDustPasses = 0;
+        for (int i = 0; i < spotBindings.Count; i++)
+        {
+            if (spotBindings[i] != null)
+            {
+                completedDustPasses += Mathf.Min(spotBindings[i].wipePasses, requiredWipePasses);
+            }
+        }
+
+        int totalActions = totalDustPasses + Mathf.Max(0, screwBindings.Count);
+        int completedActions = completedDustPasses + CountInstalledScrews();
+        return Mathf.Clamp01((float)completedActions / Mathf.Max(1, totalActions));
+    }
+
+    private void AddCorrectInteractionScore()
+    {
+        int dustActionCount = Mathf.Max(1, _sampleFaults.Count) * Mathf.Max(1, requiredWipePasses);
+        int screwActionCount = Mathf.Max(0, screwBindings.Count);
+        int totalActionCount = Mathf.Max(1, dustActionCount + screwActionCount);
+        _score = Mathf.Min(100f, _score + 100f / totalActionCount);
+    }
+
+    private void RegisterWrongInteraction(string reason)
+    {
+        _score -= Mathf.Abs(wrongInteractionPenalty);
+        Debug.Log($"[CleaningTester] Wrong interaction: {reason}. Score={Mathf.RoundToInt(_score)}");
+    }
+
+    private RepairQuality GetQualityFromScore()
+    {
+        int roundedScore = Mathf.RoundToInt(_score);
+        if (roundedScore >= 100)
+        {
+            return RepairQuality.Perfect;
+        }
+
+        if (roundedScore >= 80)
+        {
+            return RepairQuality.Good;
+        }
+
+        if (roundedScore >= 50)
+        {
+            return RepairQuality.Passable;
+        }
+
+        return RepairQuality.Broken;
+    }
+
     private void DrawCleaningProgressHud()
     {
-        int cleanPercent = Mathf.RoundToInt(_minigame.CompletionRatio * 100f);
+        int cleanPercent = Mathf.RoundToInt(GetOverallCompletionRatio() * 100f);
         Rect progressRect = new Rect(Screen.width - 220f, 12f, 200f, 34f);
         GUI.Box(progressRect, string.Empty);
 
@@ -201,6 +367,20 @@ public class CleaningMinigameTester : MonoBehaviour
             fontStyle = FontStyle.Bold
         };
         GUI.Label(progressRect, $"Làm sạch {cleanPercent}%/100%", progressStyle);
+    }
+
+    private void DrawScoreHud()
+    {
+        Rect scoreRect = new Rect(Screen.width - 220f, 52f, 200f, 30f);
+        GUI.Box(scoreRect, string.Empty);
+
+        GUIStyle scoreStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 13,
+            fontStyle = FontStyle.Bold
+        };
+        GUI.Label(scoreRect, $"Diem so: {Mathf.RoundToInt(_score)}", scoreStyle);
     }
 
     private void DrawGuideHint()
@@ -227,7 +407,8 @@ public class CleaningMinigameTester : MonoBehaviour
         GUILayout.Label("2. Rê khăn lau trên mỗi vết bụi đủ khoảng cách để tính 1 lượt lau.");
         GUILayout.Label("3. Mỗi lượt lau làm vết bụi mờ đi 20%.");
         GUILayout.Label("4. Lau đủ 5 lượt cho cả 5 vết bụi để hoàn thành.");
-        GUILayout.Label("5. Bấm FINISH để xem rating của lượt chơi.");
+        GUILayout.Label("5. Dùng phím mũi tên để xoay camera quanh quạt.");
+        GUILayout.Label("6. Bấm FINISH để xem rating của lượt chơi.");
         GUILayout.Space(8f);
         GUILayout.Label("Nhấn R lần nữa để đóng hướng dẫn.");
         GUILayout.EndArea();
@@ -260,6 +441,33 @@ public class CleaningMinigameTester : MonoBehaviour
         }
     }
 
+    private void DrawScrewButton()
+    {
+        Rect buttonRect = GetScrewButtonRect();
+        Rect frameRect = new Rect(buttonRect.x - 5f, buttonRect.y - 5f, buttonRect.width + 10f, buttonRect.height + 10f);
+
+        Color previousColor = GUI.color;
+        if (_isScrewSelected)
+        {
+            GUI.color = new Color(0.25f, 1f, 0.25f, 0.85f);
+            GUI.Box(frameRect, string.Empty);
+        }
+
+        GUI.color = previousColor;
+
+        if (screwButtonTexture != null)
+        {
+            if (GUI.Button(buttonRect, screwButtonTexture))
+            {
+                ToggleScrewSelection();
+            }
+        }
+        else if (GUI.Button(buttonRect, "SCREW"))
+        {
+            ToggleScrewSelection();
+        }
+    }
+
     private void DrawFinishButton()
     {
         Rect finishRect = GetFinishButtonRect();
@@ -276,7 +484,7 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void DrawRatingResult()
     {
-        Rect ratingRect = new Rect((Screen.width - 260f) * 0.5f, 18f, 260f, 76f);
+        Rect ratingRect = new Rect((Screen.width - 280f) * 0.5f, 18f, 280f, 118f);
         GUI.Box(ratingRect, "RESULT");
 
         GUIStyle ratingStyle = new GUIStyle(GUI.skin.label)
@@ -286,7 +494,15 @@ public class CleaningMinigameTester : MonoBehaviour
             fontStyle = FontStyle.Bold
         };
 
-        GUI.Label(new Rect(ratingRect.x + 12f, ratingRect.y + 28f, ratingRect.width - 24f, 34f), $"Rating: {_lastRatingResult}", ratingStyle);
+        GUI.Label(new Rect(ratingRect.x + 12f, ratingRect.y + 22f, ratingRect.width - 24f, 28f), $"Rating: {_lastRatingResult}", ratingStyle);
+        GUI.Label(new Rect(ratingRect.x + 12f, ratingRect.y + 50f, ratingRect.width - 24f, 22f), $"Score: {Mathf.RoundToInt(_score)}", GUI.skin.label);
+
+        Rect okRect = new Rect(ratingRect.x + (ratingRect.width - 92f) * 0.5f, ratingRect.y + 78f, 92f, 28f);
+        if (GUI.Button(okRect, "OK"))
+        {
+            _showRatingResult = false;
+            RestartTest();
+        }
     }
 
     private void DrawClothCursor()
@@ -304,7 +520,24 @@ public class CleaningMinigameTester : MonoBehaviour
     private void ToggleClothSelection()
     {
         _isClothSelected = !_isClothSelected;
+        if (_isClothSelected)
+        {
+            _isScrewSelected = false;
+        }
+
         Cursor.visible = !_isClothSelected;
+        UpdateToolVisibility();
+    }
+
+    private void ToggleScrewSelection()
+    {
+        _isScrewSelected = !_isScrewSelected;
+        if (_isScrewSelected)
+        {
+            _isClothSelected = false;
+        }
+
+        Cursor.visible = true;
         UpdateToolVisibility();
     }
 
@@ -312,14 +545,19 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         _selectedTaskIndex = 0;
         _isClothSelected = false;
+        _isScrewSelected = false;
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = false;
         _activeSwipeBinding = null;
         _hasRatingResult = false;
         _showRatingResult = false;
+        _score = 0f;
         Cursor.visible = true;
         _minigame.Initialize(_sampleFaults, difficultyLevel);
         _minigame.SetCleaningMode(CleaningMinigame.CleaningMode.Thorough);
         _minigame.StartMinigame();
         ResetVisualSpots();
+        ResetScrewsForStart();
         UpdateVisualSpots();
         UpdateToolVisibility();
 
@@ -403,6 +641,99 @@ public class CleaningMinigameTester : MonoBehaviour
         TrackDustSwipe(hitBinding, taskIndex);
     }
 
+    private void HandleWrongScrewOnDust()
+    {
+        if (!_isScrewSelected || interactionCamera == null || IsMouseOverBlockedUi())
+        {
+            return;
+        }
+
+        if (!Input.GetMouseButtonDown(0))
+        {
+            return;
+        }
+
+        if (FindSpotUnderMouse(out _) != null)
+        {
+            ResetSwipeTracking();
+            RegisterWrongInteraction("Screw tool used on dust");
+        }
+    }
+
+    private void HandleWrongClothOnScrews()
+    {
+        if (!_isClothSelected || interactionCamera == null || IsMouseOverBlockedUi())
+        {
+            return;
+        }
+
+        if (!Input.GetMouseButtonDown(0))
+        {
+            return;
+        }
+
+        if (FindScrewUnderMouse() != null)
+        {
+            RegisterWrongInteraction("Cloth used on screw");
+        }
+    }
+
+    private void HandleCameraOrbit()
+    {
+        if (interactionCamera == null || orbitTarget == null)
+        {
+            return;
+        }
+
+        float horizontalInput = 0f;
+        if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            horizontalInput -= 1f;
+        }
+
+        if (Input.GetKey(KeyCode.RightArrow))
+        {
+            horizontalInput += 1f;
+        }
+
+        float verticalInput = 0f;
+        if (Input.GetKey(KeyCode.UpArrow))
+        {
+            verticalInput += 1f;
+        }
+
+        if (Input.GetKey(KeyCode.DownArrow))
+        {
+            verticalInput -= 1f;
+        }
+
+        if (Mathf.Approximately(horizontalInput, 0f) && Mathf.Approximately(verticalInput, 0f))
+        {
+            return;
+        }
+
+        Transform cameraTransform = interactionCamera.transform;
+        Vector3 targetPosition = orbitTarget.position;
+
+        if (!Mathf.Approximately(horizontalInput, 0f))
+        {
+            cameraTransform.RotateAround(targetPosition, Vector3.up, horizontalInput * orbitHorizontalSpeed * Time.deltaTime);
+        }
+
+        if (!Mathf.Approximately(verticalInput, 0f))
+        {
+            float requestedDelta = verticalInput * orbitVerticalSpeed * Time.deltaTime;
+            float nextVerticalAngle = Mathf.Clamp(_orbitVerticalAngle + requestedDelta, MinOrbitVerticalAngle, MaxOrbitVerticalAngle);
+            float appliedDelta = nextVerticalAngle - _orbitVerticalAngle;
+
+            if (!Mathf.Approximately(appliedDelta, 0f))
+            {
+                cameraTransform.RotateAround(targetPosition, cameraTransform.right, appliedDelta);
+                _orbitVerticalAngle = nextVerticalAngle;
+            }
+        }
+    }
+
     private void TrackDustSwipe(CleaningSpotBinding binding, int taskIndex)
     {
         Vector2 mousePosition = Input.mousePosition;
@@ -445,6 +776,7 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         binding.wipePasses++;
+        AddCorrectInteractionScore();
         float progressPerPass = 1f / Mathf.Max(1, requiredWipePasses);
         CleaningMinigame.CleaningTask task = _minigame.Tasks[taskIndex];
         _minigame.CleanTask(taskIndex, progressPerPass * task.RequiredWork);
@@ -498,6 +830,152 @@ public class CleaningMinigameTester : MonoBehaviour
                 : sparkleTexture2 != null ? sparkleTexture2 : sparkleTexture1;
             binding.sparkleMaterial.mainTexture = sparkleTexture;
         }
+    }
+
+    private void HandleMouseScrewInstall()
+    {
+        if (!_isScrewSelected || interactionCamera == null || IsMouseOverBlockedUi())
+        {
+            return;
+        }
+
+        if (!Input.GetMouseButtonDown(0))
+        {
+            return;
+        }
+
+        ScrewBinding binding = FindScrewUnderMouse();
+        if (binding == null || binding.installed || binding.isAnimating)
+        {
+            return;
+        }
+
+        StartScrewInstall(binding);
+    }
+
+    private void UpdateScrewAnimations()
+    {
+        bool changedAnyScrew = false;
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            ScrewBinding binding = screwBindings[i];
+            if (binding == null || binding.screwObject == null || !binding.isAnimating)
+            {
+                continue;
+            }
+
+            float elapsed = Time.time - binding.animationStartedAt;
+            float progress = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, screwInstallDuration));
+            float easedProgress = Mathf.SmoothStep(0f, 1f, progress);
+
+            binding.screwObject.transform.localPosition = Vector3.Lerp(
+                binding.hiddenLocalPosition,
+                binding.installedLocalPosition,
+                easedProgress);
+            binding.screwObject.transform.localRotation =
+                binding.originalLocalRotation * Quaternion.Euler(0f, screwInstallSpinDegrees * easedProgress, 0f);
+
+            if (progress >= 1f)
+            {
+                binding.isAnimating = false;
+                binding.installed = true;
+                binding.screwObject.transform.localPosition = binding.installedLocalPosition;
+                binding.screwObject.transform.localRotation = binding.originalLocalRotation;
+                SetScrewCollidersEnabled(binding, false);
+                SetObjectActive(binding.screwObject, false);
+                changedAnyScrew = true;
+                Debug.Log($"[CleaningTester] Installed {binding.objectName}.");
+            }
+        }
+
+        if (changedAnyScrew && AreAllScrewsInstalled())
+        {
+            CompleteScrewPhase();
+        }
+    }
+
+    private void BeginScrewPhase()
+    {
+        if (screwBindings.Count == 0)
+        {
+            Debug.LogWarning("[CleaningTester] No Screw_1..4 objects were found. Skipping screw phase.");
+            CompleteScrewPhase();
+            return;
+        }
+
+        _screwPhaseActive = true;
+        _screwPhaseCompleted = false;
+        _hasRatingResult = false;
+        _showRatingResult = false;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        Cursor.visible = true;
+
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            ResetScrewBinding(screwBindings[i], true);
+        }
+
+        UpdateToolVisibility();
+    }
+
+    private void CompleteScrewPhase()
+    {
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = true;
+        _isScrewSelected = false;
+        _lastRatingResult = GetQualityFromScore();
+        _hasRatingResult = true;
+        _showRatingResult = true;
+        Cursor.visible = true;
+        UpdateToolVisibility();
+        Debug.Log($"[CleaningTester] Screw phase completed. Final quality: {_lastRatingResult}");
+    }
+
+    private void StartScrewInstall(ScrewBinding binding)
+    {
+        AddCorrectInteractionScore();
+        binding.isAnimating = true;
+        binding.animationStartedAt = Time.time;
+        SetScrewCollidersEnabled(binding, false);
+    }
+
+    private ScrewBinding FindScrewUnderMouse()
+    {
+        Ray ray = interactionCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            for (int i = 0; i < screwBindings.Count; i++)
+            {
+                ScrewBinding binding = screwBindings[i];
+                if (binding == null || binding.screwObject == null || binding.installed || binding.isAnimating)
+                {
+                    continue;
+                }
+
+                if (hit.transform == binding.screwObject.transform || hit.transform.IsChildOf(binding.screwObject.transform))
+                {
+                    return binding;
+                }
+            }
+        }
+
+        Vector2 mousePosition = Input.mousePosition;
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            ScrewBinding binding = screwBindings[i];
+            if (binding == null || binding.screwObject == null || binding.installed || binding.isAnimating)
+            {
+                continue;
+            }
+
+            if (TryGetScrewScreenRect(binding, out Rect screenRect) && screenRect.Contains(mousePosition))
+            {
+                return binding;
+            }
+        }
+
+        return null;
     }
 
     private CleaningSpotBinding FindSpotUnderMouse(out Vector2 textureCoord)
@@ -644,6 +1122,53 @@ public class CleaningMinigameTester : MonoBehaviour
         return true;
     }
 
+    private bool TryGetScrewScreenRect(ScrewBinding binding, out Rect screenRect)
+    {
+        screenRect = Rect.zero;
+        if (binding == null || binding.renderers == null)
+        {
+            return false;
+        }
+
+        bool hasRect = false;
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
+
+        for (int i = 0; i < binding.renderers.Length; i++)
+        {
+            Renderer targetRenderer = binding.renderers[i];
+            if (targetRenderer == null || !targetRenderer.enabled)
+            {
+                continue;
+            }
+
+            if (!TryGetRendererScreenRect(targetRenderer, out Rect rendererRect))
+            {
+                continue;
+            }
+
+            hasRect = true;
+            minX = Mathf.Min(minX, rendererRect.xMin);
+            minY = Mathf.Min(minY, rendererRect.yMin);
+            maxX = Mathf.Max(maxX, rendererRect.xMax);
+            maxY = Mathf.Max(maxY, rendererRect.yMax);
+        }
+
+        if (!hasRect)
+        {
+            return false;
+        }
+
+        screenRect = Rect.MinMaxRect(
+            minX - screenSpaceScrewPaddingPixels,
+            minY - screenSpaceScrewPaddingPixels,
+            maxX + screenSpaceScrewPaddingPixels,
+            maxY + screenSpaceScrewPaddingPixels);
+        return true;
+    }
+
     private void LogSelectedTask()
     {
         if (_minigame.Tasks.Count == 0)
@@ -663,8 +1188,17 @@ public class CleaningMinigameTester : MonoBehaviour
     private void HandleMinigameCompleted(RepairQuality quality)
     {
         _isClothSelected = false;
+        _isScrewSelected = false;
         Cursor.visible = true;
         _lastRatingResult = quality;
+
+        if (AreDustTasksComplete() && !_screwPhaseCompleted)
+        {
+            BeginScrewPhase();
+            Debug.Log("[CleaningTester] Dust phase completed. Install all screws to finish.");
+            return;
+        }
+
         _hasRatingResult = true;
         UpdateToolVisibility();
         Debug.Log($"[CleaningTester] Completed. Final quality: {quality}");
@@ -674,9 +1208,13 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         if (_minigame.IsActive)
         {
-            RepairQuality quality = _minigame.EndMinigame();
-            _lastRatingResult = quality;
+            _minigame.EndMinigame();
+            _lastRatingResult = GetQualityFromScore();
             _hasRatingResult = true;
+        }
+        else if (_hasRatingResult)
+        {
+            _lastRatingResult = GetQualityFromScore();
         }
 
         if (_hasRatingResult)
@@ -702,6 +1240,22 @@ public class CleaningMinigameTester : MonoBehaviour
         for (int i = 0; i < _sampleFaults.Count; i++)
         {
             TryAddBinding(_sampleFaults[i], $"DustSpot_{i + 1:00}");
+        }
+    }
+
+    private void AutoBindSceneScrews()
+    {
+        for (int i = screwBindings.Count - 1; i >= 0; i--)
+        {
+            if (screwBindings[i] == null)
+            {
+                screwBindings.RemoveAt(i);
+            }
+        }
+
+        for (int i = 1; i <= 4; i++)
+        {
+            TryAddScrewBinding($"Screw_{i}");
         }
     }
 
@@ -731,6 +1285,20 @@ public class CleaningMinigameTester : MonoBehaviour
         }
     }
 
+    private void AutoBindOrbitTarget()
+    {
+        if (orbitTarget != null)
+        {
+            return;
+        }
+
+        GameObject fanObject = FindSceneObjectByName("OldTableFan");
+        if (fanObject != null)
+        {
+            orbitTarget = fanObject.transform;
+        }
+    }
+
     private void AutoBindUiTextures()
     {
 #if UNITY_EDITOR
@@ -742,6 +1310,11 @@ public class CleaningMinigameTester : MonoBehaviour
         if (clothCursorTexture == null)
         {
             clothCursorTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Prefabs/UI/Cloth_Mouse.png");
+        }
+
+        if (screwButtonTexture == null)
+        {
+            screwButtonTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Prefabs/UI/Screw_Button.png");
         }
 
         if (sparkleTexture1 == null)
@@ -791,6 +1364,60 @@ public class CleaningMinigameTester : MonoBehaviour
         });
     }
 
+    private void TryAddScrewBinding(string objectName)
+    {
+        ScrewBinding existingBinding = FindScrewBinding(objectName);
+        if (existingBinding != null && existingBinding.screwObject != null)
+        {
+            return;
+        }
+
+        GameObject screwObject = FindSceneScrewObjectByName(objectName);
+        if (screwObject == null)
+        {
+            Debug.LogWarning($"[CleaningTester] Could not find screw object: {objectName}");
+            return;
+        }
+
+        if (existingBinding != null)
+        {
+            existingBinding.screwObject = screwObject;
+            return;
+        }
+
+        screwBindings.Add(new ScrewBinding
+        {
+            objectName = objectName,
+            screwObject = screwObject
+        });
+    }
+
+    private GameObject FindSceneScrewObjectByName(string objectName)
+    {
+        GameObject bestObject = null;
+        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+        for (int i = 0; i < allObjects.Length; i++)
+        {
+            GameObject sceneObject = allObjects[i];
+            if (sceneObject.name != objectName || !sceneObject.scene.IsValid())
+            {
+                continue;
+            }
+
+            if (sceneObject.transform.childCount > 0)
+            {
+                return sceneObject;
+            }
+
+            if (bestObject == null)
+            {
+                bestObject = sceneObject;
+            }
+        }
+
+        return bestObject;
+    }
+
     private GameObject FindSceneObjectByName(string objectName)
     {
         GameObject activeObject = GameObject.Find(objectName);
@@ -828,6 +1455,56 @@ public class CleaningMinigameTester : MonoBehaviour
             CacheSpotColliders(binding);
             CreateSparkleForBinding(binding);
         }
+    }
+
+    private void PrepareScrews()
+    {
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            ScrewBinding binding = screwBindings[i];
+            if (binding.screwObject == null)
+            {
+                continue;
+            }
+
+            binding.renderers = binding.screwObject.GetComponentsInChildren<Renderer>(true);
+            binding.colliders = binding.screwObject.GetComponentsInChildren<Collider>(true);
+            binding.originalLocalRotation = binding.screwObject.transform.localRotation;
+
+            Vector3 installedPosition = binding.screwObject.transform.localPosition;
+            installedPosition.y = screwInstalledLocalY;
+            binding.installedLocalPosition = installedPosition;
+
+            Vector3 hiddenPosition = installedPosition;
+            hiddenPosition.y = screwHiddenLocalY;
+            binding.hiddenLocalPosition = hiddenPosition;
+
+            ResetScrewBinding(binding, false);
+        }
+    }
+
+    private void ResetScrewsForStart()
+    {
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            ResetScrewBinding(screwBindings[i], false);
+        }
+    }
+
+    private void ResetScrewBinding(ScrewBinding binding, bool visible)
+    {
+        if (binding == null || binding.screwObject == null)
+        {
+            return;
+        }
+
+        binding.installed = false;
+        binding.isAnimating = false;
+        binding.animationStartedAt = 0f;
+        binding.screwObject.transform.localPosition = binding.hiddenLocalPosition;
+        binding.screwObject.transform.localRotation = binding.originalLocalRotation;
+        SetScrewCollidersEnabled(binding, visible);
+        SetObjectActive(binding.screwObject, visible);
     }
 
     private void CacheSpotColliders(CleaningSpotBinding binding)
@@ -974,6 +1651,11 @@ public class CleaningMinigameTester : MonoBehaviour
             return true;
         }
 
+        if (GetScrewButtonRect().Contains(guiMousePosition))
+        {
+            return true;
+        }
+
         if (GetFinishButtonRect().Contains(guiMousePosition))
         {
             return true;
@@ -990,6 +1672,13 @@ public class CleaningMinigameTester : MonoBehaviour
     }
 
     private Rect GetClothButtonRect()
+    {
+        const float size = 72f;
+        const float gap = 12f;
+        return new Rect(Screen.width - size * 2f - gap - 24f, Screen.height - size - 24f, size, size);
+    }
+
+    private Rect GetScrewButtonRect()
     {
         const float size = 72f;
         return new Rect(Screen.width - size - 24f, Screen.height - size - 24f, size, size);
@@ -1014,13 +1703,42 @@ public class CleaningMinigameTester : MonoBehaviour
         }
     }
 
+    private void SetScrewCollidersEnabled(ScrewBinding binding, bool enabled)
+    {
+        if (binding == null || binding.colliders == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < binding.colliders.Length; i++)
+        {
+            if (binding.colliders[i] != null)
+            {
+                binding.colliders[i].enabled = enabled;
+            }
+        }
+    }
+
     private CleaningSpotBinding FindSpotBinding(string faultId)
     {
         for (int i = 0; i < spotBindings.Count; i++)
         {
-            if (spotBindings[i].faultId == faultId)
+            if (spotBindings[i] != null && spotBindings[i].faultId == faultId)
             {
                 return spotBindings[i];
+            }
+        }
+
+        return null;
+    }
+
+    private ScrewBinding FindScrewBinding(string objectName)
+    {
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            if (screwBindings[i] != null && screwBindings[i].objectName == objectName)
+            {
+                return screwBindings[i];
             }
         }
 
