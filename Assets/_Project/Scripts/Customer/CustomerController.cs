@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using System.Collections.Generic;
 
 public enum CustomerState
 {
@@ -19,7 +20,14 @@ public class CustomerController : MonoBehaviour, IInteractable
     public Transform counterTarget;
     public Transform exitTarget;
     public GameObject itemPrefabToDrop;
+    [Tooltip("Nếu danh sách này có đồ, NPC sẽ bốc random từ đây. Nếu để trống, sẽ xài Item Prefab To Drop bên trên.")]
+    public List<GameObject> possibleItemsToDrop;
     public Transform itemDropPoint;
+    
+    private GameObject _selectedItemPrefab;
+    private MinigameType _selectedMinigame;
+    private int _selectedDifficulty;
+    private float _selectedBasePay;
     
     private NavMeshAgent agent;
     private Animator animator;
@@ -138,7 +146,21 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void ShowNegotiationOptions()
     {
-        float basePay = 50000f;
+        // 1. Pick random item prefab
+        if (possibleItemsToDrop != null && possibleItemsToDrop.Count > 0)
+        {
+            _selectedItemPrefab = possibleItemsToDrop[Random.Range(0, possibleItemsToDrop.Count)];
+        }
+        else
+        {
+            _selectedItemPrefab = itemPrefabToDrop;
+        }
+
+        // 2. Randomize properties
+        _selectedMinigame = (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+        _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
+        _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
+
         string itemName = (archetype != null && archetype.preferredItems != null && archetype.preferredItems.Count > 0)
             ? archetype.preferredItems[Random.Range(0, archetype.preferredItems.Count)] 
             : "Đồ gia dụng";
@@ -148,14 +170,14 @@ public class CustomerController : MonoBehaviour, IInteractable
         int apptDay = currentHour > 15f ? currentDay + 1 : currentDay;
         float apptHour = currentHour > 15f ? 10f : currentHour + 4f;
 
-        string offer = $"Anh sửa món {itemName} này giúp tôi. Tôi gửi {basePay:N0} đ. Lúc {apptHour:00}:00 ngày {apptDay} tôi quay lại lấy nhé.";
+        string offer = $"Anh sửa món {itemName} này giúp tôi. Tôi gửi {_selectedBasePay:N0} đ. Lúc {apptHour:00}:00 ngày {apptDay} tôi quay lại lấy nhé.";
         
         if (DialogueUI.Instance != null)
         {
             DialogueUI.Instance.ShowDialogue(
                 archetype.archetypeName, 
                 offer, 
-                () => AcceptOrder(itemName, basePay, apptDay, apptHour), 
+                () => AcceptOrder(itemName, apptDay, apptHour), 
                 () => RefuseOrder(), 
                 "Nhận sửa", 
                 "Từ chối"
@@ -169,17 +191,19 @@ public class CustomerController : MonoBehaviour, IInteractable
         DialogueUI.Instance.ShowDialogue(archetype.archetypeName, angry, LeaveStore, null, "Đóng");
     }
 
-    private void AcceptOrder(string itemName, float basePay, int apptDay, float apptHour)
+    private void AcceptOrder(string itemName, int apptDay, float apptHour)
     {
-        currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, 1, basePay, apptDay, apptHour);
+        currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, 1, _selectedBasePay, apptDay, apptHour);
         
-        if (itemPrefabToDrop != null && itemDropPoint != null)
+        if (_selectedItemPrefab != null && itemDropPoint != null)
         {
-            GameObject droppedItem = Instantiate(itemPrefabToDrop, itemDropPoint.position, itemDropPoint.rotation);
-            RepairableItem repairable = droppedItem.GetComponent<RepairableItem>();
+            GameObject droppedItem = Instantiate(_selectedItemPrefab, itemDropPoint.position, itemDropPoint.rotation);
+            RepairableItem repairable = droppedItem.GetComponentInChildren<RepairableItem>();
             if (repairable != null)
             {
                 repairable.linkedOrder = currentOrder;
+                repairable.SetRandomizedProperties(_selectedMinigame, _selectedDifficulty, _selectedBasePay);
+                Debug.Log($"[CustomerController] Đã tạo món đồ. Minigame: {_selectedMinigame}, Độ khó: {_selectedDifficulty}, Giá: {_selectedBasePay}");
             }
         }
 
@@ -217,6 +241,18 @@ public class CustomerController : MonoBehaviour, IInteractable
 
             currentOrder.isPickedUp = true;
             CustomerQueue.Instance.CompleteOrder(currentOrder);
+            
+            // Xoá đồ vật trên bàn (cần tìm theo linkedOrder)
+            RepairableItem[] allItems = FindObjectsOfType<RepairableItem>();
+            foreach (var item in allItems)
+            {
+                if (item.linkedOrder == currentOrder)
+                {
+                    Destroy(item.gameObject);
+                    break;
+                }
+            }
+
             DialogueUI.Instance.ShowDialogue(archetype.archetypeName, satisfied, LeaveStore);
         }
         else
