@@ -31,7 +31,7 @@
         private void Update()
         {
             // Nhấn Tab để Bật/Tắt điện thoại
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (CustomInputManager.GetKeyDown("Phone"))
             {
                 // Chặn mở điện thoại nếu đang chơi minigame
                 MinigameManager mg = FindAnyObjectByType<MinigameManager>();
@@ -112,3 +112,4 @@
     }
 
 // Trigger recompile
+

@@ -183,7 +183,7 @@ public class SolderingMinigameUI : MonoBehaviour
 
         ApplyNeedleRotation();
 
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+        if (CustomInputManager.GetKeyDown("MinigameAction") || Input.GetMouseButtonDown(0))
         {
             EvaluateHit();
         }
@@ -722,3 +722,4 @@ public class SolderingMinigameUI : MonoBehaviour
         return sprite;
     }
 }
+

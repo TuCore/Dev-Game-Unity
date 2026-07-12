@@ -1480,6 +1480,7 @@ GameObject:
   - component: {fileID: 1080718627}
   - component: {fileID: 1080718626}
   - component: {fileID: 1080718625}
+  - component: {fileID: 1080718628}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1561,6 +1562,103 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &1080718628
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1080718624}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 55ec5267dd53d1549933e8cc9d129e7d, type: 3}
+  m_PlayOnAwake: 1
+  m_Volume: 0.5
+  m_Pitch: 1
+  Loop: 1
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &1081273848
 GameObject:
   m_ObjectHideFlags: 0
@@ -2207,6 +2305,14 @@ MonoBehaviour:
   btnInfo: {fileID: 502074737}
   btnQuit: {fileID: 1450218213}
   settingsPanel: {fileID: 1914810614}
+  introPanel: {fileID: 0}
+  introText: {fileID: 0}
+  introMessage: "Gi\u1EEFa l\xF2ng S\xE0i G\xF2n nh\u1ED9n nh\u1ECBp, trong m\u1ED9t
+    con h\u1EBBm nh\u1ECF...\nN\u01A1i nh\u1EEFng m\xF3n \u0111\u1ED3 \u0111i\u1EC7n
+    c\u0169 k\u1EF9 \u0111\u01B0\u1EE3c trao th\xEAm m\u1ED9t c\u01A1 h\u1ED9i s\u1ED1ng.\nB\u1EA1n
+    l\xE0 Anh Th\u1EE3 \u0110i\u1EC7n.\nH\xE0nh tr\xECnh c\u1EE7a b\u1EA1n b\u1EAFt
+    \u0111\u1EA7u..."
+  typingSpeed: 0.05
 --- !u!114 &1332125615
 MonoBehaviour:
   m_ObjectHideFlags: 0

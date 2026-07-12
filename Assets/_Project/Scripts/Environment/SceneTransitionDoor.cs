@@ -20,7 +20,7 @@ public class SceneTransitionDoor : MonoBehaviour, IInteractable
         if (!string.IsNullOrEmpty(targetSceneName))
         {
             Debug.Log("[SceneTransitionDoor] Đang chuyển tới scene: " + targetSceneName);
-            SceneManager.LoadScene(targetSceneName);
+            LoadingScreenManager.LoadScene(targetSceneName);
         }
         else
         {
