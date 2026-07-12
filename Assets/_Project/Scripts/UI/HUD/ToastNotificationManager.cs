@@ -97,22 +97,23 @@ public class ToastNotificationManager : MonoBehaviour
         float animSpeed = 10f;
         
         // Trượt lên
-        while (_toastRect.anchoredPosition.y < 100)
+        while (100 - _toastRect.anchoredPosition.y > 1f)
         {
             _toastRect.anchoredPosition = Vector2.Lerp(_toastRect.anchoredPosition, new Vector2(0, 100), Time.deltaTime * animSpeed);
             yield return null;
         }
+        _toastRect.anchoredPosition = new Vector2(0, 100);
 
         // Chờ
         yield return new WaitForSeconds(duration);
 
         // Trượt xuống
-        while (_toastRect.anchoredPosition.y > -200)
+        while (_toastRect.anchoredPosition.y - (-200) > 1f)
         {
             _toastRect.anchoredPosition = Vector2.Lerp(_toastRect.anchoredPosition, new Vector2(0, -200), Time.deltaTime * animSpeed);
-            if (_toastRect.anchoredPosition.y < -150) break;
             yield return null;
         }
+        _toastRect.anchoredPosition = new Vector2(0, -200);
 
         _toastPanel.SetActive(false);
     }

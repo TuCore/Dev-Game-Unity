@@ -44,7 +44,7 @@ public class MoneyUI : MonoBehaviour
                 rect.anchorMin = new Vector2(1f, 1f); // Neo góc trên cùng bên phải
                 rect.anchorMax = new Vector2(1f, 1f);
                 rect.pivot = new Vector2(1f, 1f);
-                rect.anchoredPosition = new Vector2(-30, -30); // Cách góc một chút
+                rect.anchoredPosition = new Vector2(-30, -30); // Cách góc phải
                 rect.sizeDelta = new Vector2(400, 60);
 
                 _moneyText = textObj.AddComponent<TextMeshProUGUI>();
