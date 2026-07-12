@@ -83,13 +83,50 @@ public class CustomerQueue : MonoBehaviour
 
     private void Update()
     {
-        // Kiểm tra deadline từng đơn
+        float dt = Time.deltaTime;
+
+        // 1. Kiểm tra deadline từng đơn
         for (int i = _activeOrders.Count - 1; i >= 0; i--)
         {
-            if (_activeOrders[i] != null && _activeOrders[i].IsExpired)
+            if (_activeOrders[i] != null)
             {
-                RemoveExpiredCustomer(_activeOrders[i]);
+                _activeOrders[i].UpdateTimer(dt);
+                if (_activeOrders[i].IsExpired)
+                {
+                    RemoveExpiredCustomer(_activeOrders[i]);
+                }
             }
         }
+
+        // 2. Logic tự động sinh khách mới
+        if (_activeOrders.Count < maxSimultaneousCustomers)
+        {
+            _nextCustomerTimer -= dt;
+            if (_nextCustomerTimer <= 0f)
+            {
+                SpawnRandomCustomer();
+                // Reset timer ngẫu nhiên cho lần tiếp theo
+                _nextCustomerTimer = Random.Range(minTimeBetweenCustomers, maxTimeBetweenCustomers);
+            }
+        }
+    }
+
+    private void SpawnRandomCustomer()
+    {
+        // Lấy danh sách đồ đã mở khóa từ SkillTree
+        if (SkillTree.Instance == null) return;
+        var unlockedItems = SkillTree.Instance.GetUnlockedItemTypes();
+        if (unlockedItems.Count == 0) return;
+
+        // Bốc ngẫu nhiên 1 món
+        string randomItem = unlockedItems[Random.Range(0, unlockedItems.Count)];
+        
+        // Random độ khó và tiền công
+        int difficulty = Random.Range(1, 4);
+        float pay = Random.Range(50f, 150f) * difficulty;
+        float deadline = Random.Range(45f, 120f); // 45s đến 120s để sửa
+        
+        CustomerOrder newOrder = new CustomerOrder("Khách ngẫu nhiên", randomItem, difficulty, pay, deadline);
+        AddCustomer(newOrder);
     }
 }
