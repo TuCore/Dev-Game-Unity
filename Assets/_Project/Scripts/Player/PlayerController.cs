@@ -6,8 +6,9 @@ public class PlayerController : MonoBehaviour
 
     [Header("Cấu hình di chuyển")]
     [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float gravity = -9.81f;
-    [SerializeField] private float jumpHeight = 1.5f;
+    [SerializeField] private float runSpeed = 12f;
+    [SerializeField] private float gravity = -25f;
+    [SerializeField] private float jumpHeight = 5f;
 
     [Header("Input Lock")]
     [SerializeField] private MinigameManager minigameManager;
@@ -30,7 +31,8 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         // Kiểm tra xem nhân vật có đang đứng trên mặt đất hay không
-        _isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+        // Tự động dùng isGrounded của CharacterController thay vì CheckSphere vì GroundMask bị set sai
+        _isGrounded = _controller.isGrounded;
 
         // Nếu nhân vật đang đứng trên mặt đất và có vận tốc theo trục y âm, đặt vận tốc theo trục y về 0
         if (_isGrounded && _velocity.y < 0)
@@ -49,11 +51,15 @@ public class PlayerController : MonoBehaviour
         float x = Input.GetAxis("Horizontal");
         float z = Input.GetAxis("Vertical");
 
+        // Kiểm tra Shift để chạy
+        bool isRunning = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        float currentSpeed = isRunning ? runSpeed : moveSpeed;
+
         // Tạo vector di chuyển dựa trên đầu vào
         Vector3 move = transform.right * x + transform.forward * z;
 
         // Di chuyển nhân vật
-        _controller.Move(move * moveSpeed * Time.deltaTime);
+        _controller.Move(move * currentSpeed * Time.deltaTime);
 
         // Nhảy khi nhấn phím Space và nhân vật đang đứng trên mặt đất
         if (Input.GetButtonDown("Jump") && _isGrounded)
