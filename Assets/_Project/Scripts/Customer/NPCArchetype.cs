@@ -5,12 +5,6 @@ using System.Collections.Generic;
 /// ScriptableObject định nghĩa kiểu mẫu NPC khách hàng.
 /// Có field riêng cho lời thoại đặc trưng, không dùng template chung (GDD mục 2.4).
 /// </summary>
-public enum CustomerPersonality
-{
-    Easygoing, // Dễ tính
-    Strict     // Khó tính
-}
-
 [CreateAssetMenu(fileName = "New NPC Archetype", menuName = "Anh Tho Dien/NPC Archetype")]
 public class NPCArchetype : ScriptableObject
 {
@@ -33,7 +27,6 @@ public class NPCArchetype : ScriptableObject
     public List<string> leavingDialogues;     // Khi bỏ đi (hết deadline)
 
     [Header("Hành vi đặc biệt")]
-    public CustomerPersonality personality = CustomerPersonality.Strict;
     public bool canNegotiatePrice = false;    // VD: Sinh viên xin giảm giá
     public float tipMultiplier = 1f;          // Khách đại gia tip nhiều hơn
     public float patienceMultiplier = 1f;     // Hệ số kiên nhẫn (deadline dài/ngắn hơn)
