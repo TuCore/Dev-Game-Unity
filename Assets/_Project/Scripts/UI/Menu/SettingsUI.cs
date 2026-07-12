@@ -5,33 +5,34 @@ namespace AnhThoDien.UI.Menu
 {
     public class SettingsUI : MonoBehaviour
     {
-        [Header("Audio Settings")]
-        public Slider sliderMusic;
-        public Slider sliderAmbience;
-        public Slider sliderSFX;
+        [Header("Settings Sliders")]
+        public Slider sliderVolume;
+        public Slider sliderSensitivity;
+        public Slider sliderBrightness;
 
         [Header("Controls")]
         public Button btnClose;
 
         private void Start()
         {
-            // Load saved settings if any
-            if (sliderMusic != null)
+            // Load Settings
+            if (sliderVolume != null)
             {
-                sliderMusic.value = PlayerPrefs.GetFloat("Vol_Music", 1f);
-                sliderMusic.onValueChanged.AddListener(OnMusicVolumeChanged);
+                sliderVolume.value = PlayerPrefs.GetFloat("MasterVolume", 0.5f);
+                sliderVolume.onValueChanged.AddListener(OnVolumeChanged);
+                OnVolumeChanged(sliderVolume.value); // Apply immediately
             }
 
-            if (sliderAmbience != null)
+            if (sliderSensitivity != null)
             {
-                sliderAmbience.value = PlayerPrefs.GetFloat("Vol_Ambience", 1f);
-                sliderAmbience.onValueChanged.AddListener(OnAmbienceVolumeChanged);
+                sliderSensitivity.value = PlayerPrefs.GetFloat("MouseSensitivity", 100f);
+                sliderSensitivity.onValueChanged.AddListener(OnSensitivityChanged);
             }
 
-            if (sliderSFX != null)
+            if (sliderBrightness != null)
             {
-                sliderSFX.value = PlayerPrefs.GetFloat("Vol_SFX", 1f);
-                sliderSFX.onValueChanged.AddListener(OnSFXVolumeChanged);
+                sliderBrightness.value = PlayerPrefs.GetFloat("GameBrightness", 1f);
+                sliderBrightness.onValueChanged.AddListener(OnBrightnessChanged);
             }
 
             if (btnClose != null)
@@ -40,22 +41,20 @@ namespace AnhThoDien.UI.Menu
             }
         }
 
-        private void OnMusicVolumeChanged(float val)
+        private void OnVolumeChanged(float value)
         {
-            PlayerPrefs.SetFloat("Vol_Music", val);
-            // TODO: Hook to AudioManager
+            AudioListener.volume = value;
+            PlayerPrefs.SetFloat("MasterVolume", value);
         }
 
-        private void OnAmbienceVolumeChanged(float val)
+        private void OnSensitivityChanged(float value)
         {
-            PlayerPrefs.SetFloat("Vol_Ambience", val);
-            // TODO: Hook to AudioManager
+            PlayerPrefs.SetFloat("MouseSensitivity", value);
         }
 
-        private void OnSFXVolumeChanged(float val)
+        private void OnBrightnessChanged(float value)
         {
-            PlayerPrefs.SetFloat("Vol_SFX", val);
-            // TODO: Hook to AudioManager
+            PlayerPrefs.SetFloat("GameBrightness", value);
         }
 
         private void CloseSettings()

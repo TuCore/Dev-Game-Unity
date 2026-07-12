@@ -29,16 +29,9 @@ public class BranchManager : MonoBehaviour
     /// </summary>
     public bool CanUnlockBranch(EconomyManager economy, ReputationSystem reputation)
     {
-        bool isSpaceEnough = true;
-        if (SpaceUpgradeSystem.Instance != null)
-        {
-            isSpaceEnough = SpaceUpgradeSystem.Instance.CanExpandBranch();
-        }
-
         return !isBranch02Unlocked
             && economy.CanAfford(branch02Cost)
-            && reputation.HasReputation(branch02ReputationRequired)
-            && isSpaceEnough;
+            && reputation.HasReputation(branch02ReputationRequired);
     }
 
     /// <summary>

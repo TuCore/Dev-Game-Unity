@@ -5,6 +5,11 @@ public class PlayerCamera : MonoBehaviour
     [Header("Cấu hình nhạy chuột")]
     [SerializeField] private float mouseSensitivity = 100f;
 
+    public void SetSensitivity(float value)
+    {
+        mouseSensitivity = value;
+    }
+
     [Header("Cấu hình Camera")]
     [Tooltip("Chiều cao của camera so với mặt đất (thân người)")]
     [SerializeField] private float cameraHeight = 1.85f; // Nâng lên 1.85 thay vì 1.6 như cũ
@@ -18,6 +23,9 @@ public class PlayerCamera : MonoBehaviour
 
     private void Start()
     {
+        // Đọc độ nhạy chuột đã lưu (nếu có)
+        mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 100f);
+
         // Khóa con trỏ chuột vào giữa màn hình và ẩn nó
         CacheMinigameManager();
         Cursor.lockState = CursorLockMode.Locked;
@@ -50,6 +58,8 @@ public class PlayerCamera : MonoBehaviour
 
     private bool IsGameplayInputLocked()
     {
+        if (Time.timeScale == 0f) return true;
+
         CacheMinigameManager();
         return (minigameManager != null && minigameManager.IsMinigameActive) || 
                (PhoneManager.Instance != null && PhoneManager.Instance.IsPhoneOpen);

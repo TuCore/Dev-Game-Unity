@@ -7,36 +7,10 @@ using UnityEngine;
 /// </summary>
 public class ToolUpgradeSystem : MonoBehaviour
 {
-    private static ToolUpgradeSystem _instance;
-    public static ToolUpgradeSystem Instance
-    {
-        get
-        {
-            if (_instance == null) _instance = FindFirstObjectByType<ToolUpgradeSystem>();
-            return _instance;
-        }
-    }
-
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-    }
-
     [Header("Cấp độ đồ nghề hiện tại")]
     [SerializeField] private int solderingIronLevel = 1;  // Mỏ hàn
     [SerializeField] private int multimeterLevel = 1;     // Đồng hồ vạn năng
     [SerializeField] private int magnifierLevel = 1;      // Kính lúp
-
-    public float GetRadarRadiusBonus()
-    {
-        // Mỗi cấp kính lúp tăng bán kính radar dò lỗi thêm 60 pixel
-        return (magnifierLevel - 1) * 60f;
-    }
 
     public int SolderingIronLevel => solderingIronLevel;
     public int MultimeterLevel => multimeterLevel;

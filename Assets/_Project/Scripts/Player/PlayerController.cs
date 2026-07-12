@@ -18,6 +18,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float groundDistance = 0.4f;
     [SerializeField] private LayerMask groundMask;
 
+    [Header("Audio")]
+    [SerializeField] private AudioSource footstepAudioSource;
+    [SerializeField] private AudioClip footstepClip;
+
     private CharacterController _controller;
     private Vector3 _velocity;
     private bool _isGrounded;
@@ -26,6 +30,21 @@ public class PlayerController : MonoBehaviour
     {
         _controller = GetComponent<CharacterController>();
         CacheMinigameManager();
+    }
+
+    private void Start()
+    {
+        // Load saved position if continuing game
+        if (PlayerPrefs.GetInt("IsNewGame", 1) == 0)
+        {
+            if (SaveSystem.TryLoadPlayerPosition(out Vector3 savedPos))
+            {
+                // Must disable CharacterController temporarily to change transform.position directly
+                _controller.enabled = false;
+                transform.position = savedPos;
+                _controller.enabled = true;
+            }
+        }
     }
 
     private void Update()
@@ -60,6 +79,30 @@ public class PlayerController : MonoBehaviour
 
         // Di chuyển nhân vật
         _controller.Move(move * currentSpeed * Time.deltaTime);
+
+        // Xử lý âm thanh bước chân
+        if (footstepAudioSource != null && footstepClip != null)
+        {
+            bool isMoving = _isGrounded && move.sqrMagnitude > 0.01f;
+            if (isMoving)
+            {
+                if (!footstepAudioSource.isPlaying)
+                {
+                    footstepAudioSource.clip = footstepClip;
+                    footstepAudioSource.loop = true;
+                    footstepAudioSource.Play();
+                }
+                // Tăng tốc độ phát âm thanh nếu đang chạy
+                footstepAudioSource.pitch = isRunning ? 1.3f : 1.0f;
+            }
+            else
+            {
+                if (footstepAudioSource.isPlaying)
+                {
+                    footstepAudioSource.Pause();
+                }
+            }
+        }
 
         // Nhảy khi nhấn phím Space và nhân vật đang đứng trên mặt đất
         if (Input.GetButtonDown("Jump") && _isGrounded)
