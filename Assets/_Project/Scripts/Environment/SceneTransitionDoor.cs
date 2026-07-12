@@ -24,7 +24,7 @@ public class SceneTransitionDoor : MonoBehaviour, IInteractable
                 AudioManager.Instance.PlaySFX("Tiếng mở cửa");
             }
             Debug.Log("[SceneTransitionDoor] Đang chuyển tới scene: " + targetSceneName);
-            SceneManager.LoadScene(targetSceneName);
+            LoadingScreenManager.LoadScene(targetSceneName);
         }
         else
         {

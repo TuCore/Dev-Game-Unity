@@ -1,0 +1,181 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &1421070278699419716
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 118.375
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 15.866
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      propertyPath: m_Name
+      value: Interactable_ElectricKettle
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4861067307528312778}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3846673706030743417}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 757391012474982017}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5397998453204276013}
+  m_SourcePrefab: {fileID: 100100000, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+--- !u!1 &2268070602821842197 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 97a1ab04e209e50418c3469f69902b03, type: 3}
+  m_PrefabInstance: {fileID: 1421070278699419716}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &4861067307528312778
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2268070602821842197}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!54 &3846673706030743417
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2268070602821842197}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!114 &757391012474982017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2268070602821842197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17fc8c6cbb7f9a548a5cb7ecc3c0ab0f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PickupItem
+--- !u!114 &5397998453204276013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2268070602821842197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a3dcd27d538c4f4087e202b56425dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RepairableItem
+  minigameToPlay: 0
+  faultPool:
+  - "\u0110\u1EE9t d\xE2y"
+  - "Ch\xE1y t\u1EE5"
+  - "H\u1ECFng IC"
+  difficultyLevel: 4
+  requiredParts: []
+  baseReward: 50000
+  maxRepairs: 1
+  linkedOrder:
+    customerName: 
+    itemName: 
+    personality: 0
+    difficultyLevel: 0
+    basePay: 0
+    negotiatedPrice: 0
+    appointmentDay: 0
+    appointmentHour: 0
+    isPickedUp: 0
+    isCompleted: 0
+    isFailed: 0

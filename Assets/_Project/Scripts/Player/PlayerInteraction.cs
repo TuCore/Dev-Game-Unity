@@ -23,7 +23,7 @@ public class PlayerInteraction : MonoBehaviour
             if (interactable != null)
             {
                 // Trong thực tế sẽ cập nhật UI text hiển thị: interactable.GetInteractPrompt()
-                if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+                if (CustomInputManager.GetKeyDown("Interact") || Input.GetMouseButtonDown(0))
                 {
                     interactable.Interact();
                 }
@@ -31,3 +31,4 @@ public class PlayerInteraction : MonoBehaviour
         }
     }
 }
+
