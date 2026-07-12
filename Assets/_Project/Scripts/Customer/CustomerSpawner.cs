@@ -25,7 +25,7 @@ public class CustomerSpawner : MonoBehaviour
     private void Update()
     {
         // Debug override
-        if (Input.GetKeyDown(KeyCode.F))
+        if (CustomInputManager.GetKeyDown("Secondary"))
         {
             Debug.Log("[DEBUG] Force spawning customer via F key!");
             SpawnWanderingCustomer();
@@ -148,3 +148,4 @@ public class CustomerSpawner : MonoBehaviour
         }
     }
 }
+

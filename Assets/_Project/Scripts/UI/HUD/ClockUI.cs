@@ -7,10 +7,27 @@ public class ClockUI : MonoBehaviour
 
     private void Start()
     {
-        CreateClockUI();
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            CreateClockUI();
+        }
         if (DayClock.Instance != null)
         {
             DayClock.Instance.OnTimeChanged += UpdateTimeDisplay;
+        }
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (scene.name == "VietnamStreet")
+        {
+            if (_timeText == null) CreateClockUI();
+            if (_timeText != null) _timeText.gameObject.SetActive(true);
+        }
+        else
+        {
+            if (_timeText != null) _timeText.gameObject.SetActive(false);
         }
     }
 
@@ -76,6 +93,7 @@ public class ClockUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
         if (DayClock.Instance != null)
         {
             DayClock.Instance.OnTimeChanged -= UpdateTimeDisplay;

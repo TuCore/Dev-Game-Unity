@@ -54,7 +54,7 @@ namespace DevGameUnity.CameraSystem
         private void HandleMovement()
         {
             var vertical = 0f;
-            if (Input.GetKey(KeyCode.E))
+            if (CustomInputManager.GetKey("Interact"))
             {
                 vertical += 1f;
             }
@@ -68,7 +68,7 @@ namespace DevGameUnity.CameraSystem
             input = Vector3.ClampMagnitude(input, 1f);
 
             var speed = moveSpeed;
-            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            if (CustomInputManager.GetKey("Run"))
             {
                 speed *= fastMoveMultiplier;
             }
@@ -89,3 +89,5 @@ namespace DevGameUnity.CameraSystem
         }
     }
 }
+
+

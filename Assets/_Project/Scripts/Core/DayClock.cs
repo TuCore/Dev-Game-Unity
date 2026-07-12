@@ -73,8 +73,23 @@ public class DayClock : MonoBehaviour
 
     private void Start()
     {
-        // Bắt đầu ngày ngay khi vào game
-        StartDay();
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            ResumeTime();
+        }
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (scene.name == "VietnamStreet")
+        {
+            ResumeTime();
+        }
+        else
+        {
+            PauseTime();
+        }
     }
 
     private void Update()

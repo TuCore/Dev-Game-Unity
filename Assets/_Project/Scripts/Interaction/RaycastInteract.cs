@@ -205,7 +205,7 @@ public class RaycastInteract : MonoBehaviour
             }
             // ================================
 
-            if (Input.GetKeyDown(KeyCode.E))
+            if (CustomInputManager.GetKeyDown("Interact"))
             {
                 // Nếu tia nhìn trúng mặt bàn/đất thì đặt tại hit.point, nếu không thì đặt lơ lửng ở vị trí tay cầm
                 Vector3 placePos = isHit ? hit.point : holdPosition.position;
@@ -230,7 +230,7 @@ public class RaycastInteract : MonoBehaviour
                 promptText += interactable.GetInteractionPrompt();
                 
                 // Nhấn phím E để tương tác
-                if (Input.GetKeyDown(KeyCode.E))
+                if (CustomInputManager.GetKeyDown("Interact"))
                 {
                     PickupItem pickup = hit.collider.GetComponentInParent<PickupItem>();
                     if (pickup != null)
@@ -266,7 +266,7 @@ public class RaycastInteract : MonoBehaviour
                     promptText += $"<color=#FF0000>Thiếu: {repairable.GetMissingPartsText()}</color>";
                 }
                 
-                if (Input.GetKeyDown(KeyCode.F))
+                if (CustomInputManager.GetKeyDown("Secondary"))
                 {
                     repairable.StartRepair();
                 }
@@ -292,4 +292,6 @@ public class RaycastInteract : MonoBehaviour
         }
     }
 }
+
+
 
