@@ -24,6 +24,13 @@ public class CustomerSpawner : MonoBehaviour
 
     private void Update()
     {
+        // Debug override
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            Debug.Log("[DEBUG] Force spawning customer via F key!");
+            SpawnWanderingCustomer();
+        }
+
         // 1. Check for returning customers
         if (DayClock.Instance != null && CustomerQueue.Instance != null)
         {
@@ -46,6 +53,7 @@ public class CustomerSpawner : MonoBehaviour
         // 2. Check for new wandering customers
         if (Time.time >= nextSpawnTime)
         {
+            Debug.Log($"[DEBUG] Timer reached! Attempting to spawn at {Time.time}");
             SpawnWanderingCustomer();
             ScheduleNextSpawn();
         }
@@ -67,19 +75,28 @@ public class CustomerSpawner : MonoBehaviour
 
     private void SpawnWanderingCustomer()
     {
-        if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null) return;
-
-        // Kiểm tra giới hạn số lượng NPC vật lý trên Scene
-        if (FindObjectsOfType<CustomerController>().Length >= maxSimultaneousNPCs)
+        Debug.Log("[DEBUG] SpawnWanderingCustomer called!");
+        if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null)
         {
+            Debug.LogError($"[DEBUG] Missing references! Prefabs: {customerPrefabs.Count}, Spawn: {spawnPoint!=null}, Counter: {counterTarget!=null}, Exit: {exitTarget!=null}");
+            return;
+        }
+
+        int currentCount = FindObjectsOfType<CustomerController>().Length;
+        Debug.Log($"[DEBUG] Current controllers in scene: {currentCount}, Max allowed: {maxSimultaneousNPCs}");
+        if (currentCount >= maxSimultaneousNPCs)
+        {
+            Debug.Log("[DEBUG] Spawn cancelled: Max simultaneous NPCs reached.");
             return;
         }
 
         if (CustomerQueue.Instance != null && CustomerQueue.Instance.ActiveOrderCount >= CustomerQueue.Instance.MaxCustomers)
         {
+            Debug.Log("[DEBUG] Spawn cancelled: Customer Queue is full.");
             return; // Đã kín chỗ
         }
 
+        Debug.Log("[DEBUG] Conditions met! Instantiating prefab...");
         GameObject prefab = customerPrefabs[Random.Range(0, customerPrefabs.Count)];
         GameObject spawned = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation);
         

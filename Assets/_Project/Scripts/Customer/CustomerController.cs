@@ -38,6 +38,10 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void Start()
     {
+        // Tăng stopping distance để NPC không dồn cục
+        agent.stoppingDistance = 1.5f;
+        agent.avoidancePriority = Random.Range(30, 70); // Mỗi NPC ưu tiên tránh nhau khác nhau
+        
         // Default to visiting for now if spawned specifically for store
         // If it's a returning customer, the Spawner will override this state.
         if (currentState != CustomerState.ReturningForPickup)
@@ -46,7 +50,12 @@ public class CustomerController : MonoBehaviour, IInteractable
             if (Random.value > -1f) // Bỏ cái 50% đi
             {
                 currentState = CustomerState.Visiting;
-                if (counterTarget != null) agent.SetDestination(counterTarget.position);
+                if (counterTarget != null)
+                {
+                    // Thêm offset ngẫu nhiên để NPC không đứng chồng lên nhau
+                    Vector3 offset = new Vector3(Random.Range(-2f, 2f), 0, Random.Range(-1f, 1f));
+                    agent.SetDestination(counterTarget.position + offset);
+                }
             }
         }
     }

@@ -163,5 +163,25 @@ namespace DevGameUnity.NPC
             verticalVelocity += gravity * Time.deltaTime;
             controller.Move(Vector3.up * (verticalVelocity * Time.deltaTime));
         }
+
+        // Vẽ hỗ trợ trực quan trong Scene để bạn dễ dàng kéo thanh trượt
+        private void OnDrawGizmosSelected()
+        {
+            // 1. Điểm NPC sẽ đứng lại
+            Vector3 standPoint = transform.position + transform.forward * walkDistance;
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(standPoint, 0.5f);
+            
+            // Vẽ đường nối từ NPC đến chỗ đứng
+            Gizmos.DrawLine(transform.position, standPoint);
+
+            // 2. Điểm thả đồ
+            Vector3 dropPoint = standPoint + transform.forward * dropForwardOffset;
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(dropPoint, new Vector3(0.5f, 0.5f, 0.5f));
+            
+            // Vẽ đường nối từ chỗ đứng tới chỗ thả đồ
+            Gizmos.DrawLine(standPoint, dropPoint);
+        }
     }
 }
