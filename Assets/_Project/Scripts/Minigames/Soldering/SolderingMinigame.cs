@@ -55,6 +55,15 @@ public class SolderingMinigame : MonoBehaviour, IMinigame
     public void StartMinigame()
     {
         _isActive = true;
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Hàn mạch)", "Đặt bo mạch lên bàn! Chuẩn bị mỏ hàn để nối các điểm đứt gãy nào.", 3.5f, "Tiếng đặt đồ");
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng đặt đồ");
+        }
+
         if (uiController != null)
         {
             uiController.ShowUI(true);

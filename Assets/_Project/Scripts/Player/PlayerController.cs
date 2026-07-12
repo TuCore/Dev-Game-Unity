@@ -9,6 +9,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float gravity = -9.81f;
     [SerializeField] private float jumpHeight = 1.5f;
 
+    [Header("Âm thanh di chuyển")]
+    [SerializeField] [Range(0f, 1f)] private float footstepVolume = 0.85f;
+    [SerializeField] private float footstepInterval = 0.42f;
+
     [Header("Input Lock")]
     [SerializeField] private MinigameManager minigameManager;
 
@@ -20,11 +24,39 @@ public class PlayerController : MonoBehaviour
     private CharacterController _controller;
     private Vector3 _velocity;
     private bool _isGrounded;
+    private float _stepTimer = 0f;
+    private static bool _hasPlayedIntroSession = false;
 
     private void Awake()
     {
         _controller = GetComponent<CharacterController>();
         CacheMinigameManager();
+        if (footstepVolume <= 0.05f)
+        {
+            footstepVolume = 1.0f; // Bảo vệ khi deserialize từ scene cũ chưa lưu giá trị
+        }
+        if (footstepInterval <= 0.05f)
+        {
+            footstepInterval = 0.42f;
+        }
+    }
+
+    private void Start()
+    {
+        if (!_hasPlayedIntroSession)
+        {
+            _hasPlayedIntroSession = true;
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.PlayIntroSequence(() =>
+                {
+                    if (ToastNotificationManager.Instance != null)
+                    {
+                        ToastNotificationManager.Instance.ShowToast("[+] Thức dậy rồi, hãy khám phá tiệm hoặc đón khách sửa chữa ngay thôi!", 4f);
+                    }
+                });
+            }
+        }
     }
 
     private void Update()
@@ -54,6 +86,38 @@ public class PlayerController : MonoBehaviour
 
         // Di chuyển nhân vật
         _controller.Move(move * moveSpeed * Time.deltaTime);
+
+        // Phát tiếng bước chân vừa đủ nghe, rõ ràng, không vang vọng và chỉ ngắt khi dừng phím di chuyển
+        bool isMoving = move.sqrMagnitude > 0.01f;
+        if (isMoving)
+        {
+            _stepTimer -= Time.deltaTime;
+            if (_stepTimer <= 0f)
+            {
+                _stepTimer = footstepInterval;
+                float currentVolume = (footstepVolume <= 0.05f) ? 1.0f : footstepVolume;
+                // Nếu đang ở cảnh VietnamStreet, cho tiếng bước chân to và rõ hơn theo yêu cầu
+                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("VietnamStreet"))
+                {
+                    currentVolume = Mathf.Max(currentVolume, 1.0f);
+                }
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlayFootstep("Tiếng bước chân", currentVolume, Random.Range(0.98f, 1.02f));
+                }
+            }
+        }
+        else
+        {
+            if (_stepTimer > 0f)
+            {
+                _stepTimer = 0f;
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.StopFootstep();
+                }
+            }
+        }
 
         // Nhảy khi nhấn phím Space và nhân vật đang đứng trên mặt đất
         if (Input.GetButtonDown("Jump") && _isGrounded)

@@ -55,6 +55,10 @@ public class EventManager : MonoBehaviour
         _activeEvent = eventName;
         OnEventStarted?.Invoke(eventName);
         Debug.Log($"[EventManager] Sự kiện: {eventName}");
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Sự kiện", $"Sự kiện [{eventName}] vừa xảy ra! Hãy chú ý ứng phó ngay nào.", 4.5f);
+        }
     }
 
     /// <summary>
@@ -67,6 +71,11 @@ public class EventManager : MonoBehaviour
         string ended = _activeEvent;
         _activeEvent = null;
         OnEventEnded?.Invoke(ended);
+        Debug.Log($"[EventManager] Kết thúc sự kiện: {ended}");
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Sự kiện", $"Sự kiện [{ended}] đã đi qua, mọi thứ dần trở lại bình thường.", 4.5f);
+        }
     }
 
     /// <summary>

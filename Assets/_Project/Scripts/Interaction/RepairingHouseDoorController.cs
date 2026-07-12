@@ -35,6 +35,10 @@ public sealed class RepairingHouseDoorController : MonoBehaviour
     {
         animator.Play(DoorOpenState, 0, 0f);
         IsOpen = true;
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng mở cửa");
+        }
     }
 
     [ContextMenu("Close Door")]
