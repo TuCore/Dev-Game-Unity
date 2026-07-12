@@ -12,7 +12,28 @@ using UnityEditor;
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
-    public static AudioManager Instance { get; private set; }
+    private static AudioManager _instance;
+    public static AudioManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindFirstObjectByType<AudioManager>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("AudioManager");
+                    _instance = go.AddComponent<AudioManager>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            return _instance;
+        }
+        private set
+        {
+            _instance = value;
+        }
+    }
 
     [System.Serializable]
     public class SoundEntry
@@ -29,8 +50,10 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioSource musicSource;
     [SerializeField] private AudioSource ambienceSource;
     [SerializeField] private AudioSource sfxSource;
+    [SerializeField] private AudioSource footstepSource;
 
     private Dictionary<string, SoundEntry> _soundDict = new Dictionary<string, SoundEntry>();
+    private Coroutine _stopSfxCoroutine;
 
     private void Awake()
     {
@@ -59,6 +82,7 @@ public class AudioManager : MonoBehaviour
             musicSource.loop = true;
             musicSource.playOnAwake = false;
         }
+        if (musicSource != null) musicSource.spatialBlend = 0f;
 
         if (ambienceSource == null)
         {
@@ -66,6 +90,7 @@ public class AudioManager : MonoBehaviour
             ambienceSource.loop = true;
             ambienceSource.playOnAwake = false;
         }
+        if (ambienceSource != null) ambienceSource.spatialBlend = 0f;
 
         if (sfxSource == null)
         {
@@ -73,6 +98,15 @@ public class AudioManager : MonoBehaviour
             sfxSource.loop = false;
             sfxSource.playOnAwake = false;
         }
+        if (sfxSource != null) sfxSource.spatialBlend = 0f;
+
+        if (footstepSource == null)
+        {
+            footstepSource = gameObject.AddComponent<AudioSource>();
+            footstepSource.loop = false;
+            footstepSource.playOnAwake = false;
+        }
+        if (footstepSource != null) footstepSource.spatialBlend = 0f;
     }
 
     private void BuildSoundDictionary()
@@ -91,7 +125,7 @@ public class AudioManager : MonoBehaviour
     /// <summary>
     /// Phát âm thanh hiệu ứng (SFX) theo tên (Ví dụ: "Tiếng vô điện", "Tiếng bước chân")
     /// </summary>
-    public void PlaySFX(string soundName, float volumeScale = 1f, float pitch = 1f, bool stopPrevious = false, float startOffset = 0f)
+    public void PlaySFX(string soundName, float volumeScale = 1f, float pitch = 1f, bool stopPrevious = false, float startOffset = 0f, float duration = 0f)
     {
         if (TryGetSound(soundName, out SoundEntry entry))
         {
@@ -100,13 +134,22 @@ public class AudioManager : MonoBehaviour
             {
                 sfxSource.Stop();
             }
+            if (_stopSfxCoroutine != null)
+            {
+                StopCoroutine(_stopSfxCoroutine);
+                _stopSfxCoroutine = null;
+            }
             sfxSource.pitch = pitch;
-            if (startOffset > 0f)
+            if (startOffset > 0f || duration > 0f || stopPrevious)
             {
                 sfxSource.clip = entry.clip;
                 sfxSource.volume = entry.volume * volumeScale;
                 sfxSource.time = startOffset;
                 sfxSource.Play();
+                if (duration > 0f)
+                {
+                    _stopSfxCoroutine = StartCoroutine(StopSfxAfterDuration(duration));
+                }
             }
             else
             {
@@ -122,7 +165,7 @@ public class AudioManager : MonoBehaviour
     /// <summary>
     /// Phát trực tiếp một AudioClip dưới dạng SFX
     /// </summary>
-    public void PlaySFX(AudioClip clip, float volumeScale = 1f, float pitch = 1f, bool stopPrevious = false, float startOffset = 0f)
+    public void PlaySFX(AudioClip clip, float volumeScale = 1f, float pitch = 1f, bool stopPrevious = false, float startOffset = 0f, float duration = 0f)
     {
         if (clip != null && sfxSource != null)
         {
@@ -130,18 +173,73 @@ public class AudioManager : MonoBehaviour
             {
                 sfxSource.Stop();
             }
+            if (_stopSfxCoroutine != null)
+            {
+                StopCoroutine(_stopSfxCoroutine);
+                _stopSfxCoroutine = null;
+            }
             sfxSource.pitch = pitch;
-            if (startOffset > 0f)
+            if (startOffset > 0f || duration > 0f || stopPrevious)
             {
                 sfxSource.clip = clip;
                 sfxSource.volume = volumeScale;
                 sfxSource.time = startOffset;
                 sfxSource.Play();
+                if (duration > 0f)
+                {
+                    _stopSfxCoroutine = StartCoroutine(StopSfxAfterDuration(duration));
+                }
             }
             else
             {
                 sfxSource.PlayOneShot(clip, volumeScale);
             }
+        }
+    }
+
+    private System.Collections.IEnumerator StopSfxAfterDuration(float duration)
+    {
+        yield return new WaitForSecondsRealtime(duration);
+        if (sfxSource != null && sfxSource.isPlaying)
+        {
+            sfxSource.Stop();
+        }
+    }
+
+    /// <summary>
+    /// Phát tiếng bước chân (dừng gọn tiếng trước đó để không bao giờ bị dội hay vang echo, giảm âm lượng cho êm)
+    /// </summary>
+    public void PlayFootstep(string soundName, float volumeScale = 1f, float pitch = 1f)
+    {
+        if (TryGetSound(soundName, out SoundEntry entry))
+        {
+            if (footstepSource == null) SetupAudioSources();
+            if (footstepSource == null) return;
+            
+            footstepSource.spatialBlend = 0f; // Luôn đảm bảo 2D sound không bị suy giảm theo khoảng cách
+            float baseVol = (entry.volume <= 0.05f) ? 1f : entry.volume;
+            float finalVolume = Mathf.Clamp(baseVol * volumeScale, 0.1f, 1f);
+            
+            if (footstepSource.isPlaying)
+            {
+                footstepSource.Stop();
+            }
+            
+            footstepSource.clip = entry.clip;
+            footstepSource.volume = finalVolume;
+            footstepSource.pitch = pitch;
+            footstepSource.Play();
+        }
+    }
+
+    /// <summary>
+    /// Dừng ngay tiếng bước chân khi nhân vật dừng di chuyển
+    /// </summary>
+    public void StopFootstep()
+    {
+        if (footstepSource != null && footstepSource.isPlaying)
+        {
+            footstepSource.Stop();
         }
     }
 
@@ -210,7 +308,50 @@ public class AudioManager : MonoBehaviour
 
         // Tự động tìm lại dictionary nếu mới thêm vào list khi game đang chạy
         BuildSoundDictionary();
-        return _soundDict.TryGetValue(soundName, out entry);
+        if (_soundDict.TryGetValue(soundName, out entry))
+        {
+            return true;
+        }
+
+        // Tự động tải từ Resources nếu có
+        AudioClip clip = Resources.Load<AudioClip>(soundName);
+        if (clip == null) clip = Resources.Load<AudioClip>($"Audio/{soundName}");
+        if (clip == null) clip = Resources.Load<AudioClip>($"Audio/SFX/{soundName}");
+        if (clip == null) clip = Resources.Load<AudioClip>($"Audio/Ambience/{soundName}");
+
+#if UNITY_EDITOR
+        // Trong Editor: tự động tìm và nạp thẳng từ thư mục dự án nếu chưa gán vào Inspector hoặc Resources
+        if (clip == null)
+        {
+            string[] guids = UnityEditor.AssetDatabase.FindAssets($"{soundName} t:AudioClip");
+            foreach (string guid in guids)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                AudioClip foundClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                if (foundClip != null && foundClip.name == soundName)
+                {
+                    clip = foundClip;
+                    break;
+                }
+            }
+            if (clip == null && guids.Length > 0)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            }
+        }
+#endif
+
+        if (clip != null)
+        {
+            entry = new SoundEntry { name = soundName, clip = clip, volume = 1f };
+            sounds.Add(entry);
+            _soundDict[soundName] = entry;
+            if (musicSource == null || ambienceSource == null || sfxSource == null) SetupAudioSources();
+            return true;
+        }
+
+        return false;
     }
 
 #if UNITY_EDITOR

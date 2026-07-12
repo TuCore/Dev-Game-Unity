@@ -870,6 +870,10 @@ public class RewiringDemoUI : MonoBehaviour
         BuildWireHolder(wireElem, cellPath, worldPoints);
         _wires.Add(wireElem);
         PlayZapSound();
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Minigame Nối Dây", $"Đã kết nối dây màu [{startElem.data.Color}]!", 1.5f);
+        }
     }
 
     private void BuildWireHolder(DemoWireElement wireElem, List<Vector2Int> cellPath, List<Vector2> worldPoints)
@@ -1425,12 +1429,20 @@ public class RewiringDemoUI : MonoBehaviour
             int totalPairs = _terminals.Count / 2;
             _resultStyle.normal.textColor = new Color(1f, 0.4f, 0.4f);
             _resultText = $"<color=#FF5555>⚠ CHƯA NỐI ĐỦ DÂY ({connectedCount}/{totalPairs}) - HÃY NỐI HẾT CÁC CẶP MÀU! ⚠</color>";
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Chưa nối đủ hết các dây, phải dò cho kỹ từng cặp màu rồi mới đóng nắp được!", 3.5f);
+            }
         }
         else if (quality == RepairQuality.Passable)
         {
             _resultStyle.normal.textColor = new Color(1f, 0.85f, 0.2f);
             _resultText = $"<color=#FFC800>⚠ NỐI ẨU (PASSABLE) - RỦI RO CHẬP MẠCH! ⚠</color>\n" +
                           $"Đã nối đủ dây nhưng có {intersections} điểm chồng chập. Vui lòng sửa lại hoặc sẽ bị trừ tiền.";
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Á đù, nối thế này bị đè chéo mạch rồi! Khách lấy về dùng được nhưng dễ bị phàn nàn và mất uy tín.", 4f);
+            }
         }
         else if (quality == RepairQuality.Perfect)
         {
@@ -1438,6 +1450,10 @@ public class RewiringDemoUI : MonoBehaviour
             _resultText = "<color=#00FF88>★ HOÀN HẢO (PERFECT) - THỢ CÓ TÂM! ★</color>\n" +
                           "Đã nối thông toàn bộ mạch điện vuông vức theo từng ô, 0 ô bị đè hay chéo dây!";
             PlaySuccessSound();
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Ngon lành! Mạch hàn chắc nịch, dây đi gọn gàng chuẩn thợ có tâm Sài Gòn!", 4f, "Tiếng báo hiệu-chính xác");
+            }
         }
     }
 

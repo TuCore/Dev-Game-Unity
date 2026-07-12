@@ -392,6 +392,15 @@ namespace Minigames.Diagnosis
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Khám bệnh)", "Mở bảng mạch lên nào! Hãy dò các chân mạch để tìm ra vị trí bị hỏng.", 4f, "Tiếng mở bảng mạch");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng mở bảng mạch");
+            }
+
             Debug.Log("[Diagnosis] Bắt đầu minigame!");
         }
 
@@ -432,9 +441,22 @@ namespace Minigames.Diagnosis
             {
                 _faultsFound++;
                 Debug.Log($"[Diagnosis] Tìm thấy lỗi tại {probedNode.NodeId}! ({_faultsFound}/{_totalFaultsToFind})");
+                if (SubtitleManager.Instance != null)
+                {
+                    SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Phát hiện lỗi)", $"Tìm thấy rồi! Chân mạch số {probedNode.NodeNumber} ({probedNode.NodeId}) chính là chỗ bị hỏng!", 3f, "Tiếng báo hiệu-chính xác");
+                }
+                else if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlaySFX("Tiếng báo hiệu-chính xác");
+                }
             }
             else
             {
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlaySFX("Tiếng dò kim loại", 1f, 1f, true, 0f, 0.22f);
+                }
+
                 // Thuật toán Dò mìn theo Khoảng cách (Radar)
                 // Vì các nút giờ nằm rải rác ngẫu nhiên, ta sẽ cảnh báo nếu có bất kỳ lỗi nào nằm trong bán kính 280px (trên màn hình)
                 bool faultNearby = false;
@@ -517,6 +539,7 @@ namespace Minigames.Diagnosis
             Cursor.visible = false;
             
             CleanupNodes();
+            ShowEvaluationSubtitle(quality);
             
             Debug.Log($"[Diagnosis] Kết thúc khám. Đánh giá: {quality}. Thời gian: {_timeElapsed:F1}s");
             OnMinigameCompleted?.Invoke(quality);
@@ -539,11 +562,28 @@ namespace Minigames.Diagnosis
             RepairQuality quality = EvaluateQuality();
             
             CleanupNodes();
+            ShowEvaluationSubtitle(quality);
 
             Debug.Log($"[Diagnosis] Kết thúc khám. Đánh giá: {quality}. Thời gian: {_timeElapsed:F1}s");
             OnMinigameCompleted?.Invoke(quality);
 
             return quality;
+        }
+
+        private void ShowEvaluationSubtitle(RepairQuality quality)
+        {
+            if (SubtitleManager.Instance != null)
+            {
+                string ratingText = quality switch
+                {
+                    RepairQuality.Perfect => "Khám bệnh hoàn hảo! Đã tìm ra toàn bộ pan bệnh trong thời gian ngắn [S+].",
+                    RepairQuality.Good => "Khám khá chính xác! Đã khoanh vùng được các điểm lỗi trên bo mạch [A].",
+                    RepairQuality.Passable => "Khám bệnh tạm được! Có phát hiện ra vấn đề nhưng tốn khá nhiều thời gian/lượt đo [C].",
+                    RepairQuality.Broken => "Khám bệnh thất bại! Chưa xác định được nguyên nhân hỏng hóc trên bo mạch [F].",
+                    _ => "Đã hoàn tất kiểm tra bo mạch."
+                };
+                SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Đánh giá)", ratingText, 4f);
+            }
         }
 
         public void AbortMinigame()

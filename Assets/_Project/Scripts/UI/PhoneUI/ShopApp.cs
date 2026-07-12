@@ -19,6 +19,10 @@ public class ShopApp : BaseApp
             SpawnDeliveryBox(itemName);
             Debug.Log($"[S-Market] Đã thanh toán {price:N0}đ. Hàng ({itemName}) đang được giao tới!");
             ToastNotificationManager.Instance.ShowToast($"[S-Market] Kiện hàng chứa {itemName} đang được giao tới cửa!", 4f);
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("S-Market (Thanh toán)", $"Đã trừ {price:N0}đ từ tài khoản. Đặt mua [{itemName}] thành công, kiện hàng đang được giao tới trước cửa!", 4f);
+            }
         }
         else
         {

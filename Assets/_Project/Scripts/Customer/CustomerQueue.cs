@@ -47,14 +47,32 @@ public class CustomerQueue : MonoBehaviour
         {
             ToastNotificationManager.Instance.ShowToast("[+] Có khách mới đem đồ tới sửa kìa!", 3f);
         }
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Khách Hàng (Ngoài cửa)", "Anh thợ ơi có nhà không? Sửa gấp giúp tôi món đồ này với!", 4f, "Tiếng mở cửa");
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng mở cửa");
+        }
         
         return true;
     }
 
     public void CompleteOrder(CustomerOrder order)
     {
-        order.MarkCompleted();
-        OnOrderCompleted?.Invoke(order);
+        if (_activeOrders.Remove(order))
+        {
+            OnOrderCompleted?.Invoke(order);
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Khách Hàng", "Sửa kỹ ghê, máy chạy êm ru! Gửi anh thêm chút tiền tip nha.", 4f, "Tiếng thanh toán");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng thanh toán");
+            }
+        }
     }
 
     public void RemoveFailedOrder(CustomerOrder order)
@@ -62,6 +80,19 @@ public class CustomerQueue : MonoBehaviour
         if (_activeOrders.Remove(order))
         {
             OnCustomerLeft?.Invoke(order);
+            
+            if (ToastNotificationManager.Instance != null)
+            {
+                ToastNotificationManager.Instance.ShowToast("[!] Khách đợi lâu quá nên bỏ về rồi!", 4f);
+            }
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Khách Hàng (Bực bội)", "Anh thợ làm ăn lâu lắc quá, tôi mang đồ qua tiệm khác sửa đây!", 4f, "Tiếng đóng cửa");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng đóng cửa");
+            }
         }
     }
 

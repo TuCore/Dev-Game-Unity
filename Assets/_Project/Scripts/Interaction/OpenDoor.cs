@@ -6,6 +6,11 @@ public class OpenDoor : MonoBehaviour
 
     void OnMouseDown()
     {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng mở cửa");
+        }
+
         foreach (MeshRenderer cua in danhSachCua)
         {
             if (cua != null)

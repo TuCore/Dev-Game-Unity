@@ -58,6 +58,10 @@ public class RepairableItem : MonoBehaviour
         if (!HasRequiredParts())
         {
             Debug.Log("Không đủ linh kiện để sửa chữa!");
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Thiếu đồ)", $"Chưa thể sửa được! {GetMissingPartsText()}", 3.5f);
+            }
             return;
         }
 
@@ -222,6 +226,39 @@ public class RepairableItem : MonoBehaviour
             {
                 EconomyManager economy = FindObjectOfType<EconomyManager>();
                 if (economy != null) economy.AddCash(reward);
+            }
+
+            // Cộng tiền vào tài khoản
+            economy.AddCash(reward);
+            Debug.Log($"[Tiền công] Sửa thành công ({quality})! Nhận được: {reward} VNĐ");
+
+            string commentText = quality switch
+            {
+                RepairQuality.Perfect => $"Sửa hoàn hảo không tì vết! Khách hài lòng trả công {reward:N0} đ [S+].",
+                RepairQuality.Good => $"Sửa xong rồi! Khách kiểm tra thấy hoạt động tốt và trả đủ tiền công {reward:N0} đ [A].",
+                _ => $"Món đồ chạy tạm được, nhưng mối hàn hơi ẩu. Khách bớt tiền công còn {reward:N0} đ [C]."
+            };
+
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Khách Hàng & Thợ Điện", commentText, 4.5f, "Tiếng thanh toán");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng thanh toán");
+            }
+        }
+        else
+        {
+            Debug.Log("[Tiền công] Bạn đã làm hỏng món đồ, không nhận được đồng nào!");
+            string commentText = "Tiếng xẹt điện nổ bùm! Món đồ đã hỏng hẳn, khách hàng giận dữ bỏ đi không trả đồng nào [F].";
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Khách Hàng & Thợ Điện", commentText, 4.5f, "Tiếng vô điện");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng vô điện");
             }
         }
     }
