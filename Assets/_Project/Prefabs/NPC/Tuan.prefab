@@ -147,6 +147,11 @@ MonoBehaviour:
   counterTarget: {fileID: 0}
   exitTarget: {fileID: 0}
   itemPrefabToDrop: {fileID: 2268070602821842197, guid: 21edad40d3e245348b6631acc87f6f0c, type: 3}
+  possibleItemsToDrop:
+  - {fileID: 6691738825227053181, guid: 01810df32745e58488bd1bd399a5c27d, type: 3}
+  - {fileID: 3577639724466891634, guid: c6737fec74cf6374c95e3fe48d79cad9, type: 3}
+  - {fileID: 5466064485772803401, guid: c41aeb1312197264682ead0870c473b6, type: 3}
+  - {fileID: 1582330442650141130, guid: 164e64bea63499143ad31e1bbbdabf68, type: 3}
   itemDropPoint: {fileID: 0}
 --- !u!1 &8189227839519031396
 GameObject:

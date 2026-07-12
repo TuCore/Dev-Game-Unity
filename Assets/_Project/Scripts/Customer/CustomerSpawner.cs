@@ -9,12 +9,12 @@ public class CustomerSpawner : MonoBehaviour
     public Transform counterTarget;
     public Transform exitTarget;
     public Transform itemDropPoint;
-    
+
     [Header("Base Timers")]
     public float minSpawnDelay = 30f;
     public float maxSpawnDelay = 90f;
     public int maxSimultaneousNPCs = 3;
-    
+
     private float nextSpawnTime;
 
     private void Start()
@@ -36,7 +36,7 @@ public class CustomerSpawner : MonoBehaviour
         {
             int day = DayClock.Instance.CurrentDay;
             float hour = DayClock.Instance.CurrentHour;
-            
+
             foreach (var order in CustomerQueue.Instance.ActiveOrders)
             {
                 if (order.IsAppointmentDue(day, hour) && !order.hasSpawnedReturning)
@@ -68,7 +68,7 @@ public class CustomerSpawner : MonoBehaviour
             float rep = CustomerQueue.Instance.currentReputation;
             if (rep < 50) repFactor = 1f + ((50f - rep) / 50f); // Max 2x delay at 0 rep
         }
-        
+
         float delay = Random.Range(minSpawnDelay, maxSpawnDelay) * repFactor;
         nextSpawnTime = Time.time + delay;
     }
@@ -76,30 +76,41 @@ public class CustomerSpawner : MonoBehaviour
     private void SpawnWanderingCustomer()
     {
         Debug.Log("[DEBUG] SpawnWanderingCustomer called!");
-        if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null)
-        {
-            Debug.LogError($"[DEBUG] Missing references! Prefabs: {customerPrefabs.Count}, Spawn: {spawnPoint!=null}, Counter: {counterTarget!=null}, Exit: {exitTarget!=null}");
-            return;
-        }
+        if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null) return;
 
-        int currentCount = FindObjectsOfType<CustomerController>().Length;
-        Debug.Log($"[DEBUG] Current controllers in scene: {currentCount}, Max allowed: {maxSimultaneousNPCs}");
-        if (currentCount >= maxSimultaneousNPCs)
+        CustomerController[] currentControllers = FindObjectsOfType<CustomerController>();
+
+        // Kiểm tra giới hạn số lượng NPC vật lý trên Scene
+        if (currentControllers.Length >= maxSimultaneousNPCs)
         {
-            Debug.Log("[DEBUG] Spawn cancelled: Max simultaneous NPCs reached.");
             return;
         }
 
         if (CustomerQueue.Instance != null && CustomerQueue.Instance.ActiveOrderCount >= CustomerQueue.Instance.MaxCustomers)
         {
-            Debug.Log("[DEBUG] Spawn cancelled: Customer Queue is full.");
             return; // Đã kín chỗ
         }
 
+        // Lọc ra các prefab hợp lệ (không bị null)
+        List<GameObject> availablePrefabs = new List<GameObject>();
+        foreach (var prefab in customerPrefabs)
+        {
+            if (prefab != null)
+            {
+                availablePrefabs.Add(prefab);
+            }
+        }
+
+        if (availablePrefabs.Count == 0)
+        {
+            return;
+        }
+
         Debug.Log("[DEBUG] Conditions met! Instantiating prefab...");
-        GameObject prefab = customerPrefabs[Random.Range(0, customerPrefabs.Count)];
-        GameObject spawned = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation);
-        
+        GameObject selectedPrefab = availablePrefabs[Random.Range(0, availablePrefabs.Count)];
+
+        GameObject spawned = Instantiate(selectedPrefab, spawnPoint.position, spawnPoint.rotation);
+
         CustomerController controller = spawned.GetComponent<CustomerController>();
         if (controller != null)
         {
@@ -113,7 +124,7 @@ public class CustomerSpawner : MonoBehaviour
     private void SpawnReturningCustomer(CustomerOrder order)
     {
         if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null) return;
-        
+
         // Find matching prefab (simplified: just random for now if archetype name matching is too complex)
         GameObject prefab = customerPrefabs[Random.Range(0, customerPrefabs.Count)];
         foreach (var p in customerPrefabs)

@@ -38,6 +38,13 @@ public class RepairableItem : MonoBehaviour
         return _currentRepairs < maxRepairs;
     }
 
+    public void SetRandomizedProperties(MinigameType minigame, int diff, float reward)
+    {
+        minigameToPlay = minigame;
+        difficultyLevel = diff;
+        baseReward = reward;
+    }
+
     public void StartRepair()
     {
         if (!CanBeRepaired())
