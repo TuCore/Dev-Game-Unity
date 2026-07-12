@@ -29,9 +29,6 @@ public class RepairableItem : MonoBehaviour
     [SerializeField] private int maxRepairs = 1;
     
     private int _currentRepairs = 0;
-    
-    // Đơn hàng liên kết với vật phẩm này
-    public CustomerOrder linkedOrder;
 
     public bool CanBeRepaired()
     {
@@ -162,17 +159,20 @@ public class RepairableItem : MonoBehaviour
     {
         _currentRepairs++;
 
+        // Gỡ event ngay để tránh bị gọi lặp lại vào lần sau
         MinigameManager manager = FindObjectOfType<MinigameManager>();
         if (manager != null) manager.OnMinigameCompleted -= OnRepairDone;
 
+        // Trừ linh kiện sau khi đã tham gia sửa (hoặc trừ trước tuỳ design, ở đây trừ sau khi sửa xong)
         ConsumeRequiredParts();
 
+        // Tính tiền thưởng dựa trên chất lượng sửa (Pass hết = Perfect)
         float reward = 0f;
         string ratingText = "";
         switch (quality)
         {
             case RepairQuality.Perfect: 
-                reward = baseReward * 1.5f; 
+                reward = baseReward * 1.5f; // Thưởng thêm 50% nếu hoàn hảo
                 ratingText = "Tuyệt vời! [S+]";
                 break;
             case RepairQuality.Good: 
@@ -180,42 +180,47 @@ public class RepairableItem : MonoBehaviour
                 ratingText = "Khá tốt! [A]";
                 break;
             case RepairQuality.Passable: 
-                reward = baseReward * 0.5f; 
+                reward = baseReward * 0.5f; // Bị trừ nửa tiền nếu làm ẩu
                 ratingText = "Tạm được! [C]";
                 break;
             case RepairQuality.Broken: 
-                reward = 0f; 
+                reward = 0f; // Sửa hỏng thì không có tiền
                 ratingText = "Làm hỏng đồ rồi! [F]";
                 break;
         }
 
-        // Cập nhật CustomerOrder nếu có liên kết
-        if (linkedOrder != null)
+        if (ToastNotificationManager.Instance != null)
         {
-            linkedOrder.basePay = reward; // Override base pay with the calculated reward based on quality
-            linkedOrder.isCompleted = true;
-            
-            if (CustomerQueue.Instance != null)
+            if (reward > 0)
+                ToastNotificationManager.Instance.ShowToast($"Đánh giá: {ratingText}\nKhách trả {reward:N0} đ!", 4f);
+            else
+                ToastNotificationManager.Instance.ShowToast($"Đánh giá: {ratingText}\nKhách giận bỏ đi không trả đồng nào!", 4f);
+        }
+
+        if (reward > 0)
+        {
+            // Tìm hoặc tự tạo EconomyManager nếu chưa có
+            EconomyManager economy = FindObjectOfType<EconomyManager>();
+            if (economy == null)
             {
-                CustomerQueue.Instance.CompleteOrder(linkedOrder);
+                GameObject ecoObj = new GameObject("EconomyManager");
+                economy = ecoObj.AddComponent<EconomyManager>();
             }
+
+            // Tìm hoặc tự tạo MoneyUI để hiển thị tiền lên màn hình
+            MoneyUI moneyUI = FindObjectOfType<MoneyUI>();
+            if (moneyUI == null)
+            {
+                economy.gameObject.AddComponent<MoneyUI>();
+            }
+
+            // Cộng tiền vào tài khoản
+            economy.AddCash(reward);
+            Debug.Log($"[Tiền công] Sửa thành công ({quality})! Nhận được: {reward} VNĐ");
         }
         else
         {
-            // Trả thưởng trực tiếp (Fall-back nếu không có Order)
-            if (ToastNotificationManager.Instance != null)
-            {
-                if (reward > 0)
-                    ToastNotificationManager.Instance.ShowToast($"Đánh giá: {ratingText}\nNhận {reward:N0} đ!", 4f);
-                else
-                    ToastNotificationManager.Instance.ShowToast($"Đánh giá: {ratingText}\nKhông nhận được tiền!", 4f);
-            }
-
-            if (reward > 0)
-            {
-                EconomyManager economy = FindObjectOfType<EconomyManager>();
-                if (economy != null) economy.AddCash(reward);
-            }
+            Debug.Log("[Tiền công] Bạn đã làm hỏng món đồ, không nhận được đồng nào!");
         }
     }
 }

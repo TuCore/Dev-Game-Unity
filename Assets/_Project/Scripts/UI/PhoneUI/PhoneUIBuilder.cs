@@ -82,12 +82,12 @@ public class PhoneUIBuilder : MonoBehaviour
         RectTransform islandRect = island.GetComponent<RectTransform>();
         islandRect.anchorMin = new Vector2(0.5f, 1); islandRect.anchorMax = new Vector2(0.5f, 1);
         islandRect.pivot = new Vector2(0.5f, 1);
-        islandRect.sizeDelta = new Vector2(100, 26);
-        islandRect.anchoredPosition = new Vector2(0, -5);
+        islandRect.sizeDelta = new Vector2(130, 35);
+        islandRect.anchoredPosition = new Vector2(0, -10);
         Image islandBg = island.AddComponent<Image>();
         islandBg.sprite = RoundedSpriteGenerator.GenerateRoundedRect(100, 100, 50, Color.white);
         islandBg.type = Image.Type.Sliced;
-        islandBg.color = new Color(0.02f, 0.02f, 0.02f, 1f);
+        islandBg.color = Color.black;
 
         // Status Bar
         GameObject statusTime = CreateTextObj("Time", screenObj.transform, "14:30", 16, TextAlignmentOptions.Left);
@@ -153,33 +153,10 @@ public class PhoneUIBuilder : MonoBehaviour
         balanceText.fontStyle = FontStyles.Bold;
         SetPrivateField(bankApp, "balanceText", balanceText);
 
-        // --- SECTION: KHOẢN VAY ---
-        CreateTextObj("LoanTitle", bankContent.transform, "Tín dụng", 18, TextAlignmentOptions.Left).GetComponent<RectTransform>().sizeDelta = new Vector2(360, 30);
-        
-        GameObject loanCard = CreateCard(bankContent.transform, new Vector2(360, 110), new Color(0.12f, 0.12f, 0.15f), 15, false);
-        TextMeshProUGUI loanInfoText = CreateTextObj("LoanInfo", loanCard.transform, "Đang tải...", 16, TextAlignmentOptions.TopLeft, true, new Vector2(15, -15), new Vector2(-15, -15)).GetComponent<TextMeshProUGUI>();
-        SetPrivateField(bankApp, "loanInfoText", loanInfoText);
-
-        GameObject btnLayoutObj = CreateUIObject("BtnLayout", bankContent.transform);
-        btnLayoutObj.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 45);
-        HorizontalLayoutGroup hLayout = btnLayoutObj.AddComponent<HorizontalLayoutGroup>();
-        hLayout.spacing = 15;
-        hLayout.childControlWidth = false; hLayout.childForceExpandWidth = false;
-        hLayout.childAlignment = TextAnchor.MiddleCenter;
-
-        GameObject borrowBtnObj = CreateCard(btnLayoutObj.transform, new Vector2(170, 45), new Color(0.1f, 0.6f, 0.3f), 12, false);
-        CreateTextObj("Txt", borrowBtnObj.transform, "Vay Tiền", 18, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>().fontStyle = FontStyles.Bold;
-        Button borrowBtn = borrowBtnObj.AddComponent<Button>();
-        SetPrivateField(bankApp, "borrowButton", borrowBtn);
-
-        GameObject repayBtnObj = CreateCard(btnLayoutObj.transform, new Vector2(170, 45), new Color(0.8f, 0.2f, 0.2f), 12, false);
-        CreateTextObj("Txt", repayBtnObj.transform, "Tất Toán", 18, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>().fontStyle = FontStyles.Bold;
-        Button repayBtn = repayBtnObj.AddComponent<Button>();
-        SetPrivateField(bankApp, "repayButton", repayBtn);
-        // --------------------------
-
-        // --------------------------
-        // --------------------------
+        CreateTextObj("HistoryTitle", bankContent.transform, "Giao dịch gần đây", 18, TextAlignmentOptions.Left).GetComponent<RectTransform>().sizeDelta = new Vector2(360, 30);
+        CreateListItem(bankContent.transform, "Nhận lương", "+ 15,000,000", new Color(0.2f, 0.8f, 0.2f));
+        CreateListItem(bankContent.transform, "Đóng tiền trọ", "- 1,500,000", new Color(1f, 0.4f, 0.4f));
+        CreateListItem(bankContent.transform, "Ăn sáng", "- 50,000", new Color(1f, 0.4f, 0.4f));
         
         CreateAppIcon(appsGrid.transform, "Ngân Hàng", "bank.png", phoneManager, bankApp);
 
@@ -233,9 +210,9 @@ public class PhoneUIBuilder : MonoBehaviour
 
         CreateTextObj("DateTitle", tasksContent.transform, "Hôm nay", 24, TextAlignmentOptions.Left).GetComponent<RectTransform>().sizeDelta = new Vector2(360, 40);
 
-        CreateTaskItem(tasksContent.transform, "Thức dậy", true);
-        CreateTaskItem(tasksContent.transform, "Làm việc kiếm tiền", false);
-        CreateTaskItem(tasksContent.transform, "Đóng tiền trọ", false);
+        CreateListItem(tasksContent.transform, "Thức dậy", "✅", Color.white);
+        CreateListItem(tasksContent.transform, "Làm việc kiếm tiền", "⬜", Color.white);
+        CreateListItem(tasksContent.transform, "Đóng tiền trọ", "⬜", Color.white);
 
         TextMeshProUGUI tasksText = CreateTextObj("TasksText", tasksContent.transform, "", 18, TextAlignmentOptions.TopLeft).GetComponent<TextMeshProUGUI>();
         tasksText.gameObject.SetActive(false);
@@ -443,9 +420,13 @@ public class PhoneUIBuilder : MonoBehaviour
         Mask mask = maskObj.AddComponent<Mask>();
         mask.showMaskGraphic = false; // Chỉ lấy khuôn, che nền trắng
 
-        // Ảnh nội dung
+        // Ảnh nội dung (Phóng to để cắt viền thừa của ảnh AI)
         GameObject imgObj = CreateUIObject("Image", maskObj.transform);
-        StretchRect(imgObj.GetComponent<RectTransform>());
+        RectTransform imgRect = imgObj.GetComponent<RectTransform>();
+        imgRect.anchorMin = new Vector2(0.5f, 0.5f);
+        imgRect.anchorMax = new Vector2(0.5f, 0.5f);
+        imgRect.pivot = new Vector2(0.5f, 0.5f);
+        imgRect.sizeDelta = new Vector2(90, 90); // To hơn ô chứa 65x65 để phần thừa bị xén đi
         Image img = imgObj.AddComponent<Image>();
         
         Sprite iconSprite = LoadSprite(iconFileName);
@@ -463,11 +444,11 @@ public class PhoneUIBuilder : MonoBehaviour
         Button btn = iconBtn.AddComponent<Button>();
         btn.onClick.AddListener(() => phoneManager.OpenApp(targetApp));
 
-        GameObject txt = CreateTextObj("Label", iconBtn.transform, label, 13, TextAlignmentOptions.Center);
+        GameObject txt = CreateTextObj("Label", iconBtn.transform, label, 14, TextAlignmentOptions.Center);
         RectTransform txtRect = txt.GetComponent<RectTransform>();
         txtRect.anchorMin = new Vector2(0, 0); txtRect.anchorMax = new Vector2(1, 0);
         txtRect.pivot = new Vector2(0.5f, 1);
-        txtRect.anchoredPosition = new Vector2(0, -8); // Khoảng cách chữ tới icon
+        txtRect.anchoredPosition = new Vector2(0, -10); // Khoảng cách chữ tới icon
         txtRect.sizeDelta = new Vector2(120, 30); // Cho nhãn text rộng ra để không bị vỡ chữ
     }
 
@@ -482,7 +463,7 @@ public class PhoneUIBuilder : MonoBehaviour
 
     private void CreateShopItem(Transform parent, string title, float price, ShopApp shopApp)
     {
-        GameObject item = CreateCard(parent, new Vector2(360, 70), new Color(0.15f, 0.15f, 0.18f), 12, false);
+        GameObject item = CreateCard(parent, new Vector2(360, 70), new Color(0.15f, 0.15f, 0.18f), 12);
         
         CreateTextObj("Title", item.transform, title, 18, TextAlignmentOptions.Left, true, new Vector2(20, 0), new Vector2(100, 0));
         
@@ -490,7 +471,7 @@ public class PhoneUIBuilder : MonoBehaviour
         valObj.GetComponent<TextMeshProUGUI>().color = new Color(1f, 0.5f, 0f);
 
         // Buy Button
-        GameObject btnObj = CreateCard(item.transform, new Vector2(75, 40), Color.white, 8, false);
+        GameObject btnObj = CreateCard(item.transform, new Vector2(75, 40), Color.white, 8);
         UIGradient btnGrad = btnObj.AddComponent<UIGradient>();
         btnGrad.color1 = new Color(1f, 0.4f, 0f);
         btnGrad.color2 = new Color(1f, 0.7f, 0f);
@@ -506,7 +487,7 @@ public class PhoneUIBuilder : MonoBehaviour
         btn.onClick.AddListener(() => shopApp.BuyItem(title, price));
     }
 
-    private GameObject CreateCard(Transform parent, Vector2 size, Color bgColor, int radius = 15, bool useEffects = true)
+    private GameObject CreateCard(Transform parent, Vector2 size, Color bgColor, int radius = 15)
     {
         GameObject card = CreateUIObject("Card", parent);
         RectTransform rect = card.GetComponent<RectTransform>();
@@ -516,56 +497,25 @@ public class PhoneUIBuilder : MonoBehaviour
         bg.type = Image.Type.Sliced;
         bg.color = bgColor;
         
-        if (useEffects)
-        {
-            // Premium Effect: Viền Outline siêu mờ ảo giác kính
-            UnityEngine.UI.Outline outline = card.AddComponent<UnityEngine.UI.Outline>();
-            outline.effectColor = new Color(1f, 1f, 1f, 0.08f);
-            outline.effectDistance = new Vector2(1, -1);
+        // Premium Effect: Viền Outline siêu mờ ảo giác kính
+        UnityEngine.UI.Outline outline = card.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = new Color(1f, 1f, 1f, 0.08f);
+        outline.effectDistance = new Vector2(1, -1);
 
-            // Premium Effect: Đổ bóng xịn
-            Shadow shadow = card.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0, 0, 0, 0.35f);
-            shadow.effectDistance = new Vector2(0, -3);
-        }
+        // Premium Effect: Đổ bóng xịn
+        Shadow shadow = card.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0, 0, 0, 0.35f);
+        shadow.effectDistance = new Vector2(0, -3);
 
         return card;
     }
 
     private GameObject CreateListItem(Transform parent, string title, string value, Color valueColor)
     {
-        GameObject item = CreateCard(parent, new Vector2(360, 60), new Color(0.12f, 0.12f, 0.15f), 12, false);
+        GameObject item = CreateCard(parent, new Vector2(360, 60), new Color(0.12f, 0.12f, 0.15f), 12);
         CreateTextObj("Title", item.transform, title, 18, TextAlignmentOptions.Left, true, new Vector2(20, 0), new Vector2(20, 0));
         GameObject valObj = CreateTextObj("Value", item.transform, value, 18, TextAlignmentOptions.Right, true, new Vector2(-20, 0), new Vector2(-20, 0));
         valObj.GetComponent<TextMeshProUGUI>().color = valueColor;
-        return item;
-    }
-
-    private GameObject CreateTaskItem(Transform parent, string title, bool isDone)
-    {
-        GameObject item = CreateCard(parent, new Vector2(360, 50), new Color(0.15f, 0.15f, 0.18f), 12, false);
-        
-        // Checkbox icon
-        GameObject checkObj = CreateUIObject("Check", item.transform);
-        RectTransform checkRect = checkObj.GetComponent<RectTransform>();
-        checkRect.anchorMin = new Vector2(0, 0.5f); checkRect.anchorMax = new Vector2(0, 0.5f);
-        checkRect.pivot = new Vector2(0, 0.5f); checkRect.anchoredPosition = new Vector2(15, 0);
-        checkRect.sizeDelta = new Vector2(24, 24);
-        Image checkImg = checkObj.AddComponent<Image>();
-        checkImg.sprite = RoundedSpriteGenerator.GenerateRoundedRect(50, 50, 25, Color.white);
-        checkImg.type = Image.Type.Sliced;
-        checkImg.color = isDone ? new Color(0.2f, 0.8f, 0.2f) : new Color(0.3f, 0.3f, 0.35f);
-
-        GameObject titleObj = CreateTextObj("Title", item.transform, title, 18, TextAlignmentOptions.Left, true, new Vector2(50, 0), new Vector2(-20, 0));
-        TextMeshProUGUI titleTxt = titleObj.GetComponent<TextMeshProUGUI>();
-        titleTxt.color = isDone ? new Color(0.6f, 0.6f, 0.6f) : Color.white;
-        
-        if (isDone)
-        {
-            // Thay vì gạch ngang (lỗi font fontStyle = FontStyles.Strikethrough), chỉ cần làm mờ text
-            titleTxt.alpha = 0.5f;
-        }
-
         return item;
     }
 
@@ -577,7 +527,7 @@ public class PhoneUIBuilder : MonoBehaviour
         contRect.sizeDelta = new Vector2(360, height);
         
         // Bubble thật sự (neo trái hoặc phải bên trong container)
-        GameObject card = CreateCard(container.transform, new Vector2(width, height), isMine ? Color.white : new Color(0.18f, 0.18f, 0.2f), 18, false);
+        GameObject card = CreateCard(container.transform, new Vector2(width, height), isMine ? Color.white : new Color(0.18f, 0.18f, 0.2f), 18);
         if (isMine)
         {
             UIGradient cGrad = card.AddComponent<UIGradient>();
