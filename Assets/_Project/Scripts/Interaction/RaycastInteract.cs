@@ -224,7 +224,7 @@ public class RaycastInteract : MonoBehaviour
         if (isHit)
         {
             // Xử lý đồ vật có thể nhặt/tương tác bằng E
-            IInteractable interactable = hit.collider.GetComponent<IInteractable>();
+            IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
             if (interactable != null)
             {
                 promptText += interactable.GetInteractionPrompt();
@@ -232,7 +232,7 @@ public class RaycastInteract : MonoBehaviour
                 // Nhấn phím E để tương tác
                 if (Input.GetKeyDown(KeyCode.E))
                 {
-                    PickupItem pickup = hit.collider.GetComponent<PickupItem>();
+                    PickupItem pickup = hit.collider.GetComponentInParent<PickupItem>();
                     if (pickup != null)
                     {
                         pickup.Pickup(holdPosition, heldItemScale);
@@ -248,7 +248,7 @@ public class RaycastInteract : MonoBehaviour
             }
 
             // Xử lý đồ vật có thể sửa chữa bằng F
-            RepairableItem repairable = hit.collider.GetComponent<RepairableItem>();
+            RepairableItem repairable = hit.collider.GetComponentInParent<RepairableItem>();
             if (repairable != null)
             {
                 if (!string.IsNullOrEmpty(promptText)) promptText += "\n";

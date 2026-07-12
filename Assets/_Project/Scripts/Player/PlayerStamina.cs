@@ -52,7 +52,14 @@ public class PlayerStamina : MonoBehaviour
     /// </summary>
     public void RecoverStamina(float amount)
     {
-        _currentStamina = Mathf.Min(maxStamina, _currentStamina + amount);
+        float bonusPercent = 0f;
+        if (SpaceUpgradeSystem.Instance != null)
+        {
+            bonusPercent = SpaceUpgradeSystem.Instance.StaminaRecoveryBonus;
+        }
+        
+        float finalAmount = amount * (1f + bonusPercent);
+        _currentStamina = Mathf.Min(maxStamina, _currentStamina + finalAmount);
         OnStaminaChanged?.Invoke(StaminaPercent);
     }
 

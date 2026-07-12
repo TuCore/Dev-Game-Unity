@@ -137,9 +137,25 @@ public class SolderingMinigameUI : MonoBehaviour
         ApplyNeedleRotation();
 
         float difficultyOffset = Mathf.Max(0, _difficultyLevel - 1);
-        _successSize = Mathf.Clamp(baseSuccessZoneDegrees - (difficultyOffset * 8f), minSuccessZoneDegrees, baseSuccessZoneDegrees);
-        _greatSize = Mathf.Clamp(baseGreatZoneDegrees - (difficultyOffset * 4f), minGreatZoneDegrees, Mathf.Min(baseGreatZoneDegrees, _successSize));
-        _perfectSize = Mathf.Clamp(basePerfectZoneDegrees - (difficultyOffset * 1.4f), minPerfectZoneDegrees, basePerfectZoneDegrees);
+        
+        // Nhận bonus từ nâng cấp mỏ hàn (ToolUpgradeSystem)
+        float toolBonusPercent = 0f;
+        if (ToolUpgradeSystem.Instance != null)
+        {
+            toolBonusPercent = ToolUpgradeSystem.Instance.GetAccuracyBonus("SolderingIron");
+        }
+        
+        // Tính toán kích thước (độ) cơ bản
+        float baseSuccess = Mathf.Clamp(baseSuccessZoneDegrees - (difficultyOffset * 8f), minSuccessZoneDegrees, baseSuccessZoneDegrees);
+        float baseGreat = Mathf.Clamp(baseGreatZoneDegrees - (difficultyOffset * 4f), minGreatZoneDegrees, Mathf.Min(baseGreatZoneDegrees, baseSuccess));
+        float basePerfect = Mathf.Clamp(basePerfectZoneDegrees - (difficultyOffset * 1.4f), minPerfectZoneDegrees, basePerfectZoneDegrees);
+
+        // Cộng thêm góc mở rộng từ ToolBonus (VD: 5% bonus = mở rộng thêm 5% của 360 độ = 18 độ cho success)
+        float bonusAngle = toolBonusPercent * 360f;
+        
+        _successSize = Mathf.Clamp(baseSuccess + bonusAngle, minSuccessZoneDegrees, 360f);
+        _greatSize = Mathf.Clamp(baseGreat + (bonusAngle * 0.6f), minGreatZoneDegrees, _successSize);
+        _perfectSize = Mathf.Clamp(basePerfect + (bonusAngle * 0.3f), minPerfectZoneDegrees, _greatSize);
 
         _successStartAngle = Random.Range(25f, 335f - _successSize);
         _greatStartAngle = _successStartAngle + ((_successSize - _greatSize) * 0.5f);

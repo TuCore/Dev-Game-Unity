@@ -447,7 +447,15 @@ namespace Minigames.Diagnosis
                         // Ta có thể dùng anchoredPosition nếu cả 2 có RectTransform, nhưng transform.localPosition cũng là 1 cách tốt.
                         float localDist = Vector3.Distance(probedNode.transform.localPosition, other.transform.localPosition);
                         
-                        if (localDist <= 280f) // 280 units (pixels) là bán kính radar
+                        // Lấy bonus từ Kính lúp/Đèn LED
+                        float radarBonus = 0f;
+                        if (ToolUpgradeSystem.Instance != null)
+                        {
+                            radarBonus = ToolUpgradeSystem.Instance.GetRadarRadiusBonus();
+                        }
+                        float radarRadius = 280f + radarBonus;
+                        
+                        if (localDist <= radarRadius) // Bán kính radar
                         {
                             faultNearby = true;
                             break;
