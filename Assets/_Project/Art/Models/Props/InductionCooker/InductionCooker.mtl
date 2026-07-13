@@ -1,0 +1,16 @@
+# Blender 5.0.1 MTL File: 'None'
+# www.blender.org
+
+newmtl tripo_mat_a66712df-402e-4e86-9590-2e71c231741f
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd InductionCooker_basecolor.JPEG
+map_Ns InductionCooker_roughness.JPEG
+map_Pr InductionCooker_roughness.JPEG
+map_refl InductionCooker_metallic.JPEG
+map_Pm InductionCooker_metallic.JPEG
+map_Bump -bm 1.000000 InductionCooker_normal.JPEG
