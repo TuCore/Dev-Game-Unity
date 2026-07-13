@@ -206,10 +206,8 @@ public class RepairableItem : MonoBehaviour
             linkedOrder.basePay = reward; // Override base pay with the calculated reward based on quality
             linkedOrder.isCompleted = true;
             
-            if (CustomerQueue.Instance != null)
-            {
-                CustomerQueue.Instance.CompleteOrder(linkedOrder);
-            }
+            // NOTE: Do not call CustomerQueue.Instance.CompleteOrder(linkedOrder) here.
+            // It will be called in CustomerController.ProcessPickup() when the customer actually returns.
         }
         else
         {

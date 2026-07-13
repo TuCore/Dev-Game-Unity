@@ -24,6 +24,7 @@ public class PhoneUIBuilder : MonoBehaviour
     {
         // 1. Phone Canvas
         GameObject canvasObj = new GameObject("Phone_Canvas");
+        DontDestroyOnLoad(canvasObj); // Persist Phone UI across scenes
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
