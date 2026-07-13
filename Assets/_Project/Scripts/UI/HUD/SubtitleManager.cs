@@ -77,32 +77,17 @@ public class SubtitleManager : MonoBehaviour
 
         if (canvas == null) return;
 
-        // 1. Tạo Intro Black Panel (Màn hình đen lúc thức dậy trong phòng ngủ)
-        _introBlackPanel = new GameObject("Intro_BlackScreen");
-        _introBlackPanel.transform.SetParent(canvas.transform, false);
-        RectTransform blackRect = _introBlackPanel.AddComponent<RectTransform>();
-        blackRect.anchorMin = Vector2.zero;
-        blackRect.anchorMax = Vector2.one;
-        blackRect.offsetMin = Vector2.zero;
-        blackRect.offsetMax = Vector2.zero;
+        // Bỏ Intro Black Panel theo yêu cầu người chơi
 
-        Image blackImg = _introBlackPanel.AddComponent<Image>();
-        blackImg.color = Color.black;
-
-        _introBlackGroup = _introBlackPanel.AddComponent<CanvasGroup>();
-        _introBlackGroup.alpha = 0f;
-        _introBlackGroup.blocksRaycasts = false;
-        _introBlackPanel.SetActive(false);
-
-        // 2. Tạo Subtitle Panel (Khung phụ đề dưới đáy màn hình)
+        // 2. Tạo Subtitle Panel (Khung phụ đề dưới góc trái màn hình)
         _subtitlePanel = new GameObject("SubtitlePanel");
         _subtitlePanel.transform.SetParent(canvas.transform, false);
         _subtitleRect = _subtitlePanel.AddComponent<RectTransform>();
-        _subtitleRect.anchorMin = new Vector2(0.5f, 0f);
-        _subtitleRect.anchorMax = new Vector2(0.5f, 0f);
-        _subtitleRect.pivot = new Vector2(0.5f, 0f);
-        _subtitleRect.anchoredPosition = new Vector2(0, 30); // Cách đáy 30px
-        _subtitleRect.sizeDelta = new Vector2(900, 130);
+        _subtitleRect.anchorMin = new Vector2(0f, 0f);
+        _subtitleRect.anchorMax = new Vector2(0f, 0f);
+        _subtitleRect.pivot = new Vector2(0f, 0f);
+        _subtitleRect.anchoredPosition = new Vector2(30, 30); // Cách góc dưới trái 30px
+        _subtitleRect.sizeDelta = new Vector2(600, 120);
 
         Image bg = _subtitlePanel.AddComponent<Image>();
         bg.color = new Color(0.05f, 0.06f, 0.08f, 0.88f); // Màu đen mờ cơ khí Sài Gòn
@@ -118,7 +103,7 @@ public class SubtitleManager : MonoBehaviour
         speakerRect.sizeDelta = new Vector2(-40, 32);
 
         _speakerText = speakerObj.AddComponent<TextMeshProUGUI>();
-        _speakerText.fontSize = 24;
+        _speakerText.fontSize = 20;
         _speakerText.alignment = TextAlignmentOptions.TopLeft;
         _speakerText.color = new Color(1f, 0.84f, 0f, 1f); // Vàng Gold
         _speakerText.fontStyle = FontStyles.Bold;
@@ -133,7 +118,7 @@ public class SubtitleManager : MonoBehaviour
         msgRect.offsetMax = new Vector2(-20, -45);
 
         _messageText = msgObj.AddComponent<TextMeshProUGUI>();
-        _messageText.fontSize = 26;
+        _messageText.fontSize = 22;
         _messageText.alignment = TextAlignmentOptions.TopLeft;
         _messageText.color = Color.white;
         _messageText.enableWordWrapping = true;
@@ -167,13 +152,7 @@ public class SubtitleManager : MonoBehaviour
 
     private IEnumerator IntroSequenceRoutine(System.Action onComplete)
     {
-        // 1. Phủ màn hình đen lúc mới vào game (Nhân vật thức dậy trong phòng ngủ)
-        if (_introBlackPanel != null && _introBlackGroup != null)
-        {
-            _introBlackPanel.SetActive(true);
-            _introBlackGroup.alpha = 1f;
-            _introBlackGroup.blocksRaycasts = true;
-        }
+        // Đã bỏ màn hình đen
 
         // Phát âm thanh môi trường Sài Gòn buổi sáng
         if (AudioManager.Instance != null)
@@ -193,23 +172,10 @@ public class SubtitleManager : MonoBehaviour
         yield return StartCoroutine(AnimateSubtitle("Anh Thợ Điện (Tự nhủ)", "Hôm nay phải ráng sửa đồ thật cẩn thận, tích góp tiền nâng cấp đồ nghề mới được!", 3.5f, "Tiếng gõ phím"));
         yield return new WaitForSeconds(0.5f);
 
-        // 3. Mở mắt thức dậy (Fade-out màn hình đen trong 2 giây)
-        if (_introBlackGroup != null)
+        // 3. Kết thúc sequence
+        if (AudioManager.Instance != null)
         {
-            if (AudioManager.Instance != null)
-            {
-                AudioManager.Instance.PlaySFX("Tiếng mở cửa");
-            }
-            float fadeTime = 2f;
-            float elapsed = 0f;
-            while (elapsed < fadeTime)
-            {
-                elapsed += Time.deltaTime;
-                _introBlackGroup.alpha = Mathf.Lerp(1f, 0f, elapsed / fadeTime);
-                yield return null;
-            }
-            _introBlackGroup.blocksRaycasts = false;
-            _introBlackPanel.SetActive(false);
+            AudioManager.Instance.PlaySFX("Tiếng mở cửa");
         }
 
         _subtitlePanel.SetActive(false);

@@ -70,6 +70,9 @@ public class AudioManager : MonoBehaviour
         // Khởi tạo các AudioSource nếu chưa được gán trên Inspector
         SetupAudioSources();
 
+        // Tự động nạp toàn bộ âm thanh từ AudioDatabase (cơ chế chống lỗi tên file khi Build)
+        LoadFromDatabase();
+
         // Xây dựng từ điển tra cứu nhanh âm thanh theo tên
         BuildSoundDictionary();
     }
@@ -107,6 +110,30 @@ public class AudioManager : MonoBehaviour
             footstepSource.playOnAwake = false;
         }
         if (footstepSource != null) footstepSource.spatialBlend = 0f;
+    }
+
+    private void LoadFromDatabase()
+    {
+        AudioDatabase db = Resources.Load<AudioDatabase>("AudioDatabase");
+        if (db != null)
+        {
+            foreach (var map in db.mappings)
+            {
+                if (map.clip != null)
+                {
+                    // Tránh thêm trùng lặp nếu đã có trên Inspector
+                    bool exists = false;
+                    foreach (var s in sounds)
+                    {
+                        if (s.name == map.key) { exists = true; break; }
+                    }
+                    if (!exists)
+                    {
+                        sounds.Add(new SoundEntry { name = map.key, clip = map.clip, volume = 1f });
+                    }
+                }
+            }
+        }
     }
 
     private void BuildSoundDictionary()

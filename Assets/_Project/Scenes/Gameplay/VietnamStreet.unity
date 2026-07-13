@@ -6670,6 +6670,8 @@ MonoBehaviour:
   runSpeed: 12
   gravity: -9.81
   jumpHeight: 1.5
+  footstepVolume: 0.85
+  footstepInterval: 0.42
   minigameManager: {fileID: 0}
   groundCheck: {fileID: 591375857}
   groundDistance: 0.4
