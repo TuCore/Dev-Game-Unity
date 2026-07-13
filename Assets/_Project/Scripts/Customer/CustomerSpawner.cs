@@ -19,6 +19,8 @@ public class CustomerSpawner : MonoBehaviour
 
     private void Start()
     {
+        // Khởi tạo khách đầu tiên xuất hiện NGAY LẬP TỨC khi load Scene
+        SpawnWanderingCustomer();
         ScheduleNextSpawn();
     }
 

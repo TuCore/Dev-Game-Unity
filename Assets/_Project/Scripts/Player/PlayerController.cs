@@ -58,10 +58,14 @@ public class PlayerController : MonoBehaviour
                 });
             }
         }
-    }
 
-    private void Start()
-    {
+        // Tự động spawn Pause Menu (Settings) nếu chưa có trong scene
+        if (FindAnyObjectByType<AnhThoDien.UI.Menu.PauseMenuUI>() == null)
+        {
+            GameObject pausePrefab = Resources.Load<GameObject>("PauseMenu_Canvas");
+            if (pausePrefab != null) Instantiate(pausePrefab);
+        }
+
         // Khôi phục vị trí người chơi nếu chọn "Chơi tiếp"
         if (PlayerPrefs.GetInt("IsNewGame", 1) == 0)
         {
@@ -139,16 +143,19 @@ public class PlayerController : MonoBehaviour
             _stepTimer -= Time.deltaTime;
             if (_stepTimer <= 0f)
             {
-                _stepTimer = footstepInterval;
+                // Khi chạy (giữ Shift), tiếng bước chân dồn dập hơn (thời gian giữa 2 bước ngắn lại)
+                _stepTimer = isRunning ? footstepInterval * 0.65f : footstepInterval;
                 float currentVolume = (footstepVolume <= 0.05f) ? 1.0f : footstepVolume;
-                // Nếu đang ở cảnh VietnamStreet, cho tiếng bước chân to và rõ hơn theo yêu cầu
-                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("VietnamStreet"))
+                
+                string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.ToLower();
+                if (sceneName.Contains("vietnamstreet") || sceneName.Contains("shop"))
                 {
                     currentVolume = Mathf.Max(currentVolume, 1.0f);
                 }
+                
                 if (AudioManager.Instance != null)
                 {
-                    AudioManager.Instance.PlayFootstep("Tiếng bước chân", currentVolume, Random.Range(0.98f, 1.02f));
+                    AudioManager.Instance.PlayFootstep("521590__fission9__hiking-boot-footsteps-on-stone", currentVolume, Random.Range(0.98f, 1.02f));
                 }
             }
         }
