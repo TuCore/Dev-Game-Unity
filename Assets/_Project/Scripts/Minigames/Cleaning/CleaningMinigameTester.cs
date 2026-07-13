@@ -58,9 +58,11 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         public string targetName;
         public GameObject rootObject;
+        public Texture2D iconTexture;
         public int dustSpotCount;
         public int screwCount;
         public bool screwInstallsOnLocalX;
+        public bool completed;
         public readonly List<string> faultIds = new List<string>();
     }
 
@@ -81,7 +83,6 @@ public class CleaningMinigameTester : MonoBehaviour
     [SerializeField] private float screwHiddenLocalY = -0.03f;
     [SerializeField] private float screwInstalledLocalY = 0f;
     [SerializeField] private float wrongInteractionPenalty = 5f;
-    [SerializeField] private bool randomizeCleaningTargetOrder = true;
     [SerializeField] private Vector3 cameraTargetOffset = new Vector3(0f, 0.35f, 0f);
     [SerializeField] private Vector3 cameraViewOffset = new Vector3(0f, 0.8f, -3f);
     [SerializeField] private bool autoStartOnPlay = true;
@@ -120,6 +121,7 @@ public class CleaningMinigameTester : MonoBehaviour
     private bool _showGuideMenu;
     private bool _isClothSelected;
     private bool _isScrewSelected;
+    private bool _isChoosingTarget;
     private bool _screwPhaseActive;
     private bool _screwPhaseCompleted;
     private CleaningSpotBinding _activeSwipeBinding;
@@ -178,7 +180,16 @@ public class CleaningMinigameTester : MonoBehaviour
 
         UpdateSparkles();
         UpdateScrewAnimations();
-        HandleCameraOrbit();
+        if (!_isChoosingTarget)
+        {
+            HandleCameraOrbit();
+            HandleMouseWheelZoom();
+        }
+
+        if (_isChoosingTarget)
+        {
+            return;
+        }
 
         if (_screwPhaseActive)
         {
@@ -228,13 +239,21 @@ public class CleaningMinigameTester : MonoBehaviour
         GUI.skin.button.fontSize = 10;
         GUI.skin.box.fontSize = 12;
 
-        DrawCleaningProgressHud();
-        DrawScoreHud();
-        DrawZoomButtons();
+        if (_isChoosingTarget)
+        {
+            DrawScoreHud();
+            DrawTargetSelectionMenu();
+        }
+        else
+        {
+            DrawCleaningProgressHud();
+            DrawScoreHud();
+            DrawFinishButton();
+            DrawClothButton();
+            DrawScrewButton();
+        }
+
         DrawGuideHint();
-        DrawFinishButton();
-        DrawClothButton();
-        DrawScrewButton();
 
         if (_showGuideMenu)
         {
@@ -430,19 +449,52 @@ public class CleaningMinigameTester : MonoBehaviour
         GUI.Label(scoreRect, $"Diem so: {Mathf.RoundToInt(_score)}", scoreStyle);
     }
 
-    private void DrawZoomButtons()
+    private void DrawTargetSelectionMenu()
     {
-        Rect zoomOutRect = GetZoomOutButtonRect();
-        Rect zoomInRect = GetZoomInButtonRect();
+        List<CleaningTargetBinding> availableTargets = GetAvailableTargets();
+        float panelWidth = Mathf.Min(520f, Screen.width - 40f);
+        float panelHeight = 190f;
+        Rect panelRect = new Rect((Screen.width - panelWidth) * 0.5f, (Screen.height - panelHeight) * 0.5f, panelWidth, panelHeight);
 
-        if (GUI.Button(zoomOutRect, "-"))
+        GUI.Box(panelRect, "CHON VAT PHAM CAN VE SINH");
+
+        if (availableTargets.Count == 0)
         {
-            AdjustCameraZoom(zoomStepDistance);
+            GUIStyle emptyStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 14
+            };
+            GUI.Label(new Rect(panelRect.x + 16f, panelRect.y + 58f, panelRect.width - 32f, 60f), "Tat ca vat pham da duoc ve sinh.", emptyStyle);
+            return;
         }
 
-        if (GUI.Button(zoomInRect, "+"))
+        const float iconSize = 92f;
+        const float gap = 20f;
+        float totalWidth = availableTargets.Count * iconSize + (availableTargets.Count - 1) * gap;
+        float startX = panelRect.x + (panelRect.width - totalWidth) * 0.5f;
+        float iconY = panelRect.y + 54f;
+
+        for (int i = 0; i < availableTargets.Count; i++)
         {
-            AdjustCameraZoom(-zoomStepDistance);
+            CleaningTargetBinding target = availableTargets[i];
+            Rect buttonRect = new Rect(startX + i * (iconSize + gap), iconY, iconSize, iconSize);
+            GUIContent content = target.iconTexture != null
+                ? new GUIContent(target.iconTexture, target.targetName)
+                : new GUIContent(GetTargetDisplayName(target.targetName));
+
+            if (GUI.Button(buttonRect, content))
+            {
+                StartTarget(target);
+            }
+
+            GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 11,
+                fontStyle = FontStyle.Bold
+            };
+            GUI.Label(new Rect(buttonRect.x - 8f, buttonRect.yMax + 4f, buttonRect.width + 16f, 22f), GetTargetDisplayName(target.targetName), labelStyle);
         }
     }
 
@@ -456,24 +508,25 @@ public class CleaningMinigameTester : MonoBehaviour
             alignment = TextAnchor.MiddleCenter,
             fontSize = 12
         };
-        GUI.Label(hintRect, "Nhấn R để xem hướng dẫn", hintStyle);
+        GUI.Label(hintRect, "Nhan R de xem huong dan", hintStyle);
     }
 
     private void DrawGuideMenu()
     {
         Rect menuRect = GetGuideMenuRect();
-        GUI.Box(menuRect, "HƯỚNG DẪN");
+        GUI.Box(menuRect, "HUONG DAN");
 
         GUILayout.BeginArea(new Rect(menuRect.x + 16f, menuRect.y + 34f, menuRect.width - 32f, menuRect.height - 48f));
         GUI.skin.label.fontSize = 13;
-        GUILayout.Label("1. Click chọn khăn lau ở góc dưới phải.");
-        GUILayout.Label("2. Rê khăn lau trên mỗi vết bụi đủ khoảng cách để tính 1 lượt lau.");
-        GUILayout.Label("3. Mỗi lượt lau làm vết bụi mờ đi 20%.");
-        GUILayout.Label("4. Lau đủ 5 lượt cho cả 5 vết bụi để hoàn thành.");
-        GUILayout.Label("5. Dùng phím mũi tên để xoay camera quanh quạt.");
-        GUILayout.Label("6. Bấm FINISH để xem rating của lượt chơi.");
+        GUILayout.Label("1. Chon icon vat pham can ve sinh.");
+        GUILayout.Label("2. Click icon khan lau, roi re chuot tren tung vet bui.");
+        GUILayout.Label("3. Moi vet bui can 5 luot lau hop le de hoan thanh.");
+        GUILayout.Label("4. Sau khi lau xong, chon icon oc vit va click tung oc vit.");
+        GUILayout.Label("5. Dung phim mui ten de xoay camera quanh vat pham.");
+        GUILayout.Label("6. Lan chuot len/xuong de zoom in/zoom out.");
+        GUILayout.Label("7. Ve sinh xong vat pham se quay lai menu chon vat pham con lai.");
         GUILayout.Space(8f);
-        GUILayout.Label("Nhấn R lần nữa để đóng hướng dẫn.");
+        GUILayout.Label("Nhan R lan nua de dong huong dan.");
         GUILayout.EndArea();
     }
 
@@ -609,22 +662,25 @@ public class CleaningMinigameTester : MonoBehaviour
         _selectedTaskIndex = 0;
         _isClothSelected = false;
         _isScrewSelected = false;
+        _isChoosingTarget = true;
         _screwPhaseActive = false;
         _screwPhaseCompleted = false;
+        _activeTargetBinding = null;
+        _activeTargetIndex = -1;
         _activeSwipeBinding = null;
         _hasRatingResult = false;
         _showRatingResult = false;
         _score = 0f;
         Cursor.visible = true;
+        ResetTargetCompletion();
         ResetVisualSpots();
         ResetScrewsForStart();
         BuildTargetOrder();
-        StartTarget(0);
+        SetActiveCleaningTarget(null);
         UpdateToolVisibility();
 
         Debug.Log("[CleaningTester] Started Cleaning minigame test.");
-        Debug.Log("[CleaningTester] Drag the selected Cloth over each DustSpot. Five valid swipes clean one spot.");
-        LogSelectedTask();
+        Debug.Log("[CleaningTester] Select a cleaning target icon to begin.");
     }
 
     private void BuildTargetOrder()
@@ -638,13 +694,6 @@ public class CleaningMinigameTester : MonoBehaviour
                 _targetOrder.Add(target);
             }
         }
-
-        if (randomizeCleaningTargetOrder && _targetOrder.Count > 1 && UnityEngine.Random.value > 0.5f)
-        {
-            CleaningTargetBinding first = _targetOrder[0];
-            _targetOrder[0] = _targetOrder[1];
-            _targetOrder[1] = first;
-        }
     }
 
     private void StartTarget(int targetIndex)
@@ -657,7 +706,15 @@ public class CleaningMinigameTester : MonoBehaviour
 
         _activeTargetIndex = Mathf.Clamp(targetIndex, 0, _targetOrder.Count - 1);
         _activeTargetBinding = _targetOrder[_activeTargetIndex];
+        if (_activeTargetBinding.completed)
+        {
+            Debug.LogWarning($"[CleaningTester] Target already completed: {_activeTargetBinding.targetName}");
+            ShowTargetSelection();
+            return;
+        }
+
         _selectedTaskIndex = 0;
+        _isChoosingTarget = false;
         _screwPhaseActive = false;
         _screwPhaseCompleted = false;
         _activeSwipeBinding = null;
@@ -678,6 +735,18 @@ public class CleaningMinigameTester : MonoBehaviour
         UpdateToolVisibility();
 
         Debug.Log($"[CleaningTester] Active cleaning target: {_activeTargetBinding.targetName}");
+    }
+
+    private void StartTarget(CleaningTargetBinding target)
+    {
+        int targetIndex = _targetOrder.IndexOf(target);
+        if (targetIndex < 0)
+        {
+            Debug.LogWarning($"[CleaningTester] Target is not available: {target?.targetName}");
+            return;
+        }
+
+        StartTarget(targetIndex);
     }
 
     private void SelectNextTask()
@@ -846,6 +915,22 @@ public class CleaningMinigameTester : MonoBehaviour
                 _orbitVerticalAngle = nextVerticalAngle;
             }
         }
+    }
+
+    private void HandleMouseWheelZoom()
+    {
+        if (interactionCamera == null || orbitTarget == null || IsMouseOverBlockedUi())
+        {
+            return;
+        }
+
+        float scrollDelta = Input.mouseScrollDelta.y;
+        if (Mathf.Approximately(scrollDelta, 0f))
+        {
+            return;
+        }
+
+        AdjustCameraZoom(-scrollDelta * zoomStepDistance);
     }
 
     private void TrackDustSwipe(CleaningSpotBinding binding, int taskIndex)
@@ -1052,10 +1137,15 @@ public class CleaningMinigameTester : MonoBehaviour
         _screwPhaseCompleted = true;
         _isScrewSelected = false;
 
-        if (_activeTargetIndex + 1 < _targetOrder.Count)
+        if (_activeTargetBinding != null)
         {
-            StartTarget(_activeTargetIndex + 1);
-            Debug.Log("[CleaningTester] Moving to the next cleaning target.");
+            _activeTargetBinding.completed = true;
+        }
+
+        if (HasAvailableTargets())
+        {
+            ShowTargetSelection();
+            Debug.Log("[CleaningTester] Target completed. Select another cleaning target.");
             return;
         }
 
@@ -1521,7 +1611,19 @@ public class CleaningMinigameTester : MonoBehaviour
         {
             sparkleTexture2 = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/Textures/Minigames/Cleaning/Sparkle_2.png");
         }
+
+        AssignTargetIcon("OldTableFan", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/UI/Icons/OldTableFan_Icon.png"));
+        AssignTargetIcon("InductionCooker", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/UI/Icons/InductionCooker_Icon.png"));
 #endif
+    }
+
+    private void AssignTargetIcon(string targetName, Texture2D iconTexture)
+    {
+        CleaningTargetBinding target = FindTargetBinding(targetName);
+        if (target != null && iconTexture != null)
+        {
+            target.iconTexture = iconTexture;
+        }
     }
 
     private bool TryAddBinding(CleaningTargetBinding target, string faultId, string objectName)
@@ -1919,18 +2021,13 @@ public class CleaningMinigameTester : MonoBehaviour
             return true;
         }
 
-        if (GetZoomInButtonRect().Contains(guiMousePosition) || GetZoomOutButtonRect().Contains(guiMousePosition))
-        {
-            return true;
-        }
-
         return _showGuideMenu && GetTesterPanelRect().Contains(guiMousePosition);
     }
 
     private Rect GetGuideMenuRect()
     {
         float width = Mathf.Min(420f, Screen.width - 40f);
-        float height = 190f;
+        float height = 230f;
         return new Rect((Screen.width - width) * 0.5f, 76f, width, height);
     }
 
@@ -1950,16 +2047,6 @@ public class CleaningMinigameTester : MonoBehaviour
     private Rect GetFinishButtonRect()
     {
         return new Rect(Screen.width - 132f, Screen.height - 124f, 108f, 36f);
-    }
-
-    private Rect GetZoomOutButtonRect()
-    {
-        return new Rect(Screen.width - 220f, 88f, 96f, 30f);
-    }
-
-    private Rect GetZoomInButtonRect()
-    {
-        return new Rect(Screen.width - 116f, 88f, 96f, 30f);
     }
 
     private void UpdateToolVisibility()
@@ -1986,6 +2073,76 @@ public class CleaningMinigameTester : MonoBehaviour
             orbitTarget = activeTarget.rootObject.transform;
             FrameCameraOnTarget(activeTarget.rootObject.transform);
         }
+    }
+
+    private void ShowTargetSelection()
+    {
+        _isChoosingTarget = true;
+        _activeTargetBinding = null;
+        _activeTargetIndex = -1;
+        _activeSwipeBinding = null;
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = false;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        Cursor.visible = true;
+        SetActiveCleaningTarget(null);
+        UpdateToolVisibility();
+    }
+
+    private void ResetTargetCompletion()
+    {
+        for (int i = 0; i < _targetBindings.Count; i++)
+        {
+            if (_targetBindings[i] != null)
+            {
+                _targetBindings[i].completed = false;
+            }
+        }
+    }
+
+    private List<CleaningTargetBinding> GetAvailableTargets()
+    {
+        List<CleaningTargetBinding> availableTargets = new List<CleaningTargetBinding>();
+        for (int i = 0; i < _targetOrder.Count; i++)
+        {
+            CleaningTargetBinding target = _targetOrder[i];
+            if (target != null && target.rootObject != null && !target.completed)
+            {
+                availableTargets.Add(target);
+            }
+        }
+
+        return availableTargets;
+    }
+
+    private bool HasAvailableTargets()
+    {
+        for (int i = 0; i < _targetOrder.Count; i++)
+        {
+            CleaningTargetBinding target = _targetOrder[i];
+            if (target != null && target.rootObject != null && !target.completed)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private string GetTargetDisplayName(string targetName)
+    {
+        if (targetName == "OldTableFan")
+        {
+            return "Old Table Fan";
+        }
+
+        if (targetName == "InductionCooker")
+        {
+            return "Induction Cooker";
+        }
+
+        return targetName;
     }
 
     private void FrameCameraOnTarget(Transform target)
