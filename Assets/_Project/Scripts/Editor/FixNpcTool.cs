@@ -79,7 +79,7 @@ public class FixNpcTool : Editor
                 }
             }
 
-            // 4. Tự động bật Loop Time cho file FBX
+            // 4. Tự động bật Loop Time, Loop Pose và Bake into Pose (Loop Position XZ) cho file FBX
             string[] fbxGuids = AssetDatabase.FindAssets(npcName + " t:Model");
             if (fbxGuids.Length > 0)
             {
@@ -93,9 +93,18 @@ public class FixNpcTool : Editor
                         bool needsReimport = false;
                         for (int i = 0; i < defaultClips.Length; i++)
                         {
-                            if (!defaultClips[i].loopTime)
+                            if (!defaultClips[i].loopTime || !defaultClips[i].loopPose ||
+                                !defaultClips[i].keepOriginalPositionXZ || !defaultClips[i].keepOriginalPositionY || !defaultClips[i].keepOriginalOrientation ||
+                                !defaultClips[i].lockRootPositionXZ || !defaultClips[i].lockRootHeightY || !defaultClips[i].lockRootRotation)
                             {
                                 defaultClips[i].loopTime = true;
+                                defaultClips[i].loopPose = true;
+                                defaultClips[i].keepOriginalOrientation = true;
+                                defaultClips[i].keepOriginalPositionY = true;
+                                defaultClips[i].keepOriginalPositionXZ = true; // Bake into Pose XZ: Ngăn xương root dịch chuyển/giật lùi
+                                defaultClips[i].lockRootRotation = true;
+                                defaultClips[i].lockRootHeightY = true;
+                                defaultClips[i].lockRootPositionXZ = true;
                                 needsReimport = true;
                             }
                         }
