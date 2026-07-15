@@ -1,21 +1,27 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections.Generic;
 
 namespace AnhThoDien.UI.Menu
 {
     public class SettingsUI : MonoBehaviour
     {
-        [Header("Audio Settings")]
-        public Slider sliderMusic;
-        public Slider sliderAmbience;
-        public Slider sliderSFX;
+        [Header("Sliders")]
+        [SerializeField] private Slider sliderMasterVolume;
+        [SerializeField] private Slider sliderBrightness;
+        [SerializeField] private Slider sliderSensitivity;
 
-        [Header("Controls")]
-        public Button btnClose;
+        [Header("Close Button")]
+        [SerializeField] private Button btnClose;
+
+        [Header("Keybinds Scroll View")]
+        [SerializeField] private Transform keybindsContainer;
+        [SerializeField] private GameObject keybindRowPrefab;
 
         private string _waitingForKeybind = null;
-        private Vector2 _scrollPos = Vector2.zero;
+        private List<GameObject> _spawnedRows = new List<GameObject>();
+
         private Dictionary<string, string> _displayNames = new Dictionary<string, string>()
         {
             {"Interact", "Tương tác chính"},
@@ -31,20 +37,36 @@ namespace AnhThoDien.UI.Menu
 
         private void Start()
         {
-            // Ẩn toàn bộ UI "Tùy chỉnh" cũ đằng sau để OnGUI không bị đè lên
-            foreach (Transform child in transform)
+            // Set up sliders
+            if (sliderMasterVolume != null)
             {
-                child.gameObject.SetActive(false);
+                sliderMasterVolume.value = PlayerPrefs.GetFloat("Vol_Master", 1f);
+                sliderMasterVolume.onValueChanged.AddListener(OnVolumeChanged);
+                OnVolumeChanged(sliderMasterVolume.value);
             }
 
-            // Xóa component Image nền đằng sau của Unity UI
-            if (TryGetComponent<Image>(out var img))
+            if (sliderBrightness != null)
             {
-                img.enabled = false;
+                sliderBrightness.value = PlayerPrefs.GetFloat("Brightness", 1f);
+                sliderBrightness.onValueChanged.AddListener(OnBrightnessChanged);
             }
 
-            // Cập nhật âm lượng ban đầu
-            AudioListener.volume = PlayerPrefs.GetFloat("Vol_Master", 1f);
+            if (sliderSensitivity != null)
+            {
+                sliderSensitivity.value = PlayerPrefs.GetFloat("MouseSensitivity", 100f);
+                sliderSensitivity.onValueChanged.AddListener(OnSensitivityChanged);
+            }
+
+            if (btnClose != null)
+            {
+                btnClose.onClick.AddListener(CloseSettings);
+            }
+
+            // Build the keybinding list
+            BuildKeybindList();
+
+            // Automatically add hover/click sounds to elements in Settings
+            AddSoundToSelectables();
         }
 
         private void Update()
@@ -60,90 +82,77 @@ namespace AnhThoDien.UI.Menu
                             CustomInputManager.SetKey(_waitingForKeybind, key);
                         }
                         _waitingForKeybind = null;
+
+                        // Rebuild keybinds UI to show the updated key
+                        BuildKeybindList();
                         break;
                     }
                 }
             }
         }
 
-        private void OnGUI()
+        private void BuildKeybindList()
         {
-            float width = 450;
-            float height = Screen.height - 100;
-            float startX = Screen.width / 2 - width / 2;
-            float startY = 50;
+            if (keybindsContainer == null || keybindRowPrefab == null) return;
 
-            GUILayout.BeginArea(new Rect(startX, startY, width, height));
-            GUI.Box(new Rect(0, 0, width, height), "");
-            
-            // Nút Cancel (Thoát) góc trên bên phải
-            if (GUI.Button(new Rect(width - 40, 10, 30, 30), "X"))
+            // Clear old rows
+            foreach (var row in _spawnedRows)
             {
-                CloseSettings();
+                Destroy(row);
             }
+            _spawnedRows.Clear();
 
-            // Vùng cuộn (Scroll View)
-            GUILayout.BeginArea(new Rect(20, 40, width - 40, height - 60));
-            _scrollPos = GUILayout.BeginScrollView(_scrollPos);
-            GUILayout.BeginVertical();
-            
-            GUILayout.Label("<b>CÀI ĐẶT BỔ SUNG (BETA)</b>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, richText = true });
-            GUILayout.Space(10);
-
-            // Master Volume
-            GUILayout.Label("Âm lượng tổng: " + (PlayerPrefs.GetFloat("Vol_Master", 1f) * 100f).ToString("F0") + "%");
-            float newV = GUILayout.HorizontalSlider(PlayerPrefs.GetFloat("Vol_Master", 1f), 0f, 1f);
-            if (Mathf.Abs(newV - PlayerPrefs.GetFloat("Vol_Master", 1f)) > 0.01f)
-            {
-                PlayerPrefs.SetFloat("Vol_Master", newV);
-                AudioListener.volume = newV;
-            }
-            GUILayout.Space(10);
-
-            // Brightness
-            GUILayout.Label("Độ sáng (Brightness): " + PlayerPrefs.GetFloat("Brightness", 1f).ToString("F1"));
-            float newB = GUILayout.HorizontalSlider(PlayerPrefs.GetFloat("Brightness", 1f), 0f, 1f);
-            if (Mathf.Abs(newB - PlayerPrefs.GetFloat("Brightness", 1f)) > 0.01f)
-            {
-                PlayerPrefs.SetFloat("Brightness", newB);
-                BrightnessManager.Instance?.UpdateBrightness();
-            }
-            GUILayout.Space(10);
-
-            // Sensitivity
-            GUILayout.Label("Độ nhạy chuột: " + PlayerPrefs.GetFloat("MouseSensitivity", 100f).ToString("F0"));
-            float newS = GUILayout.HorizontalSlider(PlayerPrefs.GetFloat("MouseSensitivity", 100f), 10f, 300f);
-            if (Mathf.Abs(newS - PlayerPrefs.GetFloat("MouseSensitivity", 100f)) > 1f)
-            {
-                PlayerPrefs.SetFloat("MouseSensitivity", newS);
-            }
-
-            GUILayout.Space(20);
-            GUILayout.Label("<b>ĐỔI PHÍM ĐIỀU KHIỂN</b>", new GUIStyle(GUI.skin.label) { richText = true });
-            GUILayout.Space(5);
-            
             var keys = CustomInputManager.GetAllKeys();
             foreach (var kvp in keys)
             {
                 if (!_displayNames.ContainsKey(kvp.Key)) continue;
 
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(_displayNames[kvp.Key], GUILayout.Width(150));
-                
-                string btnText = _waitingForKeybind == kvp.Key ? "[ Bấm phím mới... ]" : kvp.Value.ToString();
-                if (GUILayout.Button(btnText))
+                string keyName = kvp.Key;
+                KeyCode currentKey = kvp.Value;
+
+                GameObject rowInstance = Instantiate(keybindRowPrefab, keybindsContainer);
+                _spawnedRows.Add(rowInstance);
+
+                // Find elements inside the prefab
+                var labelText = rowInstance.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
+                if (labelText != null)
                 {
-                    _waitingForKeybind = kvp.Key;
+                    labelText.text = _displayNames[keyName];
                 }
-                GUILayout.EndHorizontal();
-                GUILayout.Space(2);
+
+                var keyButton = rowInstance.transform.Find("KeyButton")?.GetComponent<Button>();
+                var keyText = keyButton != null ? keyButton.GetComponentInChildren<TextMeshProUGUI>() : null;
+
+                if (keyButton != null && keyText != null)
+                {
+                    keyText.text = _waitingForKeybind == keyName ? "[ Bấm phím mới... ]" : currentKey.ToString();
+                    keyButton.onClick.AddListener(() =>
+                    {
+                        _waitingForKeybind = keyName;
+                        keyText.text = "[ Bấm phím mới... ]";
+                    });
+                }
             }
 
-            GUILayout.EndVertical();
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
+            // Ensure any new buttons get sound effects
+            AddSoundToSelectables();
+        }
 
-            GUILayout.EndArea();
+        private void OnVolumeChanged(float value)
+        {
+            PlayerPrefs.SetFloat("Vol_Master", value);
+            AudioListener.volume = value;
+        }
+
+        private void OnBrightnessChanged(float value)
+        {
+            PlayerPrefs.SetFloat("Brightness", value);
+            BrightnessManager.Instance?.UpdateBrightness();
+        }
+
+        private void OnSensitivityChanged(float value)
+        {
+            PlayerPrefs.SetFloat("MouseSensitivity", value);
         }
 
         private void CloseSettings()
@@ -151,6 +160,18 @@ namespace AnhThoDien.UI.Menu
             _waitingForKeybind = null;
             PlayerPrefs.Save();
             gameObject.SetActive(false);
+        }
+
+        private void AddSoundToSelectables()
+        {
+            Selectable[] selectables = GetComponentsInChildren<Selectable>(true);
+            foreach (Selectable sel in selectables)
+            {
+                if (sel.gameObject.GetComponent<UIButtonSound>() == null)
+                {
+                    sel.gameObject.AddComponent<UIButtonSound>();
+                }
+            }
         }
     }
 }

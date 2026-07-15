@@ -13,10 +13,18 @@ MonoBehaviour:
   m_Name: AudioDatabase
   m_EditorClassIdentifier: Assembly-CSharp::AudioDatabase
   mappings:
+  - key: 666herohero-click-21156
+    clip: {fileID: 8300000, guid: 4ca1c3e67f800c347944e18127d58344, type: 3}
   - key: 521590__fission9__hiking-boot-footsteps-on-stone
     clip: {fileID: 8300000, guid: 2419859379b571f49abcc1b0d1d56c4b, type: 3}
+  - key: closing iron door
+    clip: {fileID: 8300000, guid: 018102d7c8a511d41b23bed93dc1c9bd, type: 3}
+  - key: musicholder-hover-button-287656
+    clip: {fileID: 8300000, guid: 4b101327db447ac4b9110e91029bc75b, type: 3}
   - key: "Nh\u1EA1c qu\u1EA9y"
     clip: {fileID: 8300000, guid: bfddf0f481d5e9e43afe556b6fa5d9aa, type: 3}
+  - key: open iron door
+    clip: {fileID: 8300000, guid: aec2038fc9894864ba9a7d1e0b9ab17a, type: 3}
   - key: "Ti\u1EBFng b\xE1o hi\u1EC7u-ch\xEDnh x\xE1c"
     clip: {fileID: 8300000, guid: 23016ba7106d5b84ca51aef34a85eb73, type: 3}
   - key: "Ti\u1EBFng b\u01B0\u1EDBc ch\xE2n"

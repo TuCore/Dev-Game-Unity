@@ -227,7 +227,6 @@ public class SolderingMinigameUI : MonoBehaviour
     private void HandleSkillCheckHit(string hitType)
     {
         _isChecking = false;
-
         Color feedbackColor = Color.white;
         if (hitType == "Perfect")
         {
@@ -241,21 +240,24 @@ public class SolderingMinigameUI : MonoBehaviour
         {
             feedbackColor = goodResultColor;
         }
-
         SetFeedback(hitType.ToUpperInvariant(), feedbackColor);
-
         if (SubtitleManager.Instance != null)
         {
             if (hitType == "Perfect" || hitType == "Great" || hitType == "Good")
             {
                 SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Hàn mạch)", $"Trúng mối hàn rồi! [{hitType.ToUpperInvariant()}]", 1.2f);
+
+                // Play the soldering sound effect
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlaySFX("Tiếng hàn kim loại");
+                }
             }
             else
             {
                 SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Hàn mạch)", "Ái chà! Xẹt điện hỏng mối hàn rồi! [MISS]", 1.5f);
             }
         }
-
         if (_minigame != null)
         {
             _minigame.ReportSkillCheckResult(hitType);
