@@ -92,8 +92,13 @@ public class DoubleSlidingDoorController : MonoBehaviour, IInteractable
     void ToggleDoor()
     {
         if (leftDoor == null || rightDoor == null) return;
-
         isDoorOpen = !isDoorOpen;
+
+        // Play the custom iron door sounds
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX(isDoorOpen ? "open iron door" : "closing iron door");
+        }
         if (animationCoroutine != null) StopCoroutine(animationCoroutine);
         animationCoroutine = StartCoroutine(AnimateDoors(isDoorOpen));
     }

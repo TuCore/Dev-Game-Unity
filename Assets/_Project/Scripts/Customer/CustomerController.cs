@@ -576,11 +576,11 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
     }
 
-    private void ShowCustomerDialogue(string npcName, string text, System.Action onPrimary = null, System.Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "")
+    private void ShowCustomerDialogue(string npcName, string text, System.Action onPrimary = null, System.Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "", AudioClip clip = null)
     {
         if (DialogueUI.Instance != null)
         {
-            DialogueUI.Instance.ShowDialogue(npcName, text, onPrimary, onSecondary, primaryText, secondaryText, this);
+            DialogueUI.Instance.ShowDialogue(npcName, text, onPrimary, onSecondary, primaryText, secondaryText, this, clip);
         }
     }
 
@@ -615,11 +615,12 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void StartNegotiation()
     {
-        string greeting = (archetype != null && archetype.greetingDialogues != null && archetype.greetingDialogues.Count > 0)
-            ? archetype.greetingDialogues[Random.Range(0, archetype.greetingDialogues.Count)] 
+        AudioClip clip = null;
+        string greeting = (archetype != null)
+            ? archetype.GetRandomGreeting(out clip) 
             : "Tôi có món đồ bị hỏng, sửa giúp tôi nhé!";
 
-        ShowCustomerDialogue(CustomerDisplayName, greeting, ShowNegotiationOptions);
+        ShowCustomerDialogue(CustomerDisplayName, greeting, ShowNegotiationOptions, null, "Tiếp tục", "", clip);
     }
 
     private void ShowNegotiationOptions()
@@ -634,8 +635,20 @@ public class CustomerController : MonoBehaviour, IInteractable
             _selectedItemPrefab = itemPrefabToDrop;
         }
 
-        // 2. Randomize properties
-        _selectedMinigame = (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+        // 2. Randomize properties - Tỷ lệ: Nối dây 50%, Khám bệnh/Dò mạch 30%, Hàn mạch 20%
+        float roll = Random.value;
+        if (roll < 0.5f)
+        {
+            _selectedMinigame = MinigameType.Rewiring; // 50% (0.0 đến < 0.5)
+        }
+        else if (roll < 0.8f)
+        {
+            _selectedMinigame = MinigameType.Diagnosis; // 30% (0.5 đến < 0.8)
+        }
+        else
+        {
+            _selectedMinigame = MinigameType.Soldering; // 20% (0.8 đến 1.0)
+        }
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
 
@@ -662,8 +675,11 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void RefuseOrder()
     {
-        string angry = "Thế thì thôi vậy, tôi mang ra tiệm khác!";
-        ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Đóng");
+        AudioClip clip = null;
+        string angry = (archetype != null)
+            ? archetype.GetRandomLeaving(out clip)
+            : "Thế thì thôi vậy, tôi mang ra tiệm khác!";
+        ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Đóng", "", clip);
     }
 
     private void AcceptOrder(string itemName, int apptDay, float apptHour)
@@ -702,8 +718,9 @@ public class CustomerController : MonoBehaviour, IInteractable
 
         if (currentOrder.isCompleted)
         {
-            string satisfied = (archetype != null && archetype.satisfiedDialogues != null && archetype.satisfiedDialogues.Count > 0)
-                ? archetype.satisfiedDialogues[Random.Range(0, archetype.satisfiedDialogues.Count)] 
+            AudioClip clip = null;
+            string satisfied = (archetype != null)
+                ? archetype.GetRandomSatisfied(out clip) 
                 : "Cảm ơn cậu nhé, đồ sửa tốt lắm!";
             
             // Khách trả tiền
@@ -729,7 +746,7 @@ public class CustomerController : MonoBehaviour, IInteractable
                 }
             }
 
-            ShowCustomerDialogue(CustomerDisplayName, satisfied, LeaveStore);
+            ShowCustomerDialogue(CustomerDisplayName, satisfied, LeaveStore, null, "Tiếp tục", "", clip);
         }
         else
         {
@@ -743,8 +760,9 @@ public class CustomerController : MonoBehaviour, IInteractable
             else
             {
                 // Khách khó tính: Tức giận, huỷ đơn, trừ danh tiếng
-                string angry = (archetype != null && archetype.unsatisfiedDialogues != null && archetype.unsatisfiedDialogues.Count > 0)
-                    ? archetype.unsatisfiedDialogues[Random.Range(0, archetype.unsatisfiedDialogues.Count)] 
+                AudioClip clip = null;
+                string angry = (archetype != null)
+                    ? archetype.GetRandomUnsatisfied(out clip) 
                     : "Làm ăn chậm chạp quá, tôi lấy lại đồ!";
                 
                 currentOrder.isFailed = true;
@@ -767,7 +785,7 @@ public class CustomerController : MonoBehaviour, IInteractable
                     }
                 }
 
-                ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore);
+                ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Tiếp tục", "", clip);
             }
         }
     }

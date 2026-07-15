@@ -50,7 +50,7 @@ public class DialogueUI : MonoBehaviour
         if (secondaryButton != null) secondaryButton.onClick.AddListener(OnSecondaryClicked);
     }
 
-    public void ShowDialogue(string npcName, string text, Action onPrimary = null, Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "", CustomerController speaker = null)
+    public void ShowDialogue(string npcName, string text, Action onPrimary = null, Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "", CustomerController speaker = null, AudioClip audioClip = null)
     {
         if (dialoguePanel == null) return;
         
@@ -108,7 +108,11 @@ public class DialogueUI : MonoBehaviour
             }
         }
 
-        
+        if (audioClip != null && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX(audioClip, 1f, 1f, true);
+        }
+
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
         typingCoroutine = StartCoroutine(TypeText());
         
