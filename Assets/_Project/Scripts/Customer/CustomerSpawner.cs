@@ -5,7 +5,10 @@ public class CustomerSpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
     public List<GameObject> customerPrefabs;
-    public Transform spawnPoint;
+    [Tooltip("Dùng Left/Right Spawn Point để spawn ở 2 đầu phố. Nếu để trống sẽ dùng Spawn Point cũ.")]
+    public Transform leftSpawnPoint;
+    public Transform rightSpawnPoint;
+    public Transform spawnPoint; // Cũ
     public Transform counterTarget;
     public Transform exitTarget;
     public Transform itemDropPoint;
@@ -95,13 +98,38 @@ public class CustomerSpawner : MonoBehaviour
             return; // Đã kín chỗ
         }
 
-        // Lọc ra các prefab hợp lệ (không bị null)
+        // Thu thập danh sách các loại khách (đang mua đồ/trong tiệm)
+        HashSet<string> activeArchetypes = new HashSet<string>();
+        foreach (var ctrl in currentControllers)
+        {
+            if (ctrl != null && ctrl.currentState != CustomerState.AmbientWalking)
+            {
+                string id = (ctrl.archetype != null && !string.IsNullOrEmpty(ctrl.archetype.archetypeName)) 
+                    ? ctrl.archetype.archetypeName 
+                    : ctrl.gameObject.name.Replace("(Clone)", "").Trim();
+                activeArchetypes.Add(id);
+            }
+        }
+
+        // Lọc ra các prefab hợp lệ (chưa xuất hiện trên scene)
         List<GameObject> availablePrefabs = new List<GameObject>();
         foreach (var prefab in customerPrefabs)
         {
             if (prefab != null)
             {
-                availablePrefabs.Add(prefab);
+                CustomerController prefController = prefab.GetComponent<CustomerController>();
+                if (prefController != null)
+                {
+                    string id = (prefController.archetype != null && !string.IsNullOrEmpty(prefController.archetype.archetypeName)) 
+                        ? prefController.archetype.archetypeName 
+                        : prefab.name.Replace("(Clone)", "").Trim();
+
+                    // Nếu nhân vật này CHƯA có mặt trên phố, thì mới cho vào danh sách bốc thăm
+                    if (!activeArchetypes.Contains(id))
+                    {
+                        availablePrefabs.Add(prefab);
+                    }
+                }
             }
         }
 
@@ -113,7 +141,27 @@ public class CustomerSpawner : MonoBehaviour
         Debug.Log("[DEBUG] Conditions met! Instantiating prefab...");
         GameObject selectedPrefab = availablePrefabs[Random.Range(0, availablePrefabs.Count)];
 
-        GameObject spawned = Instantiate(selectedPrefab, spawnPoint.position, spawnPoint.rotation);
+        Transform chosenSpawn = spawnPoint;
+        if (leftSpawnPoint != null && rightSpawnPoint != null)
+        {
+            chosenSpawn = Random.value > 0.5f ? leftSpawnPoint : rightSpawnPoint;
+        }
+        else if (spawnPoint == null)
+        {
+            return;
+        }
+
+        Vector3 finalSpawnPos = chosenSpawn.position;
+        UnityEngine.AI.NavMeshHit hit;
+        // Lệch rộng ra 8 mét để lấp đầy lòng đường
+        Vector2 randomCircle = Random.insideUnitCircle * 8f;
+        Vector3 randomOffset = new Vector3(randomCircle.x, 0, randomCircle.y);
+        if (UnityEngine.AI.NavMesh.SamplePosition(chosenSpawn.position + randomOffset, out hit, 15f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            finalSpawnPos = hit.position;
+        }
+
+        GameObject spawned = Instantiate(selectedPrefab, finalSpawnPos, spawnPoint.rotation);
 
         CustomerController controller = spawned.GetComponent<CustomerController>();
         if (controller != null)
@@ -140,7 +188,22 @@ public class CustomerSpawner : MonoBehaviour
             }
         }
 
-        GameObject spawned = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation);
+        Transform chosenSpawn = spawnPoint;
+        if (leftSpawnPoint != null && rightSpawnPoint != null)
+        {
+            chosenSpawn = Random.value > 0.5f ? leftSpawnPoint : rightSpawnPoint;
+        }
+        else if (spawnPoint == null) return;
+
+        Vector3 finalSpawnPos = chosenSpawn.position;
+        UnityEngine.AI.NavMeshHit hit;
+        Vector3 randomOffset = new Vector3(Random.Range(-5f, 5f), 0, Random.Range(-5f, 5f));
+        if (UnityEngine.AI.NavMesh.SamplePosition(chosenSpawn.position + randomOffset, out hit, 15f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            finalSpawnPos = hit.position;
+        }
+
+        GameObject spawned = Instantiate(prefab, finalSpawnPos, chosenSpawn.rotation);
         CustomerController controller = spawned.GetComponent<CustomerController>();
         if (controller != null)
         {

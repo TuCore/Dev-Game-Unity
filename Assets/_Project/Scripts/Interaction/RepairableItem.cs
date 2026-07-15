@@ -20,6 +20,17 @@ public class RepairableItem : MonoBehaviour
     [Tooltip("Danh sách linh kiện cần có (Ghi đúng tên, VD: Tụ điện, Dây đồng)")]
     public List<string> requiredParts = new List<string>();
 
+    [Header("Random Requirements")]
+    [SerializeField] private bool randomizeRequiredPartsOnOrder = true;
+    [SerializeField, Min(1)] private int minRandomRequiredParts = 1;
+    [SerializeField, Min(1)] private int maxRandomRequiredParts = 1;
+    [SerializeField] private List<string> randomRequiredPartPool = new List<string>
+    {
+        "T\u1ee5 \u0111i\u1ec7n",
+        "D\u00e2y \u0111\u1ed3ng",
+        "B\u0103ng keo \u0111en"
+    };
+
     [Header("Economy")]
     [Tooltip("Tiền công cơ bản khi sửa xong")]
     [SerializeField] private float baseReward = 50000f;
@@ -38,11 +49,16 @@ public class RepairableItem : MonoBehaviour
         return _currentRepairs < maxRepairs;
     }
 
-    public void SetRandomizedProperties(MinigameType minigame, int diff, float reward)
+    public void SetRandomizedProperties(MinigameType minigame, int diff, float reward, bool randomizeParts = true)
     {
         minigameToPlay = minigame;
-        difficultyLevel = diff;
+        difficultyLevel = Mathf.Clamp(diff, 1, 5);
         baseReward = reward;
+
+        if (randomizeParts)
+        {
+            RandomizeRequiredParts();
+        }
     }
 
     public void StartRepair()
@@ -150,6 +166,66 @@ public class RepairableItem : MonoBehaviour
         return "";
     }
 
+    public string GetRequiredPartsText()
+    {
+        if (requiredParts == null || requiredParts.Count == 0) return "Kh\u00f4ng c\u1ea7n linh ki\u1ec7n";
+
+        Dictionary<string, int> requirements = new Dictionary<string, int>();
+        foreach(var part in requiredParts) 
+        {
+            if (string.IsNullOrWhiteSpace(part)) continue;
+
+            if (requirements.ContainsKey(part)) requirements[part]++;
+            else requirements[part] = 1;
+        }
+
+        List<string> parts = new List<string>();
+        foreach(var kvp in requirements) 
+        {
+            parts.Add($"{kvp.Value}x {kvp.Key}");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private void RandomizeRequiredParts()
+    {
+        if (!randomizeRequiredPartsOnOrder)
+        {
+            return;
+        }
+
+        List<string> pool = new List<string>();
+        if (randomRequiredPartPool != null)
+        {
+            for (int i = 0; i < randomRequiredPartPool.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(randomRequiredPartPool[i]))
+                {
+                    pool.Add(randomRequiredPartPool[i]);
+                }
+            }
+        }
+
+        requiredParts.Clear();
+        if (pool.Count == 0)
+        {
+            return;
+        }
+
+        int safeMin = Mathf.Clamp(minRandomRequiredParts, 1, pool.Count);
+        int safeMax = Mathf.Clamp(maxRandomRequiredParts, safeMin, pool.Count);
+        int difficultyMax = Mathf.Clamp(difficultyLevel, safeMin, safeMax);
+        int count = Random.Range(safeMin, difficultyMax + 1);
+
+        for (int i = 0; i < count; i++)
+        {
+            int index = Random.Range(0, pool.Count);
+            requiredParts.Add(pool[index]);
+            pool.RemoveAt(index);
+        }
+    }
+
     private void ConsumeRequiredParts()
     {
         if (requiredParts == null || requiredParts.Count == 0) return;
@@ -201,6 +277,8 @@ public class RepairableItem : MonoBehaviour
         }
 
         // Cập nhật CustomerOrder nếu có liên kết
+        TaskManager.EnsureInstance().NotifyRepairCompleted(quality);
+
         if (linkedOrder != null)
         {
             linkedOrder.basePay = reward; // Override base pay with the calculated reward based on quality

@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 3818025908185660764}
   - component: {fileID: 1322938469326862316}
   - component: {fileID: 366446567060447957}
+  - component: {fileID: -6222072537277881725}
+  - component: {fileID: -3730361049348320821}
   m_Layer: 0
   m_Name: Son
   m_TagString: Untagged
@@ -50,7 +52,7 @@ CharacterController:
     m_Bits: 0
   m_LayerOverridePriority: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Height: 2
   m_Radius: 0.5
@@ -66,7 +68,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5601894075909525616}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e3958e0c7e81ad4f9ee59a28fbda4f8, type: 3}
   m_Name: 
@@ -83,6 +85,49 @@ MonoBehaviour:
   loopPatrol: 1
   deliveryPrefab: {fileID: 0}
   dropForwardOffset: 0.8
+--- !u!195 &-6222072537277881725
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5601894075909525616}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!114 &-3730361049348320821
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5601894075909525616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e417db90654f82c47aaa7d92e35e7bc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerController
+  archetype: {fileID: 11400000, guid: 94b4299666daf12439fb05da2272818e, type: 2}
+  counterTarget: {fileID: 0}
+  exitTarget: {fileID: 0}
+  itemPrefabToDrop: {fileID: 0}
+  possibleItemsToDrop:
+  - {fileID: 6691738825227053181, guid: 01810df32745e58488bd1bd399a5c27d, type: 3}
+  - {fileID: 2268070602821842197, guid: 21edad40d3e245348b6631acc87f6f0c, type: 3}
+  itemDropPoint: {fileID: 0}
+  currentState: 0
 --- !u!1 &6975773690548380820
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55857ac605242aa459303e98238b9212, type: 3}
+  m_Name: KhachNPC02
+  m_EditorClassIdentifier: Assembly-CSharp::NPCArchetype
+  archetypeName: 
+  description: 
+  requiredReputation: 0
+  greetingDialogues:
+  - "S\u1EEDa m\xE1y gi\xFAp em anh zai \u01A1i!"
+  satisfiedDialogues:
+  - "L\xE0m \u0103n uy t\xEDn \u0111\u1EA5y ch\xE1u. Ch\u1ED7 n\xE0y ti\u1EC1n c\xF4ng,
+    ch\xFA g\u1EEDi th\xEAm ch\xFAt mua bao thu\u1ED1c nh\xE9"
+  unsatisfiedDialogues:
+  - "Ch\xFA l\xE0m \u0103n l\u1EC1 m\u1EC1 qu\xE1! Kh\xF4ng s\u1EEDa \u0111\u01B0\u1EE3c
+    th\xEC n\xF3i ngay t\u1EEB \u0111\u1EA7u, m\u1EA5t th\u1EDDi gian c\u1EE7a t\xF4i."
+  leavingDialogues:
+  - "\xDAi gi\u1EDDi, ti\u1EC1n c\xF4ng b\u1EB1ng ti\u1EC1n m\xE1y. Th\xF4i anh c\u1EE9
+    \xF4m c\xE1i gi\xE1 \u0111\xF3 \u0111i, ch\xE0o nh\xE9!"
+  personality: 1
+  canNegotiatePrice: 0
+  tipMultiplier: 1
+  patienceMultiplier: 1
+  preferredItems: []
