@@ -37,6 +37,13 @@ namespace AnhThoDien.UI
             
             if (tutorialPanel != null)
             {
+                if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+                {
+                    GameObject eventSystemObj = new GameObject("EventSystem");
+                    eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                    eventSystemObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                }
+
                 tutorialPanel.SetActive(true);
                 isShowing = true;
                 

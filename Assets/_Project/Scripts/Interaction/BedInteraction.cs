@@ -9,8 +9,19 @@ public class BedInteraction : MonoBehaviour, IInteractable
         return prompt;
     }
 
+    public static bool hasVisitedStreetFirstTime = false;
+
     public void Interact()
     {
+        if (!hasVisitedStreetFirstTime)
+        {
+            if (ToastNotificationManager.Instance != null)
+            {
+                ToastNotificationManager.Instance.ShowToast("Ngày mới vừa bắt đầu, mình nên ra mở cửa tiệm đã!", 3f);
+            }
+            return;
+        }
+
         if (DayClock.Instance != null)
         {
             if (AudioManager.Instance != null)

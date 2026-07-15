@@ -322,24 +322,32 @@ public class DaySummaryUI : MonoBehaviour
         _netValue.text = (net >= 0 ? "+" : "") + $"{net:N0}đ";
         _netValue.color = net >= 0 ? new Color(0.29f, 0.87f, 0.50f) : new Color(0.97f, 0.44f, 0.44f);
 
-        if (cash < totalDeduction)
+        if (cash < expenses)
         {
-            if (!hasActiveLoan)
-            {
-                _nextDayBtn.interactable = true;
-                _nextDayBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.2f);
-                _nextDayBtnText.text = "CHẤP NHẬN BỊ ĐUỔI";
-                
-                if (_vayNhanhBtn != null) _vayNhanhBtn.gameObject.SetActive(true);
-            }
-            else
-            {
-                _nextDayBtn.interactable = true;
-                _nextDayBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.1f);
-                _nextDayBtnText.text = "NGỦ & CHỊU PHẠT TRỄ HẠN";
-                
-                if (_vayNhanhBtn != null) _vayNhanhBtn.gameObject.SetActive(false);
-            }
+            // Không đủ tiền đóng trọ -> Chắc chắn Game Over
+            _nextDayBtn.interactable = true;
+            _nextDayBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.2f);
+            _nextDayBtnText.text = "CHẤP NHẬN BỊ ĐUỔI";
+            
+            if (_vayNhanhBtn != null) _vayNhanhBtn.gameObject.SetActive(!hasActiveLoan);
+        }
+        else if (cash < totalDeduction && hasActiveLoan)
+        {
+            // Đủ đóng trọ nhưng KHÔNG đủ đóng tiền góp -> Chịu phạt trễ hạn
+            _nextDayBtn.interactable = true;
+            _nextDayBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.1f);
+            _nextDayBtnText.text = "NGỦ & CHỊU PHẠT TRỄ HẠN";
+            
+            if (_vayNhanhBtn != null) _vayNhanhBtn.gameObject.SetActive(false);
+        }
+        else if (cash < totalDeduction && !hasActiveLoan)
+        {
+             // Dành cho trường hợp logic lỗi (không có nợ nhưng vẫn bị trừ), hoặc để fallback
+            _nextDayBtn.interactable = true;
+            _nextDayBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.2f);
+            _nextDayBtnText.text = "CHẤP NHẬN BỊ ĐUỔI";
+            
+            if (_vayNhanhBtn != null) _vayNhanhBtn.gameObject.SetActive(true);
         }
         else
         {
@@ -380,6 +388,12 @@ public class DaySummaryUI : MonoBehaviour
         {
             int nextDay = DayClock.Instance != null ? DayClock.Instance.CurrentDay : 1;
             ToastNotificationManager.Instance.ShowToast($"[!] Đã bắt đầu ngày mới (Ngày {nextDay}). Chúc bạn một ngày làm việc hiệu quả!", 5f);
+        }
+
+        // Đưa người chơi quay về phòng ngủ để bắt đầu ngày mới
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Shop_Main")
+        {
+            LoadingScreenManager.LoadScene("Shop_Main");
         }
     }
 

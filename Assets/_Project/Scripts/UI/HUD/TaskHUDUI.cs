@@ -74,8 +74,11 @@ public class TaskHUDUI : MonoBehaviour
 
     private void Start()
     {
-        BuildOrBindUI();
-        Refresh();
+        if (SceneManager.GetActiveScene().name != "MainMenu")
+        {
+            BuildOrBindUI();
+            Refresh();
+        }
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -85,7 +88,7 @@ public class TaskHUDUI : MonoBehaviour
         taskText = null;
         panelImage = null;
 
-        if (scene.name == "VietnamStreet")
+        if (scene.name != "MainMenu")
         {
             BuildOrBindUI();
             Refresh();
@@ -94,6 +97,8 @@ public class TaskHUDUI : MonoBehaviour
 
     private void BuildOrBindUI()
     {
+        if (SceneManager.GetActiveScene().name == "MainMenu") return;
+
         Canvas canvas = FindHudCanvas();
         if (canvas == null)
         {

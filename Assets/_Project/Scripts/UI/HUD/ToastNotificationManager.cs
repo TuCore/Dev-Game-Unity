@@ -33,7 +33,7 @@ public class ToastNotificationManager : MonoBehaviour
     {
         if (_instance != null && _instance != this)
         {
-            Destroy(gameObject);
+            Destroy(this); // Sửa thành Destroy(this) để không huỷ nhầm gameObject cha (VD: CustomerManager)
             return;
         }
         _instance = this;

@@ -27,6 +27,13 @@ public class PlayerController : MonoBehaviour
     private bool _isGrounded;
     private float _stepTimer = 0f;
     private static bool _hasPlayedIntroSession = false;
+    private static bool _hasLoadedSavedPosition = false;
+
+    public static void ResetLoadState()
+    {
+        _hasPlayedIntroSession = false;
+        _hasLoadedSavedPosition = false;
+    }
 
     private void Awake()
     {
@@ -66,9 +73,10 @@ public class PlayerController : MonoBehaviour
             if (pausePrefab != null) Instantiate(pausePrefab);
         }
 
-        // Khôi phục vị trí người chơi nếu chọn "Chơi tiếp"
-        if (PlayerPrefs.GetInt("IsNewGame", 1) == 0)
+        // Khôi phục vị trí người chơi nếu chọn "Chơi tiếp" (chỉ làm 1 lần khi mới load save)
+        if (PlayerPrefs.GetInt("IsNewGame", 1) == 0 && !_hasLoadedSavedPosition)
         {
+            _hasLoadedSavedPosition = true;
             if (SaveSystem.TryLoadPlayerPosition(out Vector3 savedPos))
             {
                 _controller.enabled = false; // Tắt CharacterController để set position

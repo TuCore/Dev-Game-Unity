@@ -84,6 +84,7 @@ public class DayClock : MonoBehaviour
     {
         if (scene.name == "VietnamStreet")
         {
+            BedInteraction.hasVisitedStreetFirstTime = true;
             ResumeTime();
         }
         else
