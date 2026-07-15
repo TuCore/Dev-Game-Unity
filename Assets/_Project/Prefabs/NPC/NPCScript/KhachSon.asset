@@ -18,15 +18,23 @@ MonoBehaviour:
   greetingDialogues:
   - "B\u1ECDn tr\u1EBB con \u1EDF nh\xE0 n\xE9m c\xE1i n\xE0y v\xE0o thau n\u01B0\u1EDBc,
     v\u1EDBt ra s\u1EA5y kh\xF4 r\u1ED3i m\xE0 b\u1EADt v\u1EABn im re."
+  greetingAudioClips:
+  - {fileID: 8300000, guid: 45a20b2f92e27584da93c4fec15111ef, type: 3}
   satisfiedDialogues:
   - "Ngon l\xE0nh c\xE0nh \u0111\xE0o! \u0110\u1ED9i \u01A1n anh th\u1EE3 \u0111i\u1EC7n
     \u0111\u1EB9p trai, em \u0111i tr\u01B0\u1EDBc nh\xE9!"
+  satisfiedAudioClips:
+  - {fileID: 8300000, guid: adafb54bf3722c04cadcb4a0b59e1e0a, type: 3}
   unsatisfiedDialogues:
   - "N\u1EA3n gh\xEA, h\u1EB9n l\xEAn h\u1EB9n xu\u1ED1ng m\u1EA5y ng\xE0y r\u1ED3i
     \u0111\xF3 anh trai. Th\xF4i kh\xF4ng s\u1EEDa n\u1EEFa, \u0111\u01B0a \u0111\xE2y"
+  unsatisfiedAudioClips:
+  - {fileID: 8300000, guid: 9db2ac10a6e9de04a86f0a341b1ee587, type: 3}
   leavingDialogues:
   - "L\xE0m \u0103n ch\u1EA3nh cho\u1EB9 v\u1EADy h\xE8n g\xEC v\u1EAFng kh\xE1ch.
     T\xF4i \u0111i ti\u1EC7m kh\xE1c!"
+  leavingAudioClips:
+  - {fileID: 8300000, guid: bd263481cc83f494eb7580852299ac99, type: 3}
   personality: 1
   canNegotiatePrice: 0
   tipMultiplier: 1

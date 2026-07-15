@@ -62,3 +62,99 @@ MonoBehaviour:
   - key: "\U0001F3B5Nh\u1EA1c lofi chill ch\u01A1i game, h\u1ECDc b\xE0i,... hay
       nh\u1EA5t, lukrembo royal music\U0001F3B5  Thi\u1EC7n SUS - Thi\u1EC7n SUS"
     clip: {fileID: 8300000, guid: 55ec5267dd53d1549933e8cc9d129e7d, type: 3}
+  - key: "B\xE1o gi\xE1 \u1EA3o \xE0 Ti\u1EC1n c\xF4ng s\u1EEDa ch\u1EEBng n\xE0y
+      th\xE0 th\xEAm v\xE0i \u0111\u1ED3ng mua m\xE1y m\u1EDBi c\xF2n h\u01A1n. Ch\xE0o
+      s\u1EBFp!"
+    clip: {fileID: 8300000, guid: 1111111111111111111111111111aa01, type: 3}
+  - key: "H\u1EB9n m\u1EA5y ng\xE0y r\u1ED3i m\xE0 gi\u1EDD ra v\u1EABn ch\u01B0a
+      \u0111\u1EE5ng t\u1EDBi l\xE0 sao L\xE0m \u0103n ch\xE1n qu\xE1, tr\u1EA3 \u0111\u1ED3
+      \u0111\xE2y tui \u0111em ti\u1EC7m kh\xE1c!"
+    clip: {fileID: 8300000, guid: 1111111111111111111111111111aa02, type: 3}
+  - key: "M\xE1y ch\u1EA1y \xEAm ru! Tay ngh\u1EC1 s\u1EBFp v\u1EABn x\u1ECBn nh\u01B0
+      ng\xE0y n\xE0o, c\u1EA7m ti\u1EC1n \u0111i nh\u1EADu nha!"
+    clip: {fileID: 8300000, guid: 1111111111111111111111111111aa03, type: 3}
+  - key: "\xD4ng ch\u1EE7 xem v\u1EDBt v\xE1t \u0111\u01B0\u1EE3c c\xE1i \u0111\u1ED1ng
+      n\xE0y kh\xF4ng, ch\u1EE9 t\xF4i l\xE0 t\xF4i mu\u1ED1n n\xE9m cho \u0111\u1ED3ng
+      n\xE1t l\u1EAFm r\u1ED3i."
+    clip: {fileID: 8300000, guid: 1111111111111111111111111111aa04, type: 3}
+  - key: "Ch\xE0, s\u1EEDa l\u1EB9 ph\u1EBFt nh\u1EC9. Ch\u1EA1y ngon l\xE0nh r\u1ED3i,
+      m\u1ED1t c\xF3 g\xEC h\u01B0 tui l\u1EA1i \u0111em qua"
+    clip: {fileID: 8300000, guid: 548b931a21862334eaa606326c32bde7, type: 3}
+  - key: "C\xE1i b\u1EC7nh l\u1EB7t v\u1EB7t m\xE0 ch\xE9m \u0111\u1EB9p th\u1EBF
+      ch\xFA em Th\xF4i c\u1EA5t v\xE0o \u0111i!"
+    clip: {fileID: 8300000, guid: 251ac5c8fd868f848b1f3001fc3d46da, type: 3}
+  - key: "N\u1EA3n gh\xEA, h\u1EB9n l\xEAn h\u1EB9n xu\u1ED1ng m\u1EA5y ng\xE0y r\u1ED3i
+      \u0111\xF3 anh trai. Th\xF4i kh\xF4ng s\u1EEDa n\u1EEFa, \u0111\u01B0a \u0111\xE2y
+      t\xF4i mang v\u1EC1"
+    clip: {fileID: 8300000, guid: 19133e3aebe16f947b4101e55eb48f20, type: 3}
+  - key: "\xD4ng th\u1EE3 \u0111i\u1EC7n xem h\u1ED9 c\xE1i n\xE0y n\xF3 b\u1ECB
+      sao, t\u1EF1 nhi\xEAn c\u1EAFm nh\u1EA7m \u1ED5 n\xF3 n\u1ED5 c\xE1i b\u1EE5p
+      r\u1ED3i \u0111i ch\xE2n l\u1EA1nh to\xE1t."
+    clip: {fileID: 8300000, guid: af800a396aa02f640808c8932c660da2, type: 3}
+  - key: "B\u1EAFt \u0111\xFAng b\u1EC7nh c\xE1i n\xE0y nh\xE9, \u0111\u1EEBng c\xF3
+      v\u1EBD th\xEAm linh ki\u1EC7n r\u1ED3i ch\u1EB7t ch\xE9m \u0111\u1EA5y!"
+    clip: {fileID: 8300000, guid: f9dcc1ae0fbf960469a5c006bfd54d91, type: 3}
+  - key: "H\u1EB9n m\u1EA5y ng\xE0y r\u1ED3i m\xE0 gi\u1EDD ra v\u1EABn ch\u01B0a
+      \u0111\u1EE5ng t\u1EDBi l\xE0 sao L\xE0m \u0103n ch\xE1n qu\xE1, tr\u1EA3 \u0111\u1ED3
+      \u0111\xE2y tui \u0111em ti\u1EC7m kh\xE1c!"
+    clip: {fileID: 8300000, guid: 7e1c071a3e391fc498829cc88d2e41a6, type: 3}
+  - key: "Ti\u1EC7m g\xEC ki\xEAu th\u1EBF, kh\xE1ch nh\u1EDD kh\xF4ng nh\u1EADn
+      th\xEC th\xF4i tui \u0111em ra \u0111\u1EA7u ng\xF5!"
+    clip: {fileID: 8300000, guid: f8b98a7c87b1187458ff9488d1c8cb7a, type: 3}
+  - key: "Tr\xF4ng nh\u01B0 m\u1EDBi lu\xF4n, th\u1EE3 m\xE1t tay gh\xEA. Kh\u1ECFi
+      th\u1ED1i ti\u1EC1n l\u1EBB nh\xE9, ch\xE0o anh!"
+    clip: {fileID: 8300000, guid: 5380db938803dfb4db16f298df5ed23f, type: 3}
+  - key: "Ch\xFA l\xE0m \u0103n l\u1EC1 m\u1EC1 qu\xE1! Kh\xF4ng s\u1EEDa \u0111\u01B0\u1EE3c
+      th\xEC n\xF3i ngay t\u1EEB \u0111\u1EA7u, m\u1EA5t th\u1EDDi gian c\u1EE7a
+      t\xF4i."
+    clip: {fileID: 8300000, guid: 5884f809e670e8941874f0a7c7facc81, type: 3}
+  - key: "L\xE0m \u0103n uy t\xEDn \u0111\u1EA5y ch\xE1u. Ch\u1ED7 n\xE0y ti\u1EC1n
+      c\xF4ng, c\xF4 g\u1EEDi th\xEAm ch\xFAt mua bao thu\u1ED1c nh\xE9"
+    clip: {fileID: 8300000, guid: 73568aa37d18a044ea986775138edb11, type: 3}
+  - key: "S\u1EEDa gi\xFAp em c\xE1i m\xE1y nha anh \u01A1i!"
+    clip: {fileID: 8300000, guid: 7f3a428884b8bd04e8b82c46bef2da4e, type: 3}
+  - key: "Ti\u1EC1n c\xF4ng b\u1EB1ng ti\u1EC1n m\xE1y \xE1 Th\xF4i anh c\u1EE9 \xF4m
+      c\xE1i gi\xE1 \u0111\xF3 \u0111i, ch\xE0o nh\xE9!"
+    clip: {fileID: 8300000, guid: 24adef8d941aebf4ba540db4860b14d9, type: 3}
+  - key: "B\u1ECDn tr\u1EBB con \u1EDF nh\xE0 n\xE9m c\xE1i n\xE0y v\xE0o thau n\u01B0\u1EDBc,
+      tui v\u1EDBt ra s\u1EA5y kh\xF4 r\u1ED3i, m\xE0 b\u1EADt v\u1EABn im re, kh\xF4ng
+      bi\u1EBFt l\xE0m sao n\xEAn mang ra \u0111\xE2y cho \xF4ng xem th\u1EED."
+    clip: {fileID: 8300000, guid: 45a20b2f92e27584da93c4fec15111ef, type: 3}
+  - key: "L\xE0m \u0103n ch\u1EA3nh cho\u1EB9 v\u1EADy h\xE8n g\xEC ch\u1EA3 v\u1EAFng
+      kh\xE1ch. T\xF4i \u0111i ti\u1EC7m kh\xE1c!"
+    clip: {fileID: 8300000, guid: bd263481cc83f494eb7580852299ac99, type: 3}
+  - key: "Ngon l\xE0nh c\xE0nh \u0111\xE0o! \u0110\u1ED9i \u01A1n anh th\u1EE3 \u0111i\u1EC7n
+      \u0111\u1EB9p trai, ti\u1EC1n c\u1EE7a anh \u0111\xE2y, em \u0111i tr\u01B0\u1EDBc
+      nh\xE9!"
+    clip: {fileID: 8300000, guid: adafb54bf3722c04cadcb4a0b59e1e0a, type: 3}
+  - key: "N\u1EA3n gh\xEA, h\u1EB9n l\xEAn h\u1EB9n xu\u1ED1ng m\u1EA5y ng\xE0y r\u1ED3i
+      \u0111\xF3 anh trai. Th\xF4i kh\xF4ng s\u1EEDa n\u1EEFa, \u0111\u01B0a \u0111\xE2y
+      t\xF4i mang v\u1EC1"
+    clip: {fileID: 8300000, guid: 9db2ac10a6e9de04a86f0a341b1ee587, type: 3}
+  - key: "D\u1EA1 th\xF4i... gi\xE1 n\xE0y h\u01A1i chua so v\u1EDBi t\xFAi ti\u1EC1n
+      sinh vi\xEAn c\u1EE7a em. Em xin l\u1EA1i v\u1EADy."
+    clip: {fileID: 8300000, guid: 0bf42d86ab9392e4abe8e0f9ede6aea8, type: 3}
+  - key: "S\u1EBFp th\xE1o ra ki\u1EC3m tra m\xF3n n\xE0y nh\xE9, qua r\u1EA3nh r\u1ED7i
+      t\xF4i t\u1EF1 l\xF4i ra x\u1ECBt n\u01B0\u1EDBc r\u1EEDa m\xE0 nay n\xF3 \u0111\xECnh
+      c\xF4ng lu\xF4n r\u1ED3i."
+    clip: {fileID: 8300000, guid: 36ab76015e5b8494bab1c23c99f23ca5, type: 3}
+  - key: "Th\u1EE3 v\u1EDBi thuy\u1EC1n, h\u1EB9n ng\xE0y l\u1EA5y m\xE0 t\u1EDBi
+      n\u01A1i m\xE1y v\u1EABn n\u1EB1m ch\u1ECFng tr\u01A1.Th\xF4i d\u1EB9p \u0111i!"
+    clip: {fileID: 8300000, guid: 736b6b3b54aeeb248ae938ab626b878a, type: 3}
+  - key: "Tuy\u1EC7t v\u1EDDi, c\u1EE9 t\u01B0\u1EDFng ph\u1EA3i n\xE9m \u0111i r\u1ED3i
+      ch\u1EE9. G\u1EEDi s\u1EBFp \u0111\xFAng gi\xE1 nh\xE9, c\u1EA3m \u01A1n nhi\u1EC1u!"
+    clip: {fileID: 8300000, guid: 837e2b0646dbb2640950e6660b1e94ee, type: 3}
+  - key: "C\xE1i b\u1EC7nh l\u1EB7t v\u1EB7t m\xE0 ch\xE9m \u0111\u1EB9p th\u1EBF
+      ch\xFA em Th\xF4i c\u1EA5t v\xE0o \u0111i!"
+    clip: {fileID: 8300000, guid: 2c45147d0abc9474ea9153a2ce46f774, type: 3}
+  - key: "H\xF4m qua bu\u1ED3n tay th\xE1o c\xE1i n\xE0y ra lau ch\xF9i, th\u1EBF
+      qu\xE1i n\xE0o l\xFAc l\u1EAFp l\u1EA1i d\u01B0 ra c\u1EA3 n\u1EAFm \u1ED1c...
+      \xD4ng nh\xE9t l\u1EA1i t\xF4i h\u1ED9 v\u1EDBi."
+    clip: {fileID: 8300000, guid: 075a0c648e1775344abe1af7d87051c6, type: 3}
+  - key: "Tr\u1EDDi \u01A1i, s\u1EBFp ng\xE2m \u0111\u1ED3 c\u1EE7a em l\xE2u th\u1EBF
+      \u0110ang c\u1EA7n g\u1EA5p m\xE0... Th\xF4i \u0111\u01B0a em mang ra h\xE3ng
+      cho l\u1EB9."
+    clip: {fileID: 8300000, guid: f8b593b84d51fcb4fadc2eff759d425a, type: 3}
+  - key: "Xong r\u1ED3i \xE0 \u0110\u1EC3 test th\u1EED xem... Ok, l\xEAn \u0111i\u1EC7n
+      r\u1ED3i. Ti\u1EC1n c\xF4ng \u0111\xE2y nh\xE9"
+    clip: {fileID: 8300000, guid: 9b10010937b2db84fb4f7d92f22df95f, type: 3}
