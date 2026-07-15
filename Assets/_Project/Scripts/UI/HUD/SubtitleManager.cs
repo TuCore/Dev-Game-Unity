@@ -152,12 +152,11 @@ public class SubtitleManager : MonoBehaviour
 
     private IEnumerator IntroSequenceRoutine(System.Action onComplete)
     {
-        // Đã bỏ màn hình đen
-
-        // Phát âm thanh môi trường Sài Gòn buổi sáng
+        // Stop the main menu music and play morning ambience at a lower volume scale
         if (AudioManager.Instance != null)
         {
-            AudioManager.Instance.PlayAmbience("Âm thanh buổi sáng");
+            AudioManager.Instance.StopMusic();
+            AudioManager.Instance.PlayAmbience("Âm thanh buổi sáng", 0.35f);
         }
 
         yield return new WaitForSeconds(1f);

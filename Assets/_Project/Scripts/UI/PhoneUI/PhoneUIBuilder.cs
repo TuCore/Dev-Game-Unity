@@ -589,7 +589,20 @@ public class PhoneUIBuilder : MonoBehaviour
         statusTime.transform.SetAsLastSibling();
         statusIcons.transform.SetAsLastSibling();
         homeInd.transform.SetAsLastSibling();
-
+        
+        // Automatically add hover/click sounds to all phone UI buttons and selectables
+        Selectable[] selectables = canvasObj.GetComponentsInChildren<Selectable>(true);
+        foreach (Selectable sel in selectables)
+        {
+            if (sel.gameObject.GetComponent<AnhThoDien.UI.UIButtonSound>() == null)
+            {
+                var sound = sel.gameObject.AddComponent<AnhThoDien.UI.UIButtonSound>();
+                
+                // Phones don't have mouse hover (empty hover name), and use the keyboard tap sound for clicks
+                sound.SetSoundNames("", "Tiếng gõ phím");
+            }
+        }
+        
         // Ẩn điện thoại lúc đầu
         phoneContainer.SetActive(false);
     }
