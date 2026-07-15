@@ -47,6 +47,15 @@ namespace AnhThoDien.UI.Menu
                 bool hasSave = PlayerPrefs.GetInt("HasSaveGame", 0) == 1;
                 btnContinue.interactable = hasSave;
             }
+
+            // Automatically add hover and click sounds to all buttons in this Canvas
+            AddSoundToButtons();
+
+            // Play Main Menu background music
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayMusic("🎵Nhạc lofi chill chơi game, học bài,... hay nhất, lukrembo royal music🎵  Thiện SUS - Thiện SUS");
+            }
         }
 
         private void Update()
@@ -196,6 +205,18 @@ namespace AnhThoDien.UI.Menu
 #else
             Application.Quit();
 #endif
+        }
+
+        private void AddSoundToButtons()
+        {
+            Button[] buttons = GetComponentsInChildren<Button>(true);
+            foreach (Button btn in buttons)
+            {
+                if (btn.gameObject.GetComponent<UIButtonSound>() == null)
+                {
+                    btn.gameObject.AddComponent<UIButtonSound>();
+                }
+            }
         }
     }
 }

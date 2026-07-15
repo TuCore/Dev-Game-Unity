@@ -285,6 +285,48 @@ public class PhoneUIBuilder : MonoBehaviour
 
         CreateAppIcon(appsGrid.transform, "Tin Nhắn", "chat.png", phoneManager, chatApp);
 
+        // Customer Messages App
+        CustomerMessagesApp customerMessagesApp = CreateAppScreen<CustomerMessagesApp>("CustomerMessagesAppScreen", screenObj.transform, "Khách Hàng", new Color(0.04f, 0.12f, 0.18f));
+        GameObject customerMessagesContent = CreateUIObject("Content", customerMessagesApp.transform);
+        RectTransform customerMessagesRect = customerMessagesContent.GetComponent<RectTransform>();
+        customerMessagesRect.anchorMin = new Vector2(0, 0); customerMessagesRect.anchorMax = new Vector2(1, 1);
+        customerMessagesRect.offsetMin = new Vector2(20, 24); customerMessagesRect.offsetMax = new Vector2(-20, -108);
+        VerticalLayoutGroup customerMessagesLayout = customerMessagesContent.AddComponent<VerticalLayoutGroup>();
+        customerMessagesLayout.spacing = 12; customerMessagesLayout.childControlHeight = false; customerMessagesLayout.childForceExpandHeight = false;
+        customerMessagesLayout.childControlWidth = false; customerMessagesLayout.childForceExpandWidth = false;
+        customerMessagesLayout.childAlignment = TextAnchor.UpperCenter;
+
+        TextMeshProUGUI customerMessagesTitle = CreateTextObj("TitleText", customerMessagesContent.transform, "Tin nhắn khách", 20, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        customerMessagesTitle.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 32);
+        customerMessagesTitle.fontStyle = FontStyles.Bold;
+        customerMessagesTitle.raycastTarget = false;
+
+        TextMeshProUGUI customerMessagesEmpty = CreateTextObj("EmptyText", customerMessagesContent.transform, "Chưa có tin nhắn từ khách.\nNhận đơn sửa đồ để khách nhắn lịch hẹn.", 16, TextAlignmentOptions.Center).GetComponent<TextMeshProUGUI>();
+        customerMessagesEmpty.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 110);
+        customerMessagesEmpty.color = new Color(0.82f, 0.86f, 0.92f);
+        customerMessagesEmpty.textWrappingMode = TextWrappingModes.Normal;
+        customerMessagesEmpty.raycastTarget = false;
+
+        GameObject customerMessagesLogCard = CreateCard(customerMessagesContent.transform, new Vector2(360, 435), new Color(0.08f, 0.09f, 0.11f), 14);
+        TextMeshProUGUI customerMessagesLog = CreateTextObj("MessageLogText", customerMessagesLogCard.transform, "", 15, TextAlignmentOptions.TopLeft, true, new Vector2(16, 14), new Vector2(-16, -14)).GetComponent<TextMeshProUGUI>();
+        customerMessagesLog.textWrappingMode = TextWrappingModes.Normal;
+        customerMessagesLog.raycastTarget = false;
+        customerMessagesLog.gameObject.SetActive(false);
+
+        GameObject customerMessagesButtonObj = CreateCard(customerMessagesContent.transform, new Vector2(360, 48), new Color(0.08f, 0.48f, 0.72f), 12, false);
+        TextMeshProUGUI customerMessagesButtonText = CreateTextObj("Txt", customerMessagesButtonObj.transform, "Làm mới", 17, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>();
+        customerMessagesButtonText.fontStyle = FontStyles.Bold;
+        customerMessagesButtonText.raycastTarget = false;
+        Button customerMessagesButton = customerMessagesButtonObj.AddComponent<Button>();
+
+        SetPrivateField(customerMessagesApp, "titleText", customerMessagesTitle);
+        SetPrivateField(customerMessagesApp, "messageLogText", customerMessagesLog);
+        SetPrivateField(customerMessagesApp, "emptyText", customerMessagesEmpty);
+        SetPrivateField(customerMessagesApp, "refreshButtonText", customerMessagesButtonText);
+        SetPrivateField(customerMessagesApp, "refreshButton", customerMessagesButton);
+
+        CreateAppIcon(appsGrid.transform, "Khách Hàng", "customer_messages.png", phoneManager, customerMessagesApp);
+
         // 5. Shop App (S-Market)
         ShopApp shopApp = CreateAppScreen<ShopApp>("ShopAppScreen", screenObj.transform, "S-Market", new Color(0.12f, 0.05f, 0.02f));
         GameObject shopContent = CreateUIObject("Content", shopApp.transform);
@@ -314,12 +356,253 @@ public class PhoneUIBuilder : MonoBehaviour
         
         CreateAppIcon(appsGrid.transform, "Kho Đồ", "inventory.png", phoneManager, invApp);
 
+        // 7. Scratch Lottery App
+        ScratchLotteryApp lotteryApp = CreateAppScreen<ScratchLotteryApp>("ScratchLotteryAppScreen", screenObj.transform, "Vé Cào", new Color(0.2f, 0.02f, 0.04f));
+        GameObject lotteryContent = CreateUIObject("Content", lotteryApp.transform);
+        RectTransform lotteryRect = lotteryContent.GetComponent<RectTransform>();
+        lotteryRect.anchorMin = new Vector2(0, 0); lotteryRect.anchorMax = new Vector2(1, 1);
+        lotteryRect.offsetMin = new Vector2(20, 24); lotteryRect.offsetMax = new Vector2(-20, -108);
+        VerticalLayoutGroup lotteryLayout = lotteryContent.AddComponent<VerticalLayoutGroup>();
+        lotteryLayout.spacing = 12; lotteryLayout.childControlHeight = false; lotteryLayout.childForceExpandHeight = false;
+        lotteryLayout.childControlWidth = false; lotteryLayout.childForceExpandWidth = false;
+        lotteryLayout.childAlignment = TextAnchor.UpperCenter;
+
+        TextMeshProUGUI lotteryBalance = CreateTextObj("BalanceText", lotteryContent.transform, "Ví: 0 VNĐ", 18, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        lotteryBalance.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 30);
+        lotteryBalance.color = new Color(0.5f, 1f, 0.55f);
+        lotteryBalance.fontStyle = FontStyles.Bold;
+        lotteryBalance.raycastTarget = false;
+
+        TextMeshProUGUI lotteryStatus = CreateTextObj("StatusText", lotteryContent.transform, "Sẵn sàng", 15, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        lotteryStatus.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 26);
+        lotteryStatus.color = new Color(0.92f, 0.92f, 0.95f);
+        lotteryStatus.raycastTarget = false;
+
+        GameObject ticketCard = CreateCard(lotteryContent.transform, new Vector2(360, 285), Color.white, 16);
+        UIGradient ticketGrad = ticketCard.AddComponent<UIGradient>();
+        ticketGrad.color1 = new Color(1f, 0.8f, 0.18f);
+        ticketGrad.color2 = new Color(0.9f, 0.14f, 0.18f);
+        ticketGrad.angle = 35f;
+
+        TextMeshProUGUI ticketTitle = CreateTextObj("TicketTitle", ticketCard.transform, "VÉ CÀO MAY MẮN", 22, TextAlignmentOptions.Center, true, new Vector2(16, -48), new Vector2(-16, -16)).GetComponent<TextMeshProUGUI>();
+        ticketTitle.fontStyle = FontStyles.Bold;
+        ticketTitle.color = new Color(0.12f, 0.04f, 0.02f);
+        ticketTitle.raycastTarget = false;
+
+        GameObject prizePanel = CreateCard(ticketCard.transform, new Vector2(310, 120), new Color(1f, 0.97f, 0.78f), 14, false);
+        RectTransform prizeRect = prizePanel.GetComponent<RectTransform>();
+        prizeRect.anchorMin = new Vector2(0.5f, 0.5f); prizeRect.anchorMax = new Vector2(0.5f, 0.5f);
+        prizeRect.pivot = new Vector2(0.5f, 0.5f); prizeRect.anchoredPosition = new Vector2(0, -12f);
+
+        TextMeshProUGUI revealText = CreateTextObj("RevealText", prizePanel.transform, "VÉ CÀO\nMAY MẮN", 28, TextAlignmentOptions.Center, true, new Vector2(8, 8), new Vector2(-8, -8)).GetComponent<TextMeshProUGUI>();
+        revealText.fontStyle = FontStyles.Bold;
+        revealText.color = new Color(0.12f, 0.12f, 0.14f);
+        revealText.raycastTarget = false;
+
+        GameObject scratchCoverObj = CreateUIObject("ScratchCover", ticketCard.transform);
+        RectTransform scratchRect = scratchCoverObj.GetComponent<RectTransform>();
+        scratchRect.anchorMin = new Vector2(0.5f, 0.5f); scratchRect.anchorMax = new Vector2(0.5f, 0.5f);
+        scratchRect.pivot = new Vector2(0.5f, 0.5f); scratchRect.anchoredPosition = new Vector2(0, -12f);
+        scratchRect.sizeDelta = new Vector2(310, 120);
+        RawImage scratchImage = scratchCoverObj.AddComponent<RawImage>();
+        scratchImage.raycastTarget = true;
+        ScratchTicketSurface scratchSurface = scratchCoverObj.AddComponent<ScratchTicketSurface>();
+        scratchSurface.Initialize(lotteryApp, 0.58f);
+
+        TextMeshProUGUI ticketFooter = CreateTextObj("TicketFooter", ticketCard.transform, "CÀO LỚP BẠC ĐỂ MỞ KẾT QUẢ", 13, TextAlignmentOptions.Center, true, new Vector2(16, 22), new Vector2(-16, 22)).GetComponent<TextMeshProUGUI>();
+        ticketFooter.color = new Color(0.12f, 0.04f, 0.02f);
+        ticketFooter.fontStyle = FontStyles.Bold;
+        ticketFooter.raycastTarget = false;
+        scratchCoverObj.transform.SetAsLastSibling();
+
+        TextMeshProUGUI lotteryResult = CreateTextObj("ResultText", lotteryContent.transform, "Giá vé: 10,000 VNĐ", 17, TextAlignmentOptions.Center).GetComponent<TextMeshProUGUI>();
+        lotteryResult.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 52);
+        lotteryResult.textWrappingMode = TextWrappingModes.Normal;
+        lotteryResult.raycastTarget = false;
+
+        GameObject lotteryButtonRow = CreateUIObject("ButtonRow", lotteryContent.transform);
+        lotteryButtonRow.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 54);
+        HorizontalLayoutGroup lotteryButtonLayout = lotteryButtonRow.AddComponent<HorizontalLayoutGroup>();
+        lotteryButtonLayout.spacing = 14; lotteryButtonLayout.childControlWidth = false; lotteryButtonLayout.childForceExpandWidth = false;
+        lotteryButtonLayout.childControlHeight = false; lotteryButtonLayout.childForceExpandHeight = false;
+        lotteryButtonLayout.childAlignment = TextAnchor.MiddleCenter;
+
+        GameObject buyTicketObj = CreateCard(lotteryButtonRow.transform, new Vector2(173, 50), new Color(0.1f, 0.72f, 0.34f), 13, false);
+        TextMeshProUGUI buyTicketText = CreateTextObj("Txt", buyTicketObj.transform, "Mua vé", 18, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>();
+        buyTicketText.fontStyle = FontStyles.Bold;
+        buyTicketText.raycastTarget = false;
+        Button buyTicketButton = buyTicketObj.AddComponent<Button>();
+
+        GameObject claimPrizeObj = CreateCard(lotteryButtonRow.transform, new Vector2(173, 50), new Color(0.95f, 0.62f, 0.12f), 13, false);
+        TextMeshProUGUI claimPrizeText = CreateTextObj("Txt", claimPrizeObj.transform, "Nhận", 18, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>();
+        claimPrizeText.fontStyle = FontStyles.Bold;
+        claimPrizeText.raycastTarget = false;
+        Button claimPrizeButton = claimPrizeObj.AddComponent<Button>();
+
+        SetPrivateField(lotteryApp, "balanceText", lotteryBalance);
+        SetPrivateField(lotteryApp, "statusText", lotteryStatus);
+        SetPrivateField(lotteryApp, "revealText", revealText);
+        SetPrivateField(lotteryApp, "resultText", lotteryResult);
+        SetPrivateField(lotteryApp, "buyButtonText", buyTicketText);
+        SetPrivateField(lotteryApp, "claimButtonText", claimPrizeText);
+        SetPrivateField(lotteryApp, "buyButton", buyTicketButton);
+        SetPrivateField(lotteryApp, "claimButton", claimPrizeButton);
+        SetPrivateField(lotteryApp, "scratchSurface", scratchSurface);
+
+        CreateAppIcon(appsGrid.transform, "Vé Cào", "lottery.png", phoneManager, lotteryApp);
+
+        // 8. Bau Cua App
+        BauCuaApp bauCuaApp = CreateAppScreen<BauCuaApp>("BauCuaAppScreen", screenObj.transform, "Bầu Cua", new Color(0.18f, 0.02f, 0.01f));
+        GameObject bauCuaContent = CreateUIObject("Content", bauCuaApp.transform);
+        RectTransform bauCuaRect = bauCuaContent.GetComponent<RectTransform>();
+        bauCuaRect.anchorMin = new Vector2(0, 0); bauCuaRect.anchorMax = new Vector2(1, 1);
+        bauCuaRect.offsetMin = new Vector2(18, 24); bauCuaRect.offsetMax = new Vector2(-18, -108);
+        VerticalLayoutGroup bauCuaLayout = bauCuaContent.AddComponent<VerticalLayoutGroup>();
+        bauCuaLayout.spacing = 10; bauCuaLayout.childControlHeight = false; bauCuaLayout.childForceExpandHeight = false;
+        bauCuaLayout.childControlWidth = false; bauCuaLayout.childForceExpandWidth = false;
+        bauCuaLayout.childAlignment = TextAnchor.UpperCenter;
+
+        TextMeshProUGUI bauCuaBalance = CreateTextObj("BalanceText", bauCuaContent.transform, "Ví: 0 VNĐ", 18, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        bauCuaBalance.GetComponent<RectTransform>().sizeDelta = new Vector2(364, 28);
+        bauCuaBalance.color = new Color(0.5f, 1f, 0.55f);
+        bauCuaBalance.fontStyle = FontStyles.Bold;
+        bauCuaBalance.raycastTarget = false;
+
+        TextMeshProUGUI bauCuaStatus = CreateTextObj("StatusText", bauCuaContent.transform, "Chọn cửa rồi bấm Lắc.", 14, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        bauCuaStatus.GetComponent<RectTransform>().sizeDelta = new Vector2(364, 24);
+        bauCuaStatus.color = new Color(0.92f, 0.92f, 0.95f);
+        bauCuaStatus.raycastTarget = false;
+
+        GameObject betPanel = CreateCard(bauCuaContent.transform, new Vector2(364, 66), new Color(0.14f, 0.04f, 0.025f), 12);
+        VerticalLayoutGroup betPanelLayout = betPanel.AddComponent<VerticalLayoutGroup>();
+        betPanelLayout.padding = new RectOffset(14, 14, 8, 8);
+        betPanelLayout.spacing = 4; betPanelLayout.childControlHeight = false; betPanelLayout.childForceExpandHeight = false;
+        TextMeshProUGUI chipText = CreateTextObj("ChipText", betPanel.transform, "Mức cược: 10,000 VNĐ", 18, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        chipText.GetComponent<RectTransform>().sizeDelta = new Vector2(336, 25);
+        chipText.fontStyle = FontStyles.Bold;
+        chipText.raycastTarget = false;
+        TextMeshProUGUI totalBetText = CreateTextObj("TotalBetText", betPanel.transform, "Chạm vào ô để đặt cược", 14, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        totalBetText.GetComponent<RectTransform>().sizeDelta = new Vector2(336, 21);
+        totalBetText.color = new Color(1f, 0.86f, 0.35f);
+        totalBetText.raycastTarget = false;
+
+        GameObject dicePanel = CreateCard(bauCuaContent.transform, new Vector2(364, 90), new Color(0.09f, 0.09f, 0.12f), 14);
+        HorizontalLayoutGroup diceLayout = dicePanel.AddComponent<HorizontalLayoutGroup>();
+        diceLayout.padding = new RectOffset(18, 18, 12, 12);
+        diceLayout.spacing = 15; diceLayout.childControlWidth = false; diceLayout.childForceExpandWidth = false;
+        diceLayout.childControlHeight = false; diceLayout.childForceExpandHeight = false;
+        diceLayout.childAlignment = TextAnchor.MiddleCenter;
+        TextMeshProUGUI[] diceTexts = new TextMeshProUGUI[3];
+        Image[] diceIcons = new Image[3];
+        Image[] diceBackgrounds = new Image[3];
+        for (int i = 0; i < diceTexts.Length; i++)
+        {
+            GameObject die = CreateCard(dicePanel.transform, new Vector2(96, 64), new Color(0.18f, 0.18f, 0.22f), 12, false);
+            diceBackgrounds[i] = die.GetComponent<Image>();
+            diceIcons[i] = CreateBauCuaIconImage(die.transform, null, new Vector2(58, 42), new Vector2(0, 9));
+            diceIcons[i].enabled = false;
+            TextMeshProUGUI dieText = CreateTextObj("DieText", die.transform, "?", 13, TextAlignmentOptions.Center, true, new Vector2(4, 5), new Vector2(-4, -46)).GetComponent<TextMeshProUGUI>();
+            dieText.fontStyle = FontStyles.Bold;
+            dieText.raycastTarget = false;
+            diceTexts[i] = dieText;
+        }
+
+        GameObject animalGrid = CreateUIObject("AnimalGrid", bauCuaContent.transform);
+        animalGrid.GetComponent<RectTransform>().sizeDelta = new Vector2(364, 180);
+        GridLayoutGroup animalGridLayout = animalGrid.AddComponent<GridLayoutGroup>();
+        animalGridLayout.cellSize = new Vector2(112, 82);
+        animalGridLayout.spacing = new Vector2(14, 14);
+        animalGridLayout.childAlignment = TextAnchor.MiddleCenter;
+
+        string[] animalNames = { "BẦU", "CUA", "TÔM", "CÁ", "GÀ", "NAI" };
+        Color[] animalColors =
+        {
+            new Color(0.18f, 0.62f, 0.36f),
+            new Color(0.82f, 0.16f, 0.16f),
+            new Color(0.95f, 0.43f, 0.22f),
+            new Color(0.12f, 0.48f, 0.82f),
+            new Color(0.9f, 0.65f, 0.16f),
+            new Color(0.55f, 0.34f, 0.18f)
+        };
+        Sprite[] animalSprites =
+        {
+            LoadSprite("baucua_bau.png"),
+            LoadSprite("baucua_cua.png"),
+            LoadSprite("baucua_tom.png"),
+            LoadSprite("baucua_ca.png"),
+            LoadSprite("baucua_ga.png"),
+            LoadSprite("baucua_nai.png")
+        };
+        Button[] animalButtons = new Button[animalNames.Length];
+        TextMeshProUGUI[] animalBetTexts = new TextMeshProUGUI[animalNames.Length];
+        Image[] animalBackgrounds = new Image[animalNames.Length];
+        for (int i = 0; i < animalNames.Length; i++)
+        {
+            animalButtons[i] = CreateBauCuaAnimalButton(animalGrid.transform, animalNames[i], animalColors[i], animalSprites[i], out animalBetTexts[i], out animalBackgrounds[i]);
+        }
+
+        TextMeshProUGUI bauCuaResult = CreateTextObj("ResultText", bauCuaContent.transform, "Đặt tiền vào Bầu/Cua/Tôm/Cá/Gà/Nai rồi lắc.", 14, TextAlignmentOptions.Center).GetComponent<TextMeshProUGUI>();
+        bauCuaResult.GetComponent<RectTransform>().sizeDelta = new Vector2(364, 50);
+        bauCuaResult.textWrappingMode = TextWrappingModes.Normal;
+        bauCuaResult.raycastTarget = false;
+
+        GameObject bauCuaButtonRow = CreateUIObject("ButtonRow", bauCuaContent.transform);
+        bauCuaButtonRow.GetComponent<RectTransform>().sizeDelta = new Vector2(364, 52);
+        HorizontalLayoutGroup bauCuaButtonLayout = bauCuaButtonRow.AddComponent<HorizontalLayoutGroup>();
+        bauCuaButtonLayout.spacing = 10; bauCuaButtonLayout.childControlWidth = false; bauCuaButtonLayout.childForceExpandWidth = false;
+        bauCuaButtonLayout.childControlHeight = false; bauCuaButtonLayout.childForceExpandHeight = false;
+        bauCuaButtonLayout.childAlignment = TextAnchor.MiddleCenter;
+
+        TextMeshProUGUI lowerBetText;
+        TextMeshProUGUI raiseBetText;
+        TextMeshProUGUI clearBetText;
+        TextMeshProUGUI rollText;
+        Button lowerBetButton = CreateBauCuaButton(bauCuaButtonRow.transform, new Vector2(50, 48), "-", new Color(0.2f, 0.2f, 0.25f), out lowerBetText);
+        Button raiseBetButton = CreateBauCuaButton(bauCuaButtonRow.transform, new Vector2(50, 48), "+", new Color(0.2f, 0.2f, 0.25f), out raiseBetText);
+        Button clearBetButton = CreateBauCuaButton(bauCuaButtonRow.transform, new Vector2(90, 48), "Xóa", new Color(0.35f, 0.12f, 0.12f), out clearBetText);
+        Button rollButton = CreateBauCuaButton(bauCuaButtonRow.transform, new Vector2(134, 48), "Lắc", new Color(0.15f, 0.62f, 0.28f), out rollText);
+        lowerBetText.fontSize = 24;
+        raiseBetText.fontSize = 24;
+        rollText.fontStyle = FontStyles.Bold;
+
+        SetPrivateField(bauCuaApp, "balanceText", bauCuaBalance);
+        SetPrivateField(bauCuaApp, "statusText", bauCuaStatus);
+        SetPrivateField(bauCuaApp, "chipText", chipText);
+        SetPrivateField(bauCuaApp, "totalBetText", totalBetText);
+        SetPrivateField(bauCuaApp, "resultText", bauCuaResult);
+        SetPrivateField(bauCuaApp, "lowerBetButton", lowerBetButton);
+        SetPrivateField(bauCuaApp, "raiseBetButton", raiseBetButton);
+        SetPrivateField(bauCuaApp, "clearButton", clearBetButton);
+        SetPrivateField(bauCuaApp, "rollButton", rollButton);
+        SetPrivateField(bauCuaApp, "animalButtons", animalButtons);
+        SetPrivateField(bauCuaApp, "animalBetTexts", animalBetTexts);
+        SetPrivateField(bauCuaApp, "animalBackgrounds", animalBackgrounds);
+        SetPrivateField(bauCuaApp, "diceIcons", diceIcons);
+        SetPrivateField(bauCuaApp, "diceTexts", diceTexts);
+        SetPrivateField(bauCuaApp, "diceBackgrounds", diceBackgrounds);
+        SetPrivateField(bauCuaApp, "animalSprites", animalSprites);
+
+        CreateAppIcon(appsGrid.transform, "Bầu Cua", "baucua.png", phoneManager, bauCuaApp);
+
         // Đẩy các phần tử phần cứng lên trên cùng để che App (Z-Order)
         island.transform.SetAsLastSibling();
         statusTime.transform.SetAsLastSibling();
         statusIcons.transform.SetAsLastSibling();
         homeInd.transform.SetAsLastSibling();
-
+        
+        // Automatically add hover/click sounds to all phone UI buttons and selectables
+        Selectable[] selectables = canvasObj.GetComponentsInChildren<Selectable>(true);
+        foreach (Selectable sel in selectables)
+        {
+            if (sel.gameObject.GetComponent<AnhThoDien.UI.UIButtonSound>() == null)
+            {
+                var sound = sel.gameObject.AddComponent<AnhThoDien.UI.UIButtonSound>();
+                
+                // Phones don't have mouse hover (empty hover name), and use the keyboard tap sound for clicks
+                sound.SetSoundNames("", "Tiếng gõ phím");
+            }
+        }
+        
         // Ẩn điện thoại lúc đầu
         phoneContainer.SetActive(false);
     }
@@ -457,7 +740,14 @@ public class PhoneUIBuilder : MonoBehaviour
         }
         else
         {
-            img.color = new Color(0.2f, 0.2f, 0.2f, 1f); // Nền xám dự phòng
+            img.color = label == "Bầu Cua" ? new Color(0.75f, 0.08f, 0.05f, 1f) :
+                label == "Vé Cào" ? new Color(0.9f, 0.56f, 0.08f, 1f) :
+                new Color(0.2f, 0.2f, 0.2f, 1f); // Nền xám dự phòng
+
+            string fallbackLabel = label == "Bầu Cua" ? "BC" : label == "Vé Cào" ? "VÉ" : label.Substring(0, Mathf.Min(2, label.Length)).ToUpper();
+            TextMeshProUGUI fallbackText = CreateTextObj("FallbackText", maskObj.transform, fallbackLabel, 22, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>();
+            fallbackText.fontStyle = FontStyles.Bold;
+            fallbackText.raycastTarget = false;
         }
 
         // Bắt sự kiện Click lên toàn bộ Icon
@@ -470,6 +760,64 @@ public class PhoneUIBuilder : MonoBehaviour
         txtRect.pivot = new Vector2(0.5f, 1);
         txtRect.anchoredPosition = new Vector2(0, -8); // Khoảng cách chữ tới icon
         txtRect.sizeDelta = new Vector2(120, 30); // Cho nhãn text rộng ra để không bị vỡ chữ
+    }
+
+    private Image CreateBauCuaIconImage(Transform parent, Sprite sprite, Vector2 size, Vector2 anchoredPosition)
+    {
+        GameObject iconObj = CreateUIObject("Icon", parent);
+        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
+        iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+        iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+        iconRect.pivot = new Vector2(0.5f, 0.5f);
+        iconRect.sizeDelta = size;
+        iconRect.anchoredPosition = anchoredPosition;
+
+        Image icon = iconObj.AddComponent<Image>();
+        icon.sprite = sprite;
+        icon.color = Color.white;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        icon.enabled = sprite != null;
+        return icon;
+    }
+
+    private Button CreateBauCuaAnimalButton(Transform parent, string animalName, Color bgColor, Sprite iconSprite, out TextMeshProUGUI betText, out Image background)
+    {
+        GameObject card = CreateCard(parent, new Vector2(112, 82), bgColor, 12, false);
+        background = card.GetComponent<Image>();
+
+        Button button = card.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.transition = Selectable.Transition.None;
+
+        CreateBauCuaIconImage(card.transform, iconSprite, new Vector2(68, 52), new Vector2(0, 8));
+
+        TextMeshProUGUI nameText = CreateTextObj("Name", card.transform, animalName, 12, TextAlignmentOptions.Bottom, true, new Vector2(6, 4), new Vector2(-6, -58)).GetComponent<TextMeshProUGUI>();
+        nameText.fontStyle = FontStyles.Bold;
+        nameText.raycastTarget = false;
+
+        betText = CreateTextObj("BetText", card.transform, string.Empty, 11, TextAlignmentOptions.TopRight, true, new Vector2(5, 5), new Vector2(-6, -5)).GetComponent<TextMeshProUGUI>();
+        betText.fontStyle = FontStyles.Bold;
+        betText.raycastTarget = false;
+        betText.color = new Color(1f, 0.92f, 0.35f);
+
+        return button;
+    }
+
+    private Button CreateBauCuaButton(Transform parent, Vector2 size, string label, Color bgColor, out TextMeshProUGUI labelText)
+    {
+        GameObject buttonObj = CreateCard(parent, size, bgColor, 12, false);
+        Image background = buttonObj.GetComponent<Image>();
+
+        Button button = buttonObj.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.transition = Selectable.Transition.None;
+
+        labelText = CreateTextObj("Txt", buttonObj.transform, label, 17, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>();
+        labelText.fontStyle = FontStyles.Bold;
+        labelText.raycastTarget = false;
+
+        return button;
     }
 
     private void SetPrivateField(object obj, string fieldName, object value)

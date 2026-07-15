@@ -19,6 +19,7 @@ public class CleaningMinigameTester : MonoBehaviour
     [Serializable]
     private class CleaningSpotBinding
     {
+        public string targetName;
         public string faultId;
         public Renderer spotRenderer;
 
@@ -38,8 +39,10 @@ public class CleaningMinigameTester : MonoBehaviour
     [Serializable]
     private class ScrewBinding
     {
+        public string targetName;
         public string objectName;
         public GameObject screwObject;
+        public bool installOnLocalX;
 
         [HideInInspector] public Vector3 hiddenLocalPosition;
         [HideInInspector] public Vector3 installedLocalPosition;
@@ -51,10 +54,23 @@ public class CleaningMinigameTester : MonoBehaviour
         [HideInInspector] public float animationStartedAt;
     }
 
+    private class CleaningTargetBinding
+    {
+        public string targetName;
+        public GameObject rootObject;
+        public Texture2D iconTexture;
+        public int dustSpotCount;
+        public int screwCount;
+        public bool screwInstallsOnLocalX;
+        public bool completed;
+        public readonly List<string> faultIds = new List<string>();
+    }
+
     [Header("Test Settings")]
     [SerializeField] private int difficultyLevel = 1;
     [SerializeField] private int screenSpaceSpotPaddingPixels = 32;
     [SerializeField] private int screenSpaceScrewPaddingPixels = 24;
+    [SerializeField] private bool autoAddSpotMeshColliders = true;
     [SerializeField] private float requiredSwipeDistancePixels = 70f;
     [SerializeField] private int requiredWipePasses = 5;
     [SerializeField] private float opacityLossPerWipe = 0.2f;
@@ -62,9 +78,13 @@ public class CleaningMinigameTester : MonoBehaviour
     [SerializeField] private int sparkleFrameCount = 4;
     [SerializeField] private float screwInstallDuration = 0.45f;
     [SerializeField] private float screwInstallSpinDegrees = 540f;
+    [SerializeField] private float screwHiddenLocalX = -0.65f;
+    [SerializeField] private float screwInstalledLocalX = 0f;
     [SerializeField] private float screwHiddenLocalY = -0.03f;
     [SerializeField] private float screwInstalledLocalY = 0f;
     [SerializeField] private float wrongInteractionPenalty = 5f;
+    [SerializeField] private Vector3 cameraTargetOffset = new Vector3(0f, 0.35f, 0f);
+    [SerializeField] private Vector3 cameraViewOffset = new Vector3(0f, 0.8f, -3f);
     [SerializeField] private bool autoStartOnPlay = true;
     [SerializeField] private Camera interactionCamera;
 
@@ -90,6 +110,10 @@ public class CleaningMinigameTester : MonoBehaviour
     [SerializeField] private Transform orbitTarget;
     [SerializeField] private float orbitHorizontalSpeed = 80f;
     [SerializeField] private float orbitVerticalSpeed = 55f;
+    [SerializeField] private float cameraFrameDistanceMultiplier = 2.2f;
+    [SerializeField] private float minCameraDistance = 2.5f;
+    [SerializeField] private float maxCameraDistance = 18f;
+    [SerializeField] private float zoomStepDistance = 0.75f;
 
     private CleaningMinigame _minigame;
     private int _selectedTaskIndex;
@@ -97,6 +121,7 @@ public class CleaningMinigameTester : MonoBehaviour
     private bool _showGuideMenu;
     private bool _isClothSelected;
     private bool _isScrewSelected;
+    private bool _isChoosingTarget;
     private bool _screwPhaseActive;
     private bool _screwPhaseCompleted;
     private CleaningSpotBinding _activeSwipeBinding;
@@ -104,21 +129,20 @@ public class CleaningMinigameTester : MonoBehaviour
     private bool _showRatingResult;
     private RepairQuality _lastRatingResult;
     private float _orbitVerticalAngle;
+    private float _cameraDistance;
     private float _score;
 
-    private readonly List<string> _sampleFaults = new List<string>
-    {
-        "dust_spot_01",
-        "dust_spot_02",
-        "dust_spot_03",
-        "dust_spot_04",
-        "dust_spot_05"
-    };
+    private readonly List<string> _sampleFaults = new List<string>();
+    private readonly List<CleaningTargetBinding> _targetBindings = new List<CleaningTargetBinding>();
+    private readonly List<CleaningTargetBinding> _targetOrder = new List<CleaningTargetBinding>();
+    private CleaningTargetBinding _activeTargetBinding;
+    private int _activeTargetIndex;
 
     private void Awake()
     {
         _minigame = GetComponent<CleaningMinigame>();
         _minigame.OnMinigameCompleted += HandleMinigameCompleted;
+        AutoBindCleaningTargets();
         AutoBindSceneSpots();
         AutoBindSceneScrews();
         AutoBindSceneTools();
@@ -156,7 +180,16 @@ public class CleaningMinigameTester : MonoBehaviour
 
         UpdateSparkles();
         UpdateScrewAnimations();
-        HandleCameraOrbit();
+        if (!_isChoosingTarget)
+        {
+            HandleCameraOrbit();
+            HandleMouseWheelZoom();
+        }
+
+        if (_isChoosingTarget)
+        {
+            return;
+        }
 
         if (_screwPhaseActive)
         {
@@ -206,12 +239,21 @@ public class CleaningMinigameTester : MonoBehaviour
         GUI.skin.button.fontSize = 10;
         GUI.skin.box.fontSize = 12;
 
-        DrawCleaningProgressHud();
-        DrawScoreHud();
+        if (_isChoosingTarget)
+        {
+            DrawScoreHud();
+            DrawTargetSelectionMenu();
+        }
+        else
+        {
+            DrawCleaningProgressHud();
+            DrawScoreHud();
+            DrawFinishButton();
+            DrawClothButton();
+            DrawScrewButton();
+        }
+
         DrawGuideHint();
-        DrawFinishButton();
-        DrawClothButton();
-        DrawScrewButton();
 
         if (_showGuideMenu)
         {
@@ -278,7 +320,7 @@ public class CleaningMinigameTester : MonoBehaviour
         int installedCount = 0;
         for (int i = 0; i < screwBindings.Count; i++)
         {
-            if (screwBindings[i] != null && screwBindings[i].installed)
+            if (IsBindingOnActiveTarget(screwBindings[i]) && screwBindings[i].installed)
             {
                 installedCount++;
             }
@@ -289,22 +331,24 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private float GetScrewCompletionRatio()
     {
-        if (screwBindings.Count == 0)
+        int screwCount = CountActiveScrews();
+        if (screwCount == 0)
         {
             return 1f;
         }
 
-        return Mathf.Clamp01((float)CountInstalledScrews() / screwBindings.Count);
+        return Mathf.Clamp01((float)CountInstalledScrews() / screwCount);
     }
 
     private bool AreAllScrewsInstalled()
     {
-        return screwBindings.Count > 0 && CountInstalledScrews() >= screwBindings.Count;
+        int screwCount = CountActiveScrews();
+        return screwCount > 0 && CountInstalledScrews() >= screwCount;
     }
 
     private float GetOverallCompletionRatio()
     {
-        int totalDustPasses = Mathf.Max(1, _sampleFaults.Count) * Mathf.Max(1, requiredWipePasses);
+        int totalDustPasses = Mathf.Max(1, GetTotalDustSpotCount()) * Mathf.Max(1, requiredWipePasses);
         int completedDustPasses = 0;
         for (int i = 0; i < spotBindings.Count; i++)
         {
@@ -314,15 +358,37 @@ public class CleaningMinigameTester : MonoBehaviour
             }
         }
 
-        int totalActions = totalDustPasses + Mathf.Max(0, screwBindings.Count);
+        int totalActions = totalDustPasses + Mathf.Max(0, GetTotalScrewCount());
+        int completedActions = completedDustPasses + CountAllInstalledScrews();
+        return Mathf.Clamp01((float)completedActions / Mathf.Max(1, totalActions));
+    }
+
+    private float GetActiveTargetCompletionRatio()
+    {
+        int totalDustPasses = 0;
+        int completedDustPasses = 0;
+        for (int i = 0; i < spotBindings.Count; i++)
+        {
+            CleaningSpotBinding binding = spotBindings[i];
+            if (!IsBindingOnActiveTarget(binding))
+            {
+                continue;
+            }
+
+            totalDustPasses += Mathf.Max(1, requiredWipePasses);
+            completedDustPasses += Mathf.Min(binding.wipePasses, requiredWipePasses);
+        }
+
+        int totalScrews = CountActiveScrews();
+        int totalActions = totalDustPasses + totalScrews;
         int completedActions = completedDustPasses + CountInstalledScrews();
         return Mathf.Clamp01((float)completedActions / Mathf.Max(1, totalActions));
     }
 
     private void AddCorrectInteractionScore()
     {
-        int dustActionCount = Mathf.Max(1, _sampleFaults.Count) * Mathf.Max(1, requiredWipePasses);
-        int screwActionCount = Mathf.Max(0, screwBindings.Count);
+        int dustActionCount = Mathf.Max(1, GetTotalDustSpotCount()) * Mathf.Max(1, requiredWipePasses);
+        int screwActionCount = Mathf.Max(0, GetTotalScrewCount());
         int totalActionCount = Mathf.Max(1, dustActionCount + screwActionCount);
         _score = Mathf.Min(100f, _score + 100f / totalActionCount);
     }
@@ -356,7 +422,7 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void DrawCleaningProgressHud()
     {
-        int cleanPercent = Mathf.RoundToInt(GetOverallCompletionRatio() * 100f);
+        int cleanPercent = Mathf.RoundToInt(GetActiveTargetCompletionRatio() * 100f);
         Rect progressRect = new Rect(Screen.width - 220f, 12f, 200f, 34f);
         GUI.Box(progressRect, string.Empty);
 
@@ -383,6 +449,55 @@ public class CleaningMinigameTester : MonoBehaviour
         GUI.Label(scoreRect, $"Diem so: {Mathf.RoundToInt(_score)}", scoreStyle);
     }
 
+    private void DrawTargetSelectionMenu()
+    {
+        List<CleaningTargetBinding> availableTargets = GetAvailableTargets();
+        float panelWidth = Mathf.Min(520f, Screen.width - 40f);
+        float panelHeight = 190f;
+        Rect panelRect = new Rect((Screen.width - panelWidth) * 0.5f, (Screen.height - panelHeight) * 0.5f, panelWidth, panelHeight);
+
+        GUI.Box(panelRect, "CHON VAT PHAM CAN VE SINH");
+
+        if (availableTargets.Count == 0)
+        {
+            GUIStyle emptyStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 14
+            };
+            GUI.Label(new Rect(panelRect.x + 16f, panelRect.y + 58f, panelRect.width - 32f, 60f), "Tat ca vat pham da duoc ve sinh.", emptyStyle);
+            return;
+        }
+
+        const float iconSize = 92f;
+        const float gap = 20f;
+        float totalWidth = availableTargets.Count * iconSize + (availableTargets.Count - 1) * gap;
+        float startX = panelRect.x + (panelRect.width - totalWidth) * 0.5f;
+        float iconY = panelRect.y + 54f;
+
+        for (int i = 0; i < availableTargets.Count; i++)
+        {
+            CleaningTargetBinding target = availableTargets[i];
+            Rect buttonRect = new Rect(startX + i * (iconSize + gap), iconY, iconSize, iconSize);
+            GUIContent content = target.iconTexture != null
+                ? new GUIContent(target.iconTexture, target.targetName)
+                : new GUIContent(GetTargetDisplayName(target.targetName));
+
+            if (GUI.Button(buttonRect, content))
+            {
+                StartTarget(target);
+            }
+
+            GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 11,
+                fontStyle = FontStyle.Bold
+            };
+            GUI.Label(new Rect(buttonRect.x - 8f, buttonRect.yMax + 4f, buttonRect.width + 16f, 22f), GetTargetDisplayName(target.targetName), labelStyle);
+        }
+    }
+
     private void DrawGuideHint()
     {
         Rect hintRect = new Rect(12f, Screen.height - 48f, 190f, 34f);
@@ -393,24 +508,25 @@ public class CleaningMinigameTester : MonoBehaviour
             alignment = TextAnchor.MiddleCenter,
             fontSize = 12
         };
-        GUI.Label(hintRect, "Nhấn R để xem hướng dẫn", hintStyle);
+        GUI.Label(hintRect, "Nhan R de xem huong dan", hintStyle);
     }
 
     private void DrawGuideMenu()
     {
         Rect menuRect = GetGuideMenuRect();
-        GUI.Box(menuRect, "HƯỚNG DẪN");
+        GUI.Box(menuRect, "HUONG DAN");
 
         GUILayout.BeginArea(new Rect(menuRect.x + 16f, menuRect.y + 34f, menuRect.width - 32f, menuRect.height - 48f));
         GUI.skin.label.fontSize = 13;
-        GUILayout.Label("1. Click chọn khăn lau ở góc dưới phải.");
-        GUILayout.Label("2. Rê khăn lau trên mỗi vết bụi đủ khoảng cách để tính 1 lượt lau.");
-        GUILayout.Label("3. Mỗi lượt lau làm vết bụi mờ đi 20%.");
-        GUILayout.Label("4. Lau đủ 5 lượt cho cả 5 vết bụi để hoàn thành.");
-        GUILayout.Label("5. Dùng phím mũi tên để xoay camera quanh quạt.");
-        GUILayout.Label("6. Bấm FINISH để xem rating của lượt chơi.");
+        GUILayout.Label("1. Chon icon vat pham can ve sinh.");
+        GUILayout.Label("2. Click icon khan lau, roi re chuot tren tung vet bui.");
+        GUILayout.Label("3. Moi vet bui can 5 luot lau hop le de hoan thanh.");
+        GUILayout.Label("4. Sau khi lau xong, chon icon oc vit va click tung oc vit.");
+        GUILayout.Label("5. Dung phim mui ten de xoay camera quanh vat pham.");
+        GUILayout.Label("6. Lan chuot len/xuong de zoom in/zoom out.");
+        GUILayout.Label("7. Ve sinh xong vat pham se quay lai menu chon vat pham con lai.");
         GUILayout.Space(8f);
-        GUILayout.Label("Nhấn R lần nữa để đóng hướng dẫn.");
+        GUILayout.Label("Nhan R lan nua de dong huong dan.");
         GUILayout.EndArea();
     }
 
@@ -546,24 +662,91 @@ public class CleaningMinigameTester : MonoBehaviour
         _selectedTaskIndex = 0;
         _isClothSelected = false;
         _isScrewSelected = false;
+        _isChoosingTarget = true;
         _screwPhaseActive = false;
         _screwPhaseCompleted = false;
+        _activeTargetBinding = null;
+        _activeTargetIndex = -1;
         _activeSwipeBinding = null;
         _hasRatingResult = false;
         _showRatingResult = false;
         _score = 0f;
         Cursor.visible = true;
-        _minigame.Initialize(_sampleFaults, difficultyLevel);
-        _minigame.SetCleaningMode(CleaningMinigame.CleaningMode.Thorough);
-        _minigame.StartMinigame();
+        ResetTargetCompletion();
         ResetVisualSpots();
         ResetScrewsForStart();
-        UpdateVisualSpots();
+        BuildTargetOrder();
+        SetActiveCleaningTarget(null);
         UpdateToolVisibility();
 
         Debug.Log("[CleaningTester] Started Cleaning minigame test.");
-        Debug.Log("[CleaningTester] Drag the selected Cloth over each DustSpot. Five valid swipes clean one spot.");
-        LogSelectedTask();
+        Debug.Log("[CleaningTester] Select a cleaning target icon to begin.");
+    }
+
+    private void BuildTargetOrder()
+    {
+        _targetOrder.Clear();
+        for (int i = 0; i < _targetBindings.Count; i++)
+        {
+            CleaningTargetBinding target = _targetBindings[i];
+            if (target != null && target.rootObject != null && target.faultIds.Count > 0)
+            {
+                _targetOrder.Add(target);
+            }
+        }
+    }
+
+    private void StartTarget(int targetIndex)
+    {
+        if (_targetOrder.Count == 0)
+        {
+            Debug.LogWarning("[CleaningTester] No cleaning targets were found.");
+            return;
+        }
+
+        _activeTargetIndex = Mathf.Clamp(targetIndex, 0, _targetOrder.Count - 1);
+        _activeTargetBinding = _targetOrder[_activeTargetIndex];
+        if (_activeTargetBinding.completed)
+        {
+            Debug.LogWarning($"[CleaningTester] Target already completed: {_activeTargetBinding.targetName}");
+            ShowTargetSelection();
+            return;
+        }
+
+        _selectedTaskIndex = 0;
+        _isChoosingTarget = false;
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = false;
+        _activeSwipeBinding = null;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        Cursor.visible = true;
+
+        SetActiveCleaningTarget(_activeTargetBinding);
+
+        _sampleFaults.Clear();
+        _sampleFaults.AddRange(_activeTargetBinding.faultIds);
+        _minigame.Initialize(_sampleFaults, difficultyLevel);
+        _minigame.SetCleaningMode(CleaningMinigame.CleaningMode.Thorough);
+        _minigame.StartMinigame();
+
+        ResetScrewsForTarget(_activeTargetBinding, false);
+        UpdateVisualSpots();
+        UpdateToolVisibility();
+
+        Debug.Log($"[CleaningTester] Active cleaning target: {_activeTargetBinding.targetName}");
+    }
+
+    private void StartTarget(CleaningTargetBinding target)
+    {
+        int targetIndex = _targetOrder.IndexOf(target);
+        if (targetIndex < 0)
+        {
+            Debug.LogWarning($"[CleaningTester] Target is not available: {target?.targetName}");
+            return;
+        }
+
+        StartTarget(targetIndex);
     }
 
     private void SelectNextTask()
@@ -713,7 +896,7 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         Transform cameraTransform = interactionCamera.transform;
-        Vector3 targetPosition = orbitTarget.position;
+        Vector3 targetPosition = CalculateTargetBounds(orbitTarget).center + cameraTargetOffset;
 
         if (!Mathf.Approximately(horizontalInput, 0f))
         {
@@ -732,6 +915,22 @@ public class CleaningMinigameTester : MonoBehaviour
                 _orbitVerticalAngle = nextVerticalAngle;
             }
         }
+    }
+
+    private void HandleMouseWheelZoom()
+    {
+        if (interactionCamera == null || orbitTarget == null || IsMouseOverBlockedUi())
+        {
+            return;
+        }
+
+        float scrollDelta = Input.mouseScrollDelta.y;
+        if (Mathf.Approximately(scrollDelta, 0f))
+        {
+            return;
+        }
+
+        AdjustCameraZoom(-scrollDelta * zoomStepDistance);
     }
 
     private void TrackDustSwipe(CleaningSpotBinding binding, int taskIndex)
@@ -868,12 +1067,22 @@ public class CleaningMinigameTester : MonoBehaviour
             float progress = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, screwInstallDuration));
             float easedProgress = Mathf.SmoothStep(0f, 1f, progress);
 
-            binding.screwObject.transform.localPosition = Vector3.Lerp(
-                binding.hiddenLocalPosition,
-                binding.installedLocalPosition,
-                easedProgress);
-            binding.screwObject.transform.localRotation =
-                binding.originalLocalRotation * Quaternion.Euler(0f, screwInstallSpinDegrees * easedProgress, 0f);
+            if (binding.installOnLocalX)
+            {
+                Vector3 localPosition = binding.installedLocalPosition;
+                localPosition.x = Mathf.Lerp(screwHiddenLocalX, screwInstalledLocalX, easedProgress);
+                binding.screwObject.transform.localPosition = localPosition;
+                binding.screwObject.transform.localRotation = binding.originalLocalRotation;
+            }
+            else
+            {
+                binding.screwObject.transform.localPosition = Vector3.Lerp(
+                    binding.hiddenLocalPosition,
+                    binding.installedLocalPosition,
+                    easedProgress);
+                binding.screwObject.transform.localRotation =
+                    binding.originalLocalRotation * Quaternion.Euler(0f, screwInstallSpinDegrees * easedProgress, 0f);
+            }
 
             if (progress >= 1f)
             {
@@ -896,9 +1105,9 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void BeginScrewPhase()
     {
-        if (screwBindings.Count == 0)
+        if (CountActiveScrews() == 0)
         {
-            Debug.LogWarning("[CleaningTester] No Screw_1..4 objects were found. Skipping screw phase.");
+            Debug.LogWarning("[CleaningTester] No screws were found for the active target. Skipping screw phase.");
             CompleteScrewPhase();
             return;
         }
@@ -913,7 +1122,10 @@ public class CleaningMinigameTester : MonoBehaviour
 
         for (int i = 0; i < screwBindings.Count; i++)
         {
-            ResetScrewBinding(screwBindings[i], true);
+            if (IsBindingOnActiveTarget(screwBindings[i]))
+            {
+                ResetScrewBinding(screwBindings[i], true);
+            }
         }
 
         UpdateToolVisibility();
@@ -924,6 +1136,19 @@ public class CleaningMinigameTester : MonoBehaviour
         _screwPhaseActive = false;
         _screwPhaseCompleted = true;
         _isScrewSelected = false;
+
+        if (_activeTargetBinding != null)
+        {
+            _activeTargetBinding.completed = true;
+        }
+
+        if (HasAvailableTargets())
+        {
+            ShowTargetSelection();
+            Debug.Log("[CleaningTester] Target completed. Select another cleaning target.");
+            return;
+        }
+
         _lastRatingResult = GetQualityFromScore();
         _hasRatingResult = true;
         _showRatingResult = true;
@@ -948,7 +1173,7 @@ public class CleaningMinigameTester : MonoBehaviour
             for (int i = 0; i < screwBindings.Count; i++)
             {
                 ScrewBinding binding = screwBindings[i];
-                if (binding == null || binding.screwObject == null || binding.installed || binding.isAnimating)
+                if (!IsBindingOnActiveTarget(binding) || binding.screwObject == null || binding.installed || binding.isAnimating)
                 {
                     continue;
                 }
@@ -964,7 +1189,7 @@ public class CleaningMinigameTester : MonoBehaviour
         for (int i = 0; i < screwBindings.Count; i++)
         {
             ScrewBinding binding = screwBindings[i];
-            if (binding == null || binding.screwObject == null || binding.installed || binding.isAnimating)
+            if (!IsBindingOnActiveTarget(binding) || binding.screwObject == null || binding.installed || binding.isAnimating)
             {
                 continue;
             }
@@ -982,39 +1207,61 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         textureCoord = Vector2.zero;
 
+        if (TryFindSpotUnderMouseByRaycast(out CleaningSpotBinding raycastBinding, out textureCoord))
+        {
+            return raycastBinding;
+        }
+
+        if (ActiveTargetRequiresPhysicalSpotHit())
+        {
+            return null;
+        }
+
         if (TryFindSpotUnderMouseOnScreen(out CleaningSpotBinding screenBinding, out textureCoord))
         {
             return screenBinding;
         }
 
+        return null;
+    }
+
+    private bool TryFindSpotUnderMouseByRaycast(out CleaningSpotBinding hitBinding, out Vector2 textureCoord)
+    {
+        hitBinding = null;
+        textureCoord = Vector2.zero;
+
         Ray ray = interactionCamera.ScreenPointToRay(Input.mousePosition);
         RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
         if (hits.Length == 0)
         {
-            return null;
+            return false;
         }
 
-        for (int i = 0; i < spotBindings.Count; i++)
-        {
-            CleaningSpotBinding binding = spotBindings[i];
-            if (binding.spotRenderer == null)
-            {
-                continue;
-            }
+        Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
 
-            for (int hitIndex = 0; hitIndex < hits.Length; hitIndex++)
+        for (int hitIndex = 0; hitIndex < hits.Length; hitIndex++)
+        {
+            Transform hitTransform = hits[hitIndex].collider.transform;
+
+            for (int i = 0; i < spotBindings.Count; i++)
             {
-                Transform hitTransform = hits[hitIndex].collider.transform;
+                CleaningSpotBinding binding = spotBindings[i];
+                if (!IsBindingOnActiveTarget(binding) || binding.spotRenderer == null || !binding.spotRenderer.enabled)
+                {
+                    continue;
+                }
+
                 Transform spotTransform = binding.spotRenderer.transform;
                 if (hitTransform == spotTransform || hitTransform.IsChildOf(spotTransform) || spotTransform.IsChildOf(hitTransform))
                 {
                     textureCoord = hits[hitIndex].textureCoord;
-                    return binding;
+                    hitBinding = binding;
+                    return true;
                 }
             }
         }
 
-        return null;
+        return false;
     }
 
     private bool TryFindSpotUnderMouseOnScreen(out CleaningSpotBinding hitBinding, out Vector2 textureCoord)
@@ -1028,7 +1275,7 @@ public class CleaningMinigameTester : MonoBehaviour
         for (int i = 0; i < spotBindings.Count; i++)
         {
             CleaningSpotBinding binding = spotBindings[i];
-            if (binding.spotRenderer == null || !binding.spotRenderer.enabled)
+            if (!IsBindingOnActiveTarget(binding) || binding.spotRenderer == null || !binding.spotRenderer.enabled)
             {
                 continue;
             }
@@ -1227,19 +1474,53 @@ public class CleaningMinigameTester : MonoBehaviour
         }
     }
 
+    private void AutoBindCleaningTargets()
+    {
+        _targetBindings.Clear();
+        TryAddCleaningTarget("OldTableFan", 5, 4, false);
+        TryAddCleaningTarget("InductionCooker", 4, 1, true);
+    }
+
+    private void TryAddCleaningTarget(string targetName, int dustSpotCount, int screwCount, bool screwInstallsOnLocalX)
+    {
+        GameObject rootObject = FindSceneObjectByName(targetName, false);
+        if (rootObject == null)
+        {
+            Debug.LogWarning($"[CleaningTester] Could not find cleaning target: {targetName}");
+            return;
+        }
+
+        _targetBindings.Add(new CleaningTargetBinding
+        {
+            targetName = targetName,
+            rootObject = rootObject,
+            dustSpotCount = dustSpotCount,
+            screwCount = screwCount,
+            screwInstallsOnLocalX = screwInstallsOnLocalX
+        });
+    }
+
     private void AutoBindSceneSpots()
     {
         for (int i = spotBindings.Count - 1; i >= 0; i--)
         {
-            if (spotBindings[i] == null || !_sampleFaults.Contains(spotBindings[i].faultId))
+            if (spotBindings[i] == null || FindTargetBinding(spotBindings[i].targetName) == null)
             {
                 spotBindings.RemoveAt(i);
             }
         }
 
-        for (int i = 0; i < _sampleFaults.Count; i++)
+        for (int targetIndex = 0; targetIndex < _targetBindings.Count; targetIndex++)
         {
-            TryAddBinding(_sampleFaults[i], $"DustSpot_{i + 1:00}");
+            CleaningTargetBinding target = _targetBindings[targetIndex];
+            for (int i = 0; i < target.dustSpotCount; i++)
+            {
+                string faultId = GetTargetFaultId(target, i);
+                if (TryAddBinding(target, faultId, $"DustSpot_{i + 1:00}"))
+                {
+                    target.faultIds.Add(faultId);
+                }
+            }
         }
     }
 
@@ -1247,15 +1528,19 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         for (int i = screwBindings.Count - 1; i >= 0; i--)
         {
-            if (screwBindings[i] == null)
+            if (screwBindings[i] == null || FindTargetBinding(screwBindings[i].targetName) == null)
             {
                 screwBindings.RemoveAt(i);
             }
         }
 
-        for (int i = 1; i <= 4; i++)
+        for (int targetIndex = 0; targetIndex < _targetBindings.Count; targetIndex++)
         {
-            TryAddScrewBinding($"Screw_{i}");
+            CleaningTargetBinding target = _targetBindings[targetIndex];
+            for (int i = 1; i <= target.screwCount; i++)
+            {
+                TryAddScrewBinding(target, $"Screw_{i}");
+            }
         }
     }
 
@@ -1292,10 +1577,10 @@ public class CleaningMinigameTester : MonoBehaviour
             return;
         }
 
-        GameObject fanObject = FindSceneObjectByName("OldTableFan");
-        if (fanObject != null)
+        CleaningTargetBinding firstTarget = _targetBindings.Count > 0 ? _targetBindings[0] : null;
+        if (firstTarget != null && firstTarget.rootObject != null)
         {
-            orbitTarget = fanObject.transform;
+            orbitTarget = firstTarget.rootObject.transform;
         }
     }
 
@@ -1326,69 +1611,88 @@ public class CleaningMinigameTester : MonoBehaviour
         {
             sparkleTexture2 = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/Art/Textures/Minigames/Cleaning/Sparkle_2.png");
         }
+
+        AssignTargetIcon("OldTableFan", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/UI/Icons/OldTableFan_Icon.png"));
+        AssignTargetIcon("InductionCooker", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/_Project/UI/Icons/InductionCooker_Icon.png"));
 #endif
     }
 
-    private void TryAddBinding(string faultId, string objectName)
+    private void AssignTargetIcon(string targetName, Texture2D iconTexture)
+    {
+        CleaningTargetBinding target = FindTargetBinding(targetName);
+        if (target != null && iconTexture != null)
+        {
+            target.iconTexture = iconTexture;
+        }
+    }
+
+    private bool TryAddBinding(CleaningTargetBinding target, string faultId, string objectName)
     {
         CleaningSpotBinding existingBinding = FindSpotBinding(faultId);
         if (existingBinding != null && existingBinding.spotRenderer != null)
         {
-            return;
+            return true;
         }
 
-        GameObject spotObject = FindSceneObjectByName(objectName);
+        GameObject spotObject = FindChildObjectByName(target.rootObject.transform, objectName);
         if (spotObject == null)
         {
-            Debug.LogWarning($"[CleaningTester] Could not find visual spot object: {objectName}");
-            return;
+            Debug.LogWarning($"[CleaningTester] Could not find visual spot object: {target.targetName}/{objectName}");
+            return false;
         }
 
         Renderer spotRenderer = spotObject.GetComponent<Renderer>();
         if (spotRenderer == null)
         {
             Debug.LogWarning($"[CleaningTester] Visual spot has no Renderer: {objectName}");
-            return;
+            return false;
         }
 
         if (existingBinding != null)
         {
+            existingBinding.targetName = target.targetName;
             existingBinding.spotRenderer = spotRenderer;
-            return;
+            return true;
         }
 
         spotBindings.Add(new CleaningSpotBinding
         {
+            targetName = target.targetName,
             faultId = faultId,
             spotRenderer = spotRenderer
         });
+        return true;
     }
 
-    private void TryAddScrewBinding(string objectName)
+    private void TryAddScrewBinding(CleaningTargetBinding target, string objectName)
     {
-        ScrewBinding existingBinding = FindScrewBinding(objectName);
+        ScrewBinding existingBinding = FindScrewBinding(target.targetName, objectName);
         if (existingBinding != null && existingBinding.screwObject != null)
         {
             return;
         }
 
-        GameObject screwObject = FindSceneScrewObjectByName(objectName);
+        GameObject screwObject = FindChildObjectByName(target.rootObject.transform, objectName);
         if (screwObject == null)
         {
-            Debug.LogWarning($"[CleaningTester] Could not find screw object: {objectName}");
+            Debug.LogWarning($"[CleaningTester] Could not find screw object: {target.targetName}/{objectName}");
             return;
         }
 
         if (existingBinding != null)
         {
+            existingBinding.targetName = target.targetName;
             existingBinding.screwObject = screwObject;
+            existingBinding.installOnLocalX = target.screwInstallsOnLocalX;
             return;
         }
 
         screwBindings.Add(new ScrewBinding
         {
+            targetName = target.targetName,
             objectName = objectName,
-            screwObject = screwObject
+            screwObject = screwObject,
+            installOnLocalX = target.screwInstallsOnLocalX
         });
     }
 
@@ -1420,6 +1724,11 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private GameObject FindSceneObjectByName(string objectName)
     {
+        return FindSceneObjectByName(objectName, true);
+    }
+
+    private GameObject FindSceneObjectByName(string objectName, bool warnIfMissing)
+    {
         GameObject activeObject = GameObject.Find(objectName);
         if (activeObject != null)
         {
@@ -1436,7 +1745,30 @@ public class CleaningMinigameTester : MonoBehaviour
             }
         }
 
-        Debug.LogWarning($"[CleaningTester] Could not find scene object: {objectName}");
+        if (warnIfMissing)
+        {
+            Debug.LogWarning($"[CleaningTester] Could not find scene object: {objectName}");
+        }
+
+        return null;
+    }
+
+    private GameObject FindChildObjectByName(Transform root, string objectName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        Transform[] children = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (children[i] != null && children[i].name == objectName)
+            {
+                return children[i].gameObject;
+            }
+        }
+
         return null;
     }
 
@@ -1472,11 +1804,27 @@ public class CleaningMinigameTester : MonoBehaviour
             binding.originalLocalRotation = binding.screwObject.transform.localRotation;
 
             Vector3 installedPosition = binding.screwObject.transform.localPosition;
-            installedPosition.y = screwInstalledLocalY;
+            if (binding.installOnLocalX)
+            {
+                installedPosition.x = screwInstalledLocalX;
+            }
+            else
+            {
+                installedPosition.y = screwInstalledLocalY;
+            }
+
             binding.installedLocalPosition = installedPosition;
 
             Vector3 hiddenPosition = installedPosition;
-            hiddenPosition.y = screwHiddenLocalY;
+            if (binding.installOnLocalX)
+            {
+                hiddenPosition.x = screwHiddenLocalX;
+            }
+            else
+            {
+                hiddenPosition.y = screwHiddenLocalY;
+            }
+
             binding.hiddenLocalPosition = hiddenPosition;
 
             ResetScrewBinding(binding, false);
@@ -1515,6 +1863,17 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         binding.spotColliders = binding.spotRenderer.GetComponentsInChildren<Collider>(true);
+        if (binding.spotColliders.Length == 0 && autoAddSpotMeshColliders)
+        {
+            MeshFilter meshFilter = binding.spotRenderer.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                MeshCollider meshCollider = binding.spotRenderer.gameObject.AddComponent<MeshCollider>();
+                meshCollider.sharedMesh = meshFilter.sharedMesh;
+                binding.spotColliders = new Collider[] { meshCollider };
+            }
+        }
+
         binding.originalColliderEnabled = new bool[binding.spotColliders.Length];
         for (int i = 0; i < binding.spotColliders.Length; i++)
         {
@@ -1534,7 +1893,8 @@ public class CleaningMinigameTester : MonoBehaviour
         sparkleObject.transform.SetPositionAndRotation(
             binding.spotRenderer.transform.position + binding.spotRenderer.transform.forward * 0.02f,
             binding.spotRenderer.transform.rotation);
-        sparkleObject.transform.localScale = binding.spotRenderer.transform.lossyScale * 1.08f;
+        sparkleObject.transform.SetParent(binding.spotRenderer.transform, true);
+        sparkleObject.transform.localScale = Vector3.one * 1.08f;
 
         Collider sparkleCollider = sparkleObject.GetComponent<Collider>();
         if (sparkleCollider != null)
@@ -1667,7 +2027,7 @@ public class CleaningMinigameTester : MonoBehaviour
     private Rect GetGuideMenuRect()
     {
         float width = Mathf.Min(420f, Screen.width - 40f);
-        float height = 190f;
+        float height = 230f;
         return new Rect((Screen.width - width) * 0.5f, 76f, width, height);
     }
 
@@ -1693,6 +2053,264 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         SetObjectActive(cleaningToolObject, false);
         SetObjectActive(_screwdriverToolObject, false);
+    }
+
+    private void SetActiveCleaningTarget(CleaningTargetBinding activeTarget)
+    {
+        for (int i = 0; i < _targetBindings.Count; i++)
+        {
+            CleaningTargetBinding target = _targetBindings[i];
+            if (target == null || target.rootObject == null)
+            {
+                continue;
+            }
+
+            SetObjectActive(target.rootObject, target == activeTarget);
+        }
+
+        if (activeTarget != null && activeTarget.rootObject != null)
+        {
+            orbitTarget = activeTarget.rootObject.transform;
+            FrameCameraOnTarget(activeTarget.rootObject.transform);
+        }
+    }
+
+    private void ShowTargetSelection()
+    {
+        _isChoosingTarget = true;
+        _activeTargetBinding = null;
+        _activeTargetIndex = -1;
+        _activeSwipeBinding = null;
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = false;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        Cursor.visible = true;
+        SetActiveCleaningTarget(null);
+        UpdateToolVisibility();
+    }
+
+    private void ResetTargetCompletion()
+    {
+        for (int i = 0; i < _targetBindings.Count; i++)
+        {
+            if (_targetBindings[i] != null)
+            {
+                _targetBindings[i].completed = false;
+            }
+        }
+    }
+
+    private List<CleaningTargetBinding> GetAvailableTargets()
+    {
+        List<CleaningTargetBinding> availableTargets = new List<CleaningTargetBinding>();
+        for (int i = 0; i < _targetOrder.Count; i++)
+        {
+            CleaningTargetBinding target = _targetOrder[i];
+            if (target != null && target.rootObject != null && !target.completed)
+            {
+                availableTargets.Add(target);
+            }
+        }
+
+        return availableTargets;
+    }
+
+    private bool HasAvailableTargets()
+    {
+        for (int i = 0; i < _targetOrder.Count; i++)
+        {
+            CleaningTargetBinding target = _targetOrder[i];
+            if (target != null && target.rootObject != null && !target.completed)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private string GetTargetDisplayName(string targetName)
+    {
+        if (targetName == "OldTableFan")
+        {
+            return "Old Table Fan";
+        }
+
+        if (targetName == "InductionCooker")
+        {
+            return "Induction Cooker";
+        }
+
+        return targetName;
+    }
+
+    private void FrameCameraOnTarget(Transform target)
+    {
+        if (interactionCamera == null || target == null)
+        {
+            return;
+        }
+
+        Bounds targetBounds = CalculateTargetBounds(target);
+        Vector3 lookPoint = targetBounds.center + cameraTargetOffset;
+        Vector3 viewDirection = cameraViewOffset.sqrMagnitude > 0.001f
+            ? cameraViewOffset.normalized
+            : new Vector3(0f, 0.25f, -1f).normalized;
+        float largestDimension = Mathf.Max(targetBounds.size.x, Mathf.Max(targetBounds.size.y, targetBounds.size.z));
+        _cameraDistance = Mathf.Clamp(
+            largestDimension * Mathf.Max(1f, cameraFrameDistanceMultiplier),
+            minCameraDistance,
+            maxCameraDistance);
+
+        Transform cameraTransform = interactionCamera.transform;
+        cameraTransform.position = lookPoint + viewDirection * _cameraDistance;
+        cameraTransform.LookAt(lookPoint);
+        _orbitVerticalAngle = 0f;
+    }
+
+    private void AdjustCameraZoom(float distanceDelta)
+    {
+        if (interactionCamera == null || orbitTarget == null)
+        {
+            return;
+        }
+
+        Bounds targetBounds = CalculateTargetBounds(orbitTarget);
+        Vector3 lookPoint = targetBounds.center + cameraTargetOffset;
+        Transform cameraTransform = interactionCamera.transform;
+        Vector3 fromTarget = cameraTransform.position - lookPoint;
+        if (fromTarget.sqrMagnitude < 0.001f)
+        {
+            fromTarget = cameraViewOffset.sqrMagnitude > 0.001f
+                ? cameraViewOffset.normalized
+                : new Vector3(0f, 0.25f, -1f).normalized;
+        }
+
+        _cameraDistance = Mathf.Clamp(fromTarget.magnitude + distanceDelta, minCameraDistance, maxCameraDistance);
+        cameraTransform.position = lookPoint + fromTarget.normalized * _cameraDistance;
+        cameraTransform.LookAt(lookPoint);
+    }
+
+    private Bounds CalculateTargetBounds(Transform target)
+    {
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+        Bounds bounds = new Bounds(target.position, Vector3.one);
+        bool hasBounds = false;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer targetRenderer = renderers[i];
+            if (targetRenderer == null || !targetRenderer.enabled || !targetRenderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = targetRenderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(targetRenderer.bounds);
+            }
+        }
+
+        return hasBounds ? bounds : bounds;
+    }
+
+    private bool IsBindingOnActiveTarget(CleaningSpotBinding binding)
+    {
+        return binding != null &&
+               _activeTargetBinding != null &&
+               binding.targetName == _activeTargetBinding.targetName;
+    }
+
+    private bool IsBindingOnActiveTarget(ScrewBinding binding)
+    {
+        return binding != null &&
+               _activeTargetBinding != null &&
+               binding.targetName == _activeTargetBinding.targetName;
+    }
+
+    private bool ActiveTargetRequiresPhysicalSpotHit()
+    {
+        return _activeTargetBinding != null && _activeTargetBinding.targetName == "InductionCooker";
+    }
+
+    private int CountActiveScrews()
+    {
+        int count = 0;
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            if (IsBindingOnActiveTarget(screwBindings[i]))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private int CountAllInstalledScrews()
+    {
+        int count = 0;
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            if (screwBindings[i] != null && screwBindings[i].installed)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private int GetTotalDustSpotCount()
+    {
+        return spotBindings.Count;
+    }
+
+    private int GetTotalScrewCount()
+    {
+        return screwBindings.Count;
+    }
+
+    private void ResetScrewsForTarget(CleaningTargetBinding target, bool visible)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < screwBindings.Count; i++)
+        {
+            ScrewBinding binding = screwBindings[i];
+            if (binding != null && binding.targetName == target.targetName)
+            {
+                ResetScrewBinding(binding, visible);
+            }
+        }
+    }
+
+    private CleaningTargetBinding FindTargetBinding(string targetName)
+    {
+        for (int i = 0; i < _targetBindings.Count; i++)
+        {
+            if (_targetBindings[i] != null && _targetBindings[i].targetName == targetName)
+            {
+                return _targetBindings[i];
+            }
+        }
+
+        return null;
+    }
+
+    private string GetTargetFaultId(CleaningTargetBinding target, int dustIndex)
+    {
+        string normalizedName = target.targetName.ToLowerInvariant();
+        return $"{normalizedName}_dust_spot_{dustIndex + 1:00}";
     }
 
     private void SetObjectActive(GameObject target, bool active)
@@ -1732,11 +2350,13 @@ public class CleaningMinigameTester : MonoBehaviour
         return null;
     }
 
-    private ScrewBinding FindScrewBinding(string objectName)
+    private ScrewBinding FindScrewBinding(string targetName, string objectName)
     {
         for (int i = 0; i < screwBindings.Count; i++)
         {
-            if (screwBindings[i] != null && screwBindings[i].objectName == objectName)
+            if (screwBindings[i] != null &&
+                screwBindings[i].targetName == targetName &&
+                screwBindings[i].objectName == objectName)
             {
                 return screwBindings[i];
             }
