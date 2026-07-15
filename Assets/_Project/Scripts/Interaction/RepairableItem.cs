@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using Minigames.Diagnosis;
 
-public enum MinigameType { Soldering, Diagnosis }
+public enum MinigameType { Soldering, Diagnosis, Cleaning }
 
 public class RepairableItem : MonoBehaviour
 {
@@ -33,6 +33,18 @@ public class RepairableItem : MonoBehaviour
     // Đơn hàng liên kết với vật phẩm này
     public CustomerOrder linkedOrder;
 
+    private void Awake()
+    {
+        ApplyMinigameProfile();
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        ApplyMinigameProfile();
+    }
+#endif
+
     public bool CanBeRepaired()
     {
         return _currentRepairs < maxRepairs;
@@ -40,7 +52,7 @@ public class RepairableItem : MonoBehaviour
 
     public void SetRandomizedProperties(MinigameType minigame, int diff, float reward)
     {
-        minigameToPlay = minigame;
+        minigameToPlay = ResolveMinigameOverride(minigame);
         difficultyLevel = diff;
         baseReward = reward;
     }
@@ -84,6 +96,15 @@ public class RepairableItem : MonoBehaviour
             {
                 targetMinigame = FindObjectOfType<DiagnosisMinigame>(true);
             }
+            else if (minigameToPlay == MinigameType.Cleaning)
+            {
+                CleaningMinigameTester cleaningRunner = FindOrCreateCleaningRunner();
+                if (cleaningRunner != null)
+                {
+                    cleaningRunner.ConfigureForRepairableItem(gameObject);
+                    targetMinigame = cleaningRunner;
+                }
+            }
             
             if (targetMinigame != null)
             {
@@ -100,6 +121,51 @@ public class RepairableItem : MonoBehaviour
         {
             Debug.LogError("Không tìm thấy MinigameManager trong Scene! Hãy kéo Prefab vào Scene.");
         }
+    }
+
+    private void ApplyMinigameProfile()
+    {
+        minigameToPlay = ResolveMinigameOverride(minigameToPlay);
+    }
+
+    private MinigameType ResolveMinigameOverride(MinigameType fallback)
+    {
+        MinigameToPlay profile = GetComponentInChildren<MinigameToPlay>(true);
+        if (profile != null && profile.OverrideRandomTask)
+        {
+            return profile.Minigame;
+        }
+
+        string normalizedName = NormalizeItemName(gameObject.name);
+        if (normalizedName == "OldTableFan" || normalizedName == "InductionCooker")
+        {
+            return MinigameType.Cleaning;
+        }
+
+        return fallback;
+    }
+
+    private string NormalizeItemName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName))
+        {
+            return string.Empty;
+        }
+
+        return rawName.Replace("(Clone)", string.Empty).Trim();
+    }
+
+    private CleaningMinigameTester FindOrCreateCleaningRunner()
+    {
+        CleaningMinigameTester runner = FindObjectOfType<CleaningMinigameTester>(true);
+        if (runner != null)
+        {
+            return runner;
+        }
+
+        GameObject runnerObject = new GameObject("CleaningMinigameRuntime");
+        runnerObject.AddComponent<CleaningMinigame>();
+        return runnerObject.AddComponent<CleaningMinigameTester>();
     }
 
     public bool HasRequiredParts()
@@ -204,7 +270,8 @@ public class RepairableItem : MonoBehaviour
         if (linkedOrder != null)
         {
             linkedOrder.basePay = reward; // Override base pay with the calculated reward based on quality
-            linkedOrder.isCompleted = true;
+            linkedOrder.negotiatedPrice = reward;
+            linkedOrder.MarkCompleted();
             
             // NOTE: Do not call CustomerQueue.Instance.CompleteOrder(linkedOrder) here.
             // It will be called in CustomerController.ProcessPickup() when the customer actually returns.

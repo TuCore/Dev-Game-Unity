@@ -11,7 +11,7 @@ using UnityEditor;
 /// Attach this to a GameObject together with CleaningMinigame, then press Play.
 /// </summary>
 [RequireComponent(typeof(CleaningMinigame))]
-public class CleaningMinigameTester : MonoBehaviour
+public class CleaningMinigameTester : MonoBehaviour, IMinigame
 {
     private const float MinOrbitVerticalAngle = -45f;
     private const float MaxOrbitVerticalAngle = 30f;
@@ -82,9 +82,18 @@ public class CleaningMinigameTester : MonoBehaviour
     [SerializeField] private float screwInstalledLocalX = 0f;
     [SerializeField] private float screwHiddenLocalY = -0.03f;
     [SerializeField] private float screwInstalledLocalY = 0f;
+    [SerializeField] private float oldTableFanScrewPhaseLiftY = 0.3f;
+    [SerializeField] private float generatedDustSpotScale = 0.18f;
+    [SerializeField] private float oldTableFanGeneratedDustSpotScale = 0.96f;
+    [SerializeField] private float oldTableFanGeneratedDustFaceSign = -1f;
+    [SerializeField] private float oldTableFanGeneratedDustSurfacePadding = 0f;
+    [SerializeField] private float oldTableFanGeneratedDustHorizontalSpacing = 0.18f;
+    [SerializeField] private float oldTableFanGeneratedDustVerticalSpacing = 0.22f;
+    [SerializeField] private Vector3 oldTableFanGeneratedDustLocalOffset = Vector3.zero;
     [SerializeField] private float wrongInteractionPenalty = 5f;
     [SerializeField] private Vector3 cameraTargetOffset = new Vector3(0f, 0.35f, 0f);
     [SerializeField] private Vector3 cameraViewOffset = new Vector3(0f, 0.8f, -3f);
+    [SerializeField] private float oldTableFanInitialCameraYawOffset = -25f;
     [SerializeField] private bool autoStartOnPlay = true;
     [SerializeField] private Camera interactionCamera;
 
@@ -131,12 +140,39 @@ public class CleaningMinigameTester : MonoBehaviour
     private float _orbitVerticalAngle;
     private float _cameraDistance;
     private float _score;
+    private string _debugLastInput = "none";
+    private int _debugLastInputFrame = -1;
+    private bool _ignoreOrbitUntilArrowKeysReleased;
+    private bool _isGameplaySessionActive;
+    private bool _hasReportedGameplayCompletion;
+    private bool _singleTargetMode;
+    private string _requestedTargetName;
+    private GameObject _requestedTargetObject;
+    private List<string> _pendingFaults = new List<string>();
+    private bool _hasStoredCursorState;
+    private CursorLockMode _previousCursorLockState;
+    private bool _previousCursorVisible;
+    private bool _hasStoredGameplayCameraState;
+    private Transform _storedCameraParent;
+    private int _storedCameraSiblingIndex;
+    private Vector3 _storedCameraLocalPosition;
+    private Quaternion _storedCameraLocalRotation;
+    private Vector3 _storedCameraLocalScale;
+    private Vector3 _storedCameraWorldPosition;
+    private Quaternion _storedCameraWorldRotation;
+    private bool _screwPhaseLiftApplied;
+    private Transform _screwPhaseLiftTarget;
+    private Vector3 _screwPhaseLiftOriginalPosition;
 
     private readonly List<string> _sampleFaults = new List<string>();
     private readonly List<CleaningTargetBinding> _targetBindings = new List<CleaningTargetBinding>();
     private readonly List<CleaningTargetBinding> _targetOrder = new List<CleaningTargetBinding>();
     private CleaningTargetBinding _activeTargetBinding;
     private int _activeTargetIndex;
+
+    public string MinigameName => "Cleaning";
+    public bool IsActive => _isGameplaySessionActive || (_minigame != null && _minigame.IsActive);
+    public event Action<RepairQuality> OnMinigameCompleted;
 
     private void Awake()
     {
@@ -155,7 +191,7 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void Start()
     {
-        if (autoStartOnPlay)
+        if (autoStartOnPlay && !_isGameplaySessionActive)
         {
             RestartTest();
         }
@@ -163,7 +199,8 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void OnDestroy()
     {
-        Cursor.visible = true;
+        RestoreGameplayCameraState();
+        RestoreCursorState();
 
         if (_minigame != null)
         {
@@ -173,9 +210,25 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void Update()
     {
-        if (CustomInputManager.GetKeyDown("CleanSpray"))
+        EnsureRuntimeBindings();
+        bool ownsCleaningInput = ShouldOwnCleaningInput();
+        if (ownsCleaningInput)
+        {
+            EnterCleaningInputMode();
+        }
+        else
+        {
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.R) || CustomInputManager.GetKeyDown("CleanSpray"))
         {
             _showGuideMenu = !_showGuideMenu;
+        }
+
+        if (_isChoosingTarget)
+        {
+            HandleTargetSelectionMouseInput();
         }
 
         UpdateSparkles();
@@ -184,6 +237,7 @@ public class CleaningMinigameTester : MonoBehaviour
         {
             HandleCameraOrbit();
             HandleMouseWheelZoom();
+            StabilizeCameraPose();
         }
 
         if (_isChoosingTarget)
@@ -235,22 +289,27 @@ public class CleaningMinigameTester : MonoBehaviour
             return;
         }
 
+        if (!ShouldDrawCleaningUi())
+        {
+            return;
+        }
+
+        GUI.depth = -1000;
+        GUI.enabled = true;
         GUI.skin.label.fontSize = 10;
         GUI.skin.button.fontSize = 10;
         GUI.skin.box.fontSize = 12;
+        HandleOnGuiInputFallback();
 
         if (_isChoosingTarget)
         {
-            DrawScoreHud();
             DrawTargetSelectionMenu();
         }
         else
         {
             DrawCleaningProgressHud();
-            DrawScoreHud();
             DrawFinishButton();
             DrawClothButton();
-            DrawScrewButton();
         }
 
         DrawGuideHint();
@@ -266,6 +325,16 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         DrawClothCursor();
+    }
+
+    private bool ShouldDrawCleaningUi()
+    {
+        return _isGameplaySessionActive ||
+               _isChoosingTarget ||
+               _screwPhaseActive ||
+               _showRatingResult ||
+               _showGuideMenu ||
+               (_minigame != null && _minigame.IsActive);
     }
 
     private string GetTestStatus()
@@ -483,9 +552,16 @@ public class CleaningMinigameTester : MonoBehaviour
                 ? new GUIContent(target.iconTexture, target.targetName)
                 : new GUIContent(GetTargetDisplayName(target.targetName));
 
-            if (GUI.Button(buttonRect, content))
+            bool selectedByButton = GUI.Button(buttonRect, content);
+            bool selectedByMouseUp = Event.current.type == EventType.MouseUp &&
+                Event.current.button == 0 &&
+                buttonRect.Contains(Event.current.mousePosition);
+
+            if (selectedByButton || selectedByMouseUp)
             {
+                Debug.Log($"[CleaningTester] Target button clicked: {target.targetName}");
                 StartTarget(target);
+                Event.current.Use();
             }
 
             GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
@@ -496,6 +572,191 @@ public class CleaningMinigameTester : MonoBehaviour
             };
             GUI.Label(new Rect(buttonRect.x - 8f, buttonRect.yMax + 4f, buttonRect.width + 16f, 22f), GetTargetDisplayName(target.targetName), labelStyle);
         }
+
+    }
+
+    private void HandleTargetSelectionMouseInput()
+    {
+        if (!Input.GetMouseButtonDown(0))
+        {
+            return;
+        }
+
+        Vector2 guiMousePosition = Input.mousePosition;
+        guiMousePosition.y = Screen.height - guiMousePosition.y;
+        _debugLastInput = $"Update click {guiMousePosition}";
+        _debugLastInputFrame = Time.frameCount;
+        TryStartTargetAtGuiPosition(guiMousePosition, "Update");
+    }
+
+    private void HandleOnGuiInputFallback()
+    {
+        Event currentEvent = Event.current;
+        if (currentEvent == null)
+        {
+            return;
+        }
+
+        if (currentEvent.type == EventType.MouseDown && currentEvent.button == 0)
+        {
+            _debugLastInput = $"OnGUI click {currentEvent.mousePosition}";
+            _debugLastInputFrame = Time.frameCount;
+
+            if (_isChoosingTarget && TryStartTargetAtGuiPosition(currentEvent.mousePosition, "OnGUI"))
+            {
+                currentEvent.Use();
+            }
+        }
+
+        if (currentEvent.type == EventType.KeyDown)
+        {
+            _debugLastInput = $"OnGUI key {currentEvent.keyCode}";
+            _debugLastInputFrame = Time.frameCount;
+
+            if (currentEvent.keyCode == KeyCode.R)
+            {
+                _showGuideMenu = !_showGuideMenu;
+                currentEvent.Use();
+                return;
+            }
+
+        }
+    }
+
+    private bool ShouldOwnCleaningInput()
+    {
+        return _isGameplaySessionActive ||
+               _isChoosingTarget ||
+               _screwPhaseActive ||
+               _showRatingResult ||
+               (_minigame != null && _minigame.IsActive);
+    }
+
+    private void EnterCleaningInputMode()
+    {
+        if (!_hasStoredCursorState)
+        {
+            _previousCursorLockState = Cursor.lockState;
+            _previousCursorVisible = Cursor.visible;
+            _hasStoredCursorState = true;
+        }
+
+        Cursor.lockState = CursorLockMode.None;
+    }
+
+    private void SetCleaningCursorVisible(bool visible)
+    {
+        EnterCleaningInputMode();
+        Cursor.visible = visible;
+    }
+
+    private void RestoreCursorState()
+    {
+        RestoreScrewPhaseLift();
+
+        if (!_hasStoredCursorState)
+        {
+            Cursor.visible = true;
+            return;
+        }
+
+        Cursor.lockState = _previousCursorLockState;
+        Cursor.visible = _previousCursorVisible;
+        _hasStoredCursorState = false;
+    }
+
+    public void ConfigureForRepairableItem(GameObject repairableItem)
+    {
+        _requestedTargetObject = repairableItem;
+        _requestedTargetName = GetCanonicalTargetName(repairableItem != null ? repairableItem.name : string.Empty);
+        _singleTargetMode = !string.IsNullOrEmpty(_requestedTargetName);
+        autoStartOnPlay = false;
+        _targetBindings.Clear();
+        _targetOrder.Clear();
+        spotBindings.Clear();
+        screwBindings.Clear();
+    }
+
+    public void Initialize(List<string> faults, int requestedDifficultyLevel)
+    {
+        difficultyLevel = Mathf.Max(1, requestedDifficultyLevel);
+        _pendingFaults = faults != null ? new List<string>(faults) : new List<string>();
+        EnsureRuntimeBindings();
+    }
+
+    public void StartMinigame()
+    {
+        EnsureRuntimeBindings();
+        StoreGameplayCameraState();
+        EnterCleaningInputMode();
+        _isGameplaySessionActive = true;
+        _hasReportedGameplayCompletion = false;
+
+        if (_singleTargetMode)
+        {
+            StartRequestedTargetSession();
+        }
+        else
+        {
+            RestartTest();
+            _isGameplaySessionActive = true;
+        }
+    }
+
+    public RepairQuality EndMinigame()
+    {
+        RepairQuality quality = _hasRatingResult ? _lastRatingResult : GetQualityFromScore();
+
+        if (_minigame != null && _minigame.IsActive)
+        {
+            quality = _minigame.EndMinigame();
+        }
+
+        FinishGameplaySession(quality);
+        return quality;
+    }
+
+    public void AbortMinigame()
+    {
+        if (_minigame != null)
+        {
+            _minigame.AbortMinigame();
+        }
+
+        FinishGameplaySession(RepairQuality.Broken);
+    }
+
+    private bool TryStartTargetAtGuiPosition(Vector2 guiMousePosition, string source)
+    {
+        List<CleaningTargetBinding> availableTargets = GetAvailableTargets();
+        if (availableTargets.Count == 0)
+        {
+            return false;
+        }
+
+        float panelWidth = Mathf.Min(520f, Screen.width - 40f);
+        float panelHeight = 190f;
+        Rect panelRect = new Rect((Screen.width - panelWidth) * 0.5f, (Screen.height - panelHeight) * 0.5f, panelWidth, panelHeight);
+        const float iconSize = 92f;
+        const float gap = 20f;
+        float totalWidth = availableTargets.Count * iconSize + (availableTargets.Count - 1) * gap;
+        float startX = panelRect.x + (panelRect.width - totalWidth) * 0.5f;
+        float iconY = panelRect.y + 54f;
+
+        for (int i = 0; i < availableTargets.Count; i++)
+        {
+            CleaningTargetBinding target = availableTargets[i];
+            Rect buttonRect = new Rect(startX + i * (iconSize + gap), iconY, iconSize, iconSize);
+            Rect labelRect = new Rect(buttonRect.x - 12f, buttonRect.y, buttonRect.width + 24f, buttonRect.height + 38f);
+            if (buttonRect.Contains(guiMousePosition) || labelRect.Contains(guiMousePosition))
+            {
+                Debug.Log($"[CleaningTester] Target selected by {source}: {target.targetName}");
+                StartTarget(target);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void DrawGuideHint()
@@ -521,10 +782,9 @@ public class CleaningMinigameTester : MonoBehaviour
         GUILayout.Label("1. Chon icon vat pham can ve sinh.");
         GUILayout.Label("2. Click icon khan lau, roi re chuot tren tung vet bui.");
         GUILayout.Label("3. Moi vet bui can 5 luot lau hop le de hoan thanh.");
-        GUILayout.Label("4. Sau khi lau xong, chon icon oc vit va click tung oc vit.");
-        GUILayout.Label("5. Dung phim mui ten de xoay camera quanh vat pham.");
-        GUILayout.Label("6. Lan chuot len/xuong de zoom in/zoom out.");
-        GUILayout.Label("7. Ve sinh xong vat pham se quay lai menu chon vat pham con lai.");
+        GUILayout.Label("4. Dung phim mui ten de xoay camera quanh vat pham.");
+        GUILayout.Label("5. Lan chuot len/xuong de zoom in/zoom out.");
+        GUILayout.Label("6. Bam FINISH khi da hoan thanh ve sinh.");
         GUILayout.Space(8f);
         GUILayout.Label("Nhan R lan nua de dong huong dan.");
         GUILayout.EndArea();
@@ -611,13 +871,18 @@ public class CleaningMinigameTester : MonoBehaviour
         };
 
         GUI.Label(new Rect(ratingRect.x + 12f, ratingRect.y + 22f, ratingRect.width - 24f, 28f), $"Rating: {_lastRatingResult}", ratingStyle);
-        GUI.Label(new Rect(ratingRect.x + 12f, ratingRect.y + 50f, ratingRect.width - 24f, 22f), $"Score: {Mathf.RoundToInt(_score)}", GUI.skin.label);
-
-        Rect okRect = new Rect(ratingRect.x + (ratingRect.width - 92f) * 0.5f, ratingRect.y + 78f, 92f, 28f);
+        Rect okRect = new Rect(ratingRect.x + (ratingRect.width - 92f) * 0.5f, ratingRect.y + 70f, 92f, 28f);
         if (GUI.Button(okRect, "OK"))
         {
             _showRatingResult = false;
-            RestartTest();
+            if (_isGameplaySessionActive)
+            {
+                CloseGameplayCleaningSession();
+            }
+            else
+            {
+                RestartTest();
+            }
         }
     }
 
@@ -641,7 +906,7 @@ public class CleaningMinigameTester : MonoBehaviour
             _isScrewSelected = false;
         }
 
-        Cursor.visible = !_isClothSelected;
+        SetCleaningCursorVisible(!_isClothSelected);
         UpdateToolVisibility();
     }
 
@@ -653,12 +918,19 @@ public class CleaningMinigameTester : MonoBehaviour
             _isClothSelected = false;
         }
 
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
         UpdateToolVisibility();
     }
 
     private void RestartTest()
     {
+        EnterCleaningInputMode();
+        RestoreScrewPhaseLift();
+        _isGameplaySessionActive = false;
+        _hasReportedGameplayCompletion = false;
+        _singleTargetMode = false;
+        _requestedTargetObject = null;
+        _requestedTargetName = string.Empty;
         _selectedTaskIndex = 0;
         _isClothSelected = false;
         _isScrewSelected = false;
@@ -671,7 +943,7 @@ public class CleaningMinigameTester : MonoBehaviour
         _hasRatingResult = false;
         _showRatingResult = false;
         _score = 0f;
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
         ResetTargetCompletion();
         ResetVisualSpots();
         ResetScrewsForStart();
@@ -681,6 +953,51 @@ public class CleaningMinigameTester : MonoBehaviour
 
         Debug.Log("[CleaningTester] Started Cleaning minigame test.");
         Debug.Log("[CleaningTester] Select a cleaning target icon to begin.");
+    }
+
+    private void StartRequestedTargetSession()
+    {
+        EnterCleaningInputMode();
+        RestoreScrewPhaseLift();
+        EnsureRuntimeBindings();
+
+        _selectedTaskIndex = 0;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        _isChoosingTarget = false;
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = false;
+        _activeTargetBinding = null;
+        _activeTargetIndex = -1;
+        _activeSwipeBinding = null;
+        _hasRatingResult = false;
+        _showRatingResult = false;
+        _score = 0f;
+        SetCleaningCursorVisible(true);
+
+        ResetTargetCompletion();
+        ResetVisualSpots();
+        ResetScrewsForStart();
+        BuildTargetOrder();
+        UpdateToolVisibility();
+
+        CleaningTargetBinding requestedTarget = FindTargetBinding(_requestedTargetName);
+        if (requestedTarget == null || requestedTarget.rootObject == null)
+        {
+            Debug.LogError($"[CleaningTester] Cannot start Cleaning. Target not found: {_requestedTargetName}");
+            FinishGameplaySession(RepairQuality.Broken);
+            return;
+        }
+
+        int targetIndex = _targetOrder.IndexOf(requestedTarget);
+        if (targetIndex < 0)
+        {
+            _targetOrder.Clear();
+            _targetOrder.Add(requestedTarget);
+            targetIndex = 0;
+        }
+
+        StartTarget(targetIndex);
     }
 
     private void BuildTargetOrder()
@@ -698,6 +1015,8 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void StartTarget(int targetIndex)
     {
+        RestoreScrewPhaseLift();
+
         if (_targetOrder.Count == 0)
         {
             Debug.LogWarning("[CleaningTester] No cleaning targets were found.");
@@ -720,7 +1039,8 @@ public class CleaningMinigameTester : MonoBehaviour
         _activeSwipeBinding = null;
         _isClothSelected = false;
         _isScrewSelected = false;
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
+        _ignoreOrbitUntilArrowKeysReleased = AnyOrbitKeyHeld();
 
         SetActiveCleaningTarget(_activeTargetBinding);
 
@@ -836,11 +1156,42 @@ public class CleaningMinigameTester : MonoBehaviour
             return;
         }
 
-        if (FindSpotUnderMouse(out _) != null)
+        if (FindSpotUnderMouse(out _) != null || IsMouseOverActiveTarget())
         {
             ResetSwipeTracking();
             RegisterWrongInteraction("Screw tool used on dust");
         }
+    }
+
+    private bool IsMouseOverActiveTarget()
+    {
+        if (_activeTargetBinding == null || _activeTargetBinding.rootObject == null || interactionCamera == null)
+        {
+            return false;
+        }
+
+        Ray ray = interactionCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform != null && hit.transform.IsChildOf(_activeTargetBinding.rootObject.transform))
+        {
+            return true;
+        }
+
+        Renderer[] renderers = _activeTargetBinding.rootObject.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer targetRenderer = renderers[i];
+            if (targetRenderer == null || !targetRenderer.enabled || !targetRenderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (TryGetRendererScreenRect(targetRenderer, out Rect screenRect) && screenRect.Contains(Input.mousePosition))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void HandleWrongClothOnScrews()
@@ -866,6 +1217,16 @@ public class CleaningMinigameTester : MonoBehaviour
         if (interactionCamera == null || orbitTarget == null)
         {
             return;
+        }
+
+        if (_ignoreOrbitUntilArrowKeysReleased)
+        {
+            if (AnyOrbitKeyHeld())
+            {
+                return;
+            }
+
+            _ignoreOrbitUntilArrowKeysReleased = false;
         }
 
         float horizontalInput = 0f;
@@ -896,16 +1257,16 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         Transform cameraTransform = interactionCamera.transform;
-        Vector3 targetPosition = CalculateTargetBounds(orbitTarget).center + cameraTargetOffset;
+        Vector3 targetPosition = orbitTarget.position + cameraTargetOffset;
 
         if (!Mathf.Approximately(horizontalInput, 0f))
         {
-            cameraTransform.RotateAround(targetPosition, Vector3.up, horizontalInput * orbitHorizontalSpeed * Time.deltaTime);
+            cameraTransform.RotateAround(targetPosition, Vector3.up, horizontalInput * orbitHorizontalSpeed * Time.unscaledDeltaTime);
         }
 
         if (!Mathf.Approximately(verticalInput, 0f))
         {
-            float requestedDelta = verticalInput * orbitVerticalSpeed * Time.deltaTime;
+            float requestedDelta = verticalInput * orbitVerticalSpeed * Time.unscaledDeltaTime;
             float nextVerticalAngle = Mathf.Clamp(_orbitVerticalAngle + requestedDelta, MinOrbitVerticalAngle, MaxOrbitVerticalAngle);
             float appliedDelta = nextVerticalAngle - _orbitVerticalAngle;
 
@@ -917,6 +1278,14 @@ public class CleaningMinigameTester : MonoBehaviour
         }
     }
 
+    private bool AnyOrbitKeyHeld()
+    {
+        return Input.GetKey(KeyCode.LeftArrow) ||
+               Input.GetKey(KeyCode.RightArrow) ||
+               Input.GetKey(KeyCode.UpArrow) ||
+               Input.GetKey(KeyCode.DownArrow);
+    }
+
     private void HandleMouseWheelZoom()
     {
         if (interactionCamera == null || orbitTarget == null || IsMouseOverBlockedUi())
@@ -925,6 +1294,11 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         float scrollDelta = Input.mouseScrollDelta.y;
+        if (Mathf.Approximately(scrollDelta, 0f))
+        {
+            scrollDelta = Input.GetAxis("Mouse ScrollWheel") * 10f;
+        }
+
         if (Mathf.Approximately(scrollDelta, 0f))
         {
             return;
@@ -1118,7 +1492,8 @@ public class CleaningMinigameTester : MonoBehaviour
         _showRatingResult = false;
         _isClothSelected = false;
         _isScrewSelected = false;
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
+        ApplyScrewPhaseLift();
 
         for (int i = 0; i < screwBindings.Count; i++)
         {
@@ -1136,13 +1511,14 @@ public class CleaningMinigameTester : MonoBehaviour
         _screwPhaseActive = false;
         _screwPhaseCompleted = true;
         _isScrewSelected = false;
+        RestoreScrewPhaseLift();
 
         if (_activeTargetBinding != null)
         {
             _activeTargetBinding.completed = true;
         }
 
-        if (HasAvailableTargets())
+        if (!_singleTargetMode && HasAvailableTargets())
         {
             ShowTargetSelection();
             Debug.Log("[CleaningTester] Target completed. Select another cleaning target.");
@@ -1151,10 +1527,161 @@ public class CleaningMinigameTester : MonoBehaviour
 
         _lastRatingResult = GetQualityFromScore();
         _hasRatingResult = true;
+
+        if (_isGameplaySessionActive)
+        {
+            Debug.Log($"[CleaningTester] Screw phase completed in gameplay. Final quality: {_lastRatingResult}");
+            FinishGameplaySession(_lastRatingResult);
+            return;
+        }
+
         _showRatingResult = true;
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
         UpdateToolVisibility();
         Debug.Log($"[CleaningTester] Screw phase completed. Final quality: {_lastRatingResult}");
+        ReportGameplayCompletion(_lastRatingResult);
+    }
+
+    private void ApplyScrewPhaseLift()
+    {
+        if (_screwPhaseLiftApplied ||
+            _activeTargetBinding == null ||
+            _activeTargetBinding.rootObject == null ||
+            _activeTargetBinding.targetName != "OldTableFan")
+        {
+            return;
+        }
+
+        _screwPhaseLiftTarget = _activeTargetBinding.rootObject.transform;
+        _screwPhaseLiftOriginalPosition = _screwPhaseLiftTarget.position;
+        _screwPhaseLiftTarget.position = _screwPhaseLiftOriginalPosition + Vector3.up * oldTableFanScrewPhaseLiftY;
+        _screwPhaseLiftApplied = true;
+    }
+
+    private void RestoreScrewPhaseLift()
+    {
+        if (!_screwPhaseLiftApplied)
+        {
+            return;
+        }
+
+        if (_screwPhaseLiftTarget != null)
+        {
+            _screwPhaseLiftTarget.position = _screwPhaseLiftOriginalPosition;
+        }
+
+        _screwPhaseLiftTarget = null;
+        _screwPhaseLiftApplied = false;
+    }
+
+    private void ReportGameplayCompletion(RepairQuality quality)
+    {
+        if (_hasReportedGameplayCompletion)
+        {
+            return;
+        }
+
+        _hasReportedGameplayCompletion = true;
+        OnMinigameCompleted?.Invoke(quality);
+    }
+
+    private void FinishGameplaySession(RepairQuality quality)
+    {
+        _lastRatingResult = quality;
+        _hasRatingResult = true;
+        _showRatingResult = false;
+        CloseGameplayCleaningSession();
+        ReportGameplayCompletion(quality);
+    }
+
+    private void CloseGameplayCleaningSession()
+    {
+        bool wasGameplaySessionActive = _isGameplaySessionActive;
+
+        RestoreScrewPhaseLift();
+        _isGameplaySessionActive = false;
+        _singleTargetMode = false;
+        _requestedTargetObject = null;
+        _requestedTargetName = string.Empty;
+        _isChoosingTarget = false;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        SetActiveCleaningTarget(null);
+        UpdateToolVisibility();
+        RestoreGameplayCameraState();
+        RestoreCursorState();
+
+        if (wasGameplaySessionActive)
+        {
+            RestoreGameplayControlState();
+        }
+    }
+
+    private void RestoreGameplayControlState()
+    {
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        PlayerController playerController = FindObjectOfType<PlayerController>(true);
+        if (playerController != null)
+        {
+            playerController.ForceUnlockGameplayInput();
+            playerController.enabled = true;
+        }
+
+        PlayerCamera playerCamera = FindObjectOfType<PlayerCamera>(true);
+        if (playerCamera != null)
+        {
+            playerCamera.enabled = true;
+        }
+    }
+
+    private void StoreGameplayCameraState()
+    {
+        if (_hasStoredGameplayCameraState || interactionCamera == null)
+        {
+            return;
+        }
+
+        Transform cameraTransform = interactionCamera.transform;
+        _storedCameraParent = cameraTransform.parent;
+        _storedCameraSiblingIndex = cameraTransform.GetSiblingIndex();
+        _storedCameraLocalPosition = cameraTransform.localPosition;
+        _storedCameraLocalRotation = cameraTransform.localRotation;
+        _storedCameraLocalScale = cameraTransform.localScale;
+        _storedCameraWorldPosition = cameraTransform.position;
+        _storedCameraWorldRotation = cameraTransform.rotation;
+        _hasStoredGameplayCameraState = true;
+    }
+
+    private void RestoreGameplayCameraState()
+    {
+        if (!_hasStoredGameplayCameraState || interactionCamera == null)
+        {
+            return;
+        }
+
+        Transform cameraTransform = interactionCamera.transform;
+        if (_storedCameraParent != null)
+        {
+            cameraTransform.SetParent(_storedCameraParent, false);
+            int siblingIndex = Mathf.Clamp(_storedCameraSiblingIndex, 0, _storedCameraParent.childCount - 1);
+            cameraTransform.SetSiblingIndex(siblingIndex);
+            cameraTransform.localPosition = _storedCameraLocalPosition;
+            cameraTransform.localRotation = _storedCameraLocalRotation;
+            cameraTransform.localScale = _storedCameraLocalScale;
+        }
+        else
+        {
+            cameraTransform.SetParent(null, true);
+            cameraTransform.position = _storedCameraWorldPosition;
+            cameraTransform.rotation = _storedCameraWorldRotation;
+            cameraTransform.localScale = _storedCameraLocalScale;
+        }
+
+        _storedCameraParent = null;
+        _hasStoredGameplayCameraState = false;
     }
 
     private void StartScrewInstall(ScrewBinding binding)
@@ -1436,11 +1963,18 @@ public class CleaningMinigameTester : MonoBehaviour
     {
         _isClothSelected = false;
         _isScrewSelected = false;
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
         _lastRatingResult = quality;
 
         if (AreDustTasksComplete() && !_screwPhaseCompleted)
         {
+            if (_isGameplaySessionActive)
+            {
+                CompleteActiveTargetAfterDust();
+                Debug.Log("[CleaningTester] Dust phase completed in gameplay. Closing cleaning session.");
+                return;
+            }
+
             BeginScrewPhase();
             Debug.Log("[CleaningTester] Dust phase completed. Install all screws to finish.");
             return;
@@ -1449,6 +1983,35 @@ public class CleaningMinigameTester : MonoBehaviour
         _hasRatingResult = true;
         UpdateToolVisibility();
         Debug.Log($"[CleaningTester] Completed. Final quality: {quality}");
+
+        if (_isGameplaySessionActive)
+        {
+            FinishGameplaySession(quality);
+            return;
+        }
+
+        ReportGameplayCompletion(quality);
+    }
+
+    private void CompleteActiveTargetAfterDust()
+    {
+        _screwPhaseActive = false;
+        _screwPhaseCompleted = true;
+        _isClothSelected = false;
+        _isScrewSelected = false;
+        RestoreScrewPhaseLift();
+
+        if (_activeTargetBinding != null)
+        {
+            _activeTargetBinding.completed = true;
+        }
+
+        _lastRatingResult = GetQualityFromScore();
+        _hasRatingResult = true;
+        _showRatingResult = false;
+        UpdateToolVisibility();
+        RepairQuality completedQuality = _lastRatingResult;
+        FinishGameplaySession(completedQuality);
     }
 
     private void FinishAndShowRating()
@@ -1456,6 +2019,11 @@ public class CleaningMinigameTester : MonoBehaviour
         if (_minigame.IsActive)
         {
             _minigame.EndMinigame();
+            if (_hasReportedGameplayCompletion)
+            {
+                return;
+            }
+
             _lastRatingResult = GetQualityFromScore();
             _hasRatingResult = true;
         }
@@ -1466,17 +2034,31 @@ public class CleaningMinigameTester : MonoBehaviour
 
         if (_hasRatingResult)
         {
+            if (_isGameplaySessionActive)
+            {
+                FinishGameplaySession(_lastRatingResult);
+                return;
+            }
+
             _showRatingResult = true;
             _isClothSelected = false;
-            Cursor.visible = true;
+            SetCleaningCursorVisible(true);
             UpdateToolVisibility();
             Debug.Log($"[CleaningTester] Rating shown: {_lastRatingResult}");
+            ReportGameplayCompletion(_lastRatingResult);
         }
     }
 
     private void AutoBindCleaningTargets()
     {
         _targetBindings.Clear();
+
+        if (_requestedTargetObject != null && !string.IsNullOrEmpty(_requestedTargetName))
+        {
+            TryAddCleaningTarget(_requestedTargetName, _requestedTargetObject, GetDustSpotCountForTarget(_requestedTargetName), GetScrewCountForTarget(_requestedTargetName), TargetUsesLocalXScrewInstall(_requestedTargetName));
+            return;
+        }
+
         TryAddCleaningTarget("OldTableFan", 5, 4, false);
         TryAddCleaningTarget("InductionCooker", 4, 1, true);
     }
@@ -1484,6 +2066,17 @@ public class CleaningMinigameTester : MonoBehaviour
     private void TryAddCleaningTarget(string targetName, int dustSpotCount, int screwCount, bool screwInstallsOnLocalX)
     {
         GameObject rootObject = FindSceneObjectByName(targetName, false);
+        if (rootObject == null)
+        {
+            Debug.LogWarning($"[CleaningTester] Could not find cleaning target: {targetName}");
+            return;
+        }
+
+        TryAddCleaningTarget(targetName, rootObject, dustSpotCount, screwCount, screwInstallsOnLocalX);
+    }
+
+    private void TryAddCleaningTarget(string targetName, GameObject rootObject, int dustSpotCount, int screwCount, bool screwInstallsOnLocalX)
+    {
         if (rootObject == null)
         {
             Debug.LogWarning($"[CleaningTester] Could not find cleaning target: {targetName}");
@@ -1498,6 +2091,21 @@ public class CleaningMinigameTester : MonoBehaviour
             screwCount = screwCount,
             screwInstallsOnLocalX = screwInstallsOnLocalX
         });
+    }
+
+    private int GetDustSpotCountForTarget(string targetName)
+    {
+        return targetName == "InductionCooker" ? 4 : 5;
+    }
+
+    private int GetScrewCountForTarget(string targetName)
+    {
+        return targetName == "InductionCooker" ? 1 : 4;
+    }
+
+    private bool TargetUsesLocalXScrewInstall(string targetName)
+    {
+        return targetName == "InductionCooker";
     }
 
     private void AutoBindSceneSpots()
@@ -1570,6 +2178,38 @@ public class CleaningMinigameTester : MonoBehaviour
         }
     }
 
+    private void EnsureRuntimeBindings()
+    {
+        if (interactionCamera == null)
+        {
+            AutoBindInteractionCamera();
+        }
+
+        if (clothButtonTexture == null || clothCursorTexture == null || screwButtonTexture == null ||
+            sparkleTexture1 == null || sparkleTexture2 == null)
+        {
+            AutoBindUiTextures();
+        }
+
+        if (_targetBindings.Count == 0)
+        {
+            AutoBindCleaningTargets();
+            BuildTargetOrder();
+        }
+
+        if (spotBindings.Count == 0 && _targetBindings.Count > 0)
+        {
+            AutoBindSceneSpots();
+            PrepareSpotMaterials();
+        }
+
+        if (screwBindings.Count == 0 && _targetBindings.Count > 0)
+        {
+            AutoBindSceneScrews();
+            PrepareScrews();
+        }
+    }
+
     private void AutoBindOrbitTarget()
     {
         if (orbitTarget != null)
@@ -1637,8 +2277,12 @@ public class CleaningMinigameTester : MonoBehaviour
         GameObject spotObject = FindChildObjectByName(target.rootObject.transform, objectName);
         if (spotObject == null)
         {
-            Debug.LogWarning($"[CleaningTester] Could not find visual spot object: {target.targetName}/{objectName}");
-            return false;
+            spotObject = CreateRuntimeDustSpot(target, objectName);
+            if (spotObject == null)
+            {
+                Debug.LogWarning($"[CleaningTester] Could not find visual spot object: {target.targetName}/{objectName}");
+                return false;
+            }
         }
 
         Renderer spotRenderer = spotObject.GetComponent<Renderer>();
@@ -1662,6 +2306,324 @@ public class CleaningMinigameTester : MonoBehaviour
             spotRenderer = spotRenderer
         });
         return true;
+    }
+
+    private GameObject CreateRuntimeDustSpot(CleaningTargetBinding target, string objectName)
+    {
+        if (target == null || target.rootObject == null)
+        {
+            return null;
+        }
+
+        GameObject spotObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        spotObject.name = objectName;
+        spotObject.transform.SetParent(target.rootObject.transform, false);
+        ApplyRuntimeDustSpotTransform(target, spotObject.transform, objectName);
+
+        MeshCollider meshCollider = spotObject.GetComponent<MeshCollider>();
+        if (meshCollider != null)
+        {
+            meshCollider.convex = true;
+        }
+
+        Renderer renderer = spotObject.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            Material dustMaterial = CreateRuntimeDustMaterial();
+            renderer.sharedMaterial = dustMaterial;
+        }
+
+        Debug.Log($"[CleaningTester] Generated runtime dust spot: {target.targetName}/{objectName}");
+        return spotObject;
+    }
+
+    private void ApplyRuntimeDustSpotTransform(CleaningTargetBinding target, Transform spotTransform, string objectName)
+    {
+        Bounds localBounds = CalculateTargetLocalBounds(target.rootObject.transform);
+        Vector3 localCenter = localBounds.center;
+        Vector3 localExtents = localBounds.extents;
+        float width = Mathf.Max(0.4f, localBounds.size.x);
+        float height = Mathf.Max(0.4f, localBounds.size.y);
+        float depth = Mathf.Max(0.4f, localBounds.size.z);
+        int index = ExtractTrailingNumber(objectName) - 1;
+        if (index < 0)
+        {
+            index = 0;
+        }
+
+        Vector3 localPosition;
+        Quaternion localRotation;
+        float spotSizeReference = Mathf.Min(width, height);
+        if (target.targetName == "InductionCooker")
+        {
+            Vector3[] positions =
+            {
+                localCenter + new Vector3(-width * 0.2f, localExtents.y + 0.012f, depth * 0.14f),
+                localCenter + new Vector3(width * 0.2f, localExtents.y + 0.012f, -depth * 0.14f),
+                localCenter + new Vector3(-localExtents.x - 0.012f, height * 0.08f, 0f),
+                localCenter + new Vector3(localExtents.x + 0.012f, height * 0.08f, 0f)
+            };
+            Vector3[] rotations =
+            {
+                new Vector3(90f, 0f, 0f),
+                new Vector3(90f, 0f, 0f),
+                new Vector3(0f, 90f, 0f),
+                new Vector3(0f, -90f, 0f)
+            };
+
+            int safeIndex = Mathf.Clamp(index, 0, positions.Length - 1);
+            localPosition = positions[safeIndex];
+            localRotation = Quaternion.Euler(rotations[safeIndex]);
+        }
+        else
+        {
+            int normalAxis = target.targetName == "OldTableFan" ? 0 : localBounds.size.x < localBounds.size.z ? 0 : 2;
+            int horizontalAxis = normalAxis == 0 ? 2 : 0;
+            float faceSign = target.targetName == "OldTableFan"
+                ? Mathf.Sign(oldTableFanGeneratedDustFaceSign == 0f ? -1f : oldTableFanGeneratedDustFaceSign)
+                : GetCameraFacingSign(target.rootObject.transform, localCenter, normalAxis);
+            float faceOffset = GetAxisValue(localExtents, normalAxis) +
+                (target.targetName == "OldTableFan" ? oldTableFanGeneratedDustSurfacePadding : 0.012f);
+            float horizontalSpacing = target.targetName == "OldTableFan" ? oldTableFanGeneratedDustHorizontalSpacing : 0.08f;
+            float verticalSpacing = target.targetName == "OldTableFan" ? oldTableFanGeneratedDustVerticalSpacing : 0.1f;
+            float horizontalStep = GetAxisValue(localBounds.size, horizontalAxis) * horizontalSpacing;
+            float verticalStep = height * verticalSpacing;
+            Vector3 faceCenter = localCenter;
+            faceCenter.y += localExtents.y * 0.12f;
+            SetAxisValue(ref faceCenter, normalAxis, GetAxisValue(localCenter, normalAxis) + faceSign * faceOffset);
+            if (target.targetName == "OldTableFan")
+            {
+                faceCenter += oldTableFanGeneratedDustLocalOffset;
+            }
+
+            Vector3[] offsets =
+            {
+                BuildPlaneOffset(horizontalAxis, -horizontalStep, verticalStep),
+                BuildPlaneOffset(horizontalAxis, horizontalStep, verticalStep),
+                Vector3.zero,
+                BuildPlaneOffset(horizontalAxis, -horizontalStep, -verticalStep),
+                BuildPlaneOffset(horizontalAxis, horizontalStep, -verticalStep)
+            };
+
+            int safeIndex = Mathf.Clamp(index, 0, offsets.Length - 1);
+            localPosition = faceCenter + offsets[safeIndex];
+            localRotation = Quaternion.FromToRotation(Vector3.forward, GetAxisVector(normalAxis, faceSign));
+            spotSizeReference = target.targetName == "OldTableFan"
+                ? Mathf.Min(GetAxisValue(localBounds.size, horizontalAxis), height) * SafeScaleMultiplier(oldTableFanGeneratedDustSpotScale, generatedDustSpotScale)
+                : Mathf.Min(GetAxisValue(localBounds.size, horizontalAxis), height);
+        }
+
+        spotTransform.localPosition = localPosition;
+        spotTransform.localRotation = localRotation;
+        float desiredWorldSize = spotSizeReference * generatedDustSpotScale;
+        SetWorldUniformScale(spotTransform, desiredWorldSize);
+    }
+
+    private Bounds CalculateTargetLocalBounds(Transform root)
+    {
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        Bounds localBounds = new Bounds(Vector3.zero, Vector3.one);
+        bool hasBounds = false;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer targetRenderer = renderers[i];
+            if (targetRenderer == null || !targetRenderer.enabled || !targetRenderer.gameObject.activeInHierarchy ||
+                ShouldIgnoreForGeneratedSpotBounds(targetRenderer, root))
+            {
+                continue;
+            }
+
+            Bounds rendererBounds = targetRenderer.bounds;
+            Vector3 center = rendererBounds.center;
+            Vector3 extents = rendererBounds.extents;
+            Vector3[] corners =
+            {
+                center + new Vector3(-extents.x, -extents.y, -extents.z),
+                center + new Vector3(-extents.x, -extents.y, extents.z),
+                center + new Vector3(-extents.x, extents.y, -extents.z),
+                center + new Vector3(-extents.x, extents.y, extents.z),
+                center + new Vector3(extents.x, -extents.y, -extents.z),
+                center + new Vector3(extents.x, -extents.y, extents.z),
+                center + new Vector3(extents.x, extents.y, -extents.z),
+                center + new Vector3(extents.x, extents.y, extents.z)
+            };
+
+            for (int cornerIndex = 0; cornerIndex < corners.Length; cornerIndex++)
+            {
+                Vector3 localCorner = root.InverseTransformPoint(corners[cornerIndex]);
+                if (!hasBounds)
+                {
+                    localBounds = new Bounds(localCorner, Vector3.zero);
+                    hasBounds = true;
+                }
+                else
+                {
+                    localBounds.Encapsulate(localCorner);
+                }
+            }
+        }
+
+        return hasBounds ? localBounds : localBounds;
+    }
+
+    private float SafeScaleMultiplier(float targetScale, float fallbackScale)
+    {
+        float safeFallback = Mathf.Abs(fallbackScale) < 0.0001f ? 0.18f : fallbackScale;
+        return targetScale / safeFallback;
+    }
+
+    private bool ShouldIgnoreForGeneratedSpotBounds(Renderer targetRenderer, Transform root)
+    {
+        Transform current = targetRenderer.transform;
+        while (current != null && current != root)
+        {
+            string objectName = current.name;
+            if (objectName.StartsWith("DustSpot", StringComparison.OrdinalIgnoreCase) ||
+                objectName.StartsWith("Sparkle", StringComparison.OrdinalIgnoreCase) ||
+                objectName.StartsWith("Screw_", StringComparison.OrdinalIgnoreCase) ||
+                objectName.Equals("Cloth", StringComparison.OrdinalIgnoreCase) ||
+                objectName.Equals("Screwdriver", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    private float GetCameraFacingSign(Transform root, Vector3 localCenter, int axis)
+    {
+        if (interactionCamera == null)
+        {
+            return 1f;
+        }
+
+        Vector3 worldCenter = root.TransformPoint(localCenter);
+        Vector3 localViewDirection = root.InverseTransformDirection(interactionCamera.transform.position - worldCenter);
+        float axisValue = GetAxisValue(localViewDirection, axis);
+        return axisValue >= 0f ? 1f : -1f;
+    }
+
+    private Vector3 BuildPlaneOffset(int horizontalAxis, float horizontalOffset, float verticalOffset)
+    {
+        Vector3 offset = Vector3.zero;
+        SetAxisValue(ref offset, horizontalAxis, horizontalOffset);
+        offset.y = verticalOffset;
+        return offset;
+    }
+
+    private Vector3 GetAxisVector(int axis, float sign)
+    {
+        if (axis == 0)
+        {
+            return new Vector3(sign, 0f, 0f);
+        }
+
+        if (axis == 1)
+        {
+            return new Vector3(0f, sign, 0f);
+        }
+
+        return new Vector3(0f, 0f, sign);
+    }
+
+    private float GetAxisValue(Vector3 value, int axis)
+    {
+        if (axis == 0)
+        {
+            return value.x;
+        }
+
+        if (axis == 1)
+        {
+            return value.y;
+        }
+
+        return value.z;
+    }
+
+    private void SetAxisValue(ref Vector3 value, int axis, float axisValue)
+    {
+        if (axis == 0)
+        {
+            value.x = axisValue;
+            return;
+        }
+
+        if (axis == 1)
+        {
+            value.y = axisValue;
+            return;
+        }
+
+        value.z = axisValue;
+    }
+
+    private void SetWorldUniformScale(Transform target, float worldSize)
+    {
+        Vector3 parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
+        target.localScale = new Vector3(
+            SafeScale(worldSize, parentScale.x),
+            SafeScale(worldSize, parentScale.y),
+            SafeScale(worldSize, parentScale.z));
+    }
+
+    private float SafeScale(float worldSize, float parentAxisScale)
+    {
+        float axisScale = Mathf.Abs(parentAxisScale);
+        if (axisScale < 0.0001f)
+        {
+            axisScale = 1f;
+        }
+
+        return worldSize / axisScale;
+    }
+
+    private int ExtractTrailingNumber(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        int number = 0;
+        int multiplier = 1;
+        for (int i = value.Length - 1; i >= 0; i--)
+        {
+            if (!char.IsDigit(value[i]))
+            {
+                break;
+            }
+
+            number += (value[i] - '0') * multiplier;
+            multiplier *= 10;
+        }
+
+        return number;
+    }
+
+    private Material CreateRuntimeDustMaterial()
+    {
+#if UNITY_EDITOR
+        Material sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/Minigames/Cleaning/DustSpot.mat");
+        if (sourceMaterial != null)
+        {
+            return new Material(sourceMaterial);
+        }
+#endif
+
+        Shader shader = Shader.Find("Unlit/DoubleSidedTexture");
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Transparent");
+        }
+
+        Material material = new Material(shader != null ? shader : Shader.Find("Sprites/Default"));
+        material.color = new Color(0.58f, 0.43f, 0.27f, 0.82f);
+        return material;
     }
 
     private void TryAddScrewBinding(CleaningTargetBinding target, string objectName)
@@ -1739,7 +2701,7 @@ public class CleaningMinigameTester : MonoBehaviour
         for (int i = 0; i < allObjects.Length; i++)
         {
             GameObject sceneObject = allObjects[i];
-            if (sceneObject.name == objectName && sceneObject.scene.IsValid())
+            if (sceneObject.scene.IsValid() && GetCanonicalTargetName(sceneObject.name) == objectName)
             {
                 return sceneObject;
             }
@@ -1751,6 +2713,27 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         return null;
+    }
+
+    private string GetCanonicalTargetName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName))
+        {
+            return string.Empty;
+        }
+
+        string cleanedName = rawName.Replace("(Clone)", string.Empty).Trim();
+        if (cleanedName.Contains("OldTableFan"))
+        {
+            return "OldTableFan";
+        }
+
+        if (cleanedName.Contains("InductionCooker"))
+        {
+            return "InductionCooker";
+        }
+
+        return cleanedName;
     }
 
     private GameObject FindChildObjectByName(Transform root, string objectName)
@@ -1783,6 +2766,7 @@ public class CleaningMinigameTester : MonoBehaviour
             }
 
             binding.runtimeMaterial = binding.spotRenderer.material;
+            ApplyDoubleSidedTransparentShader(binding.runtimeMaterial);
             binding.originalColor = GetMaterialColor(binding.runtimeMaterial);
             CacheSpotColliders(binding);
             CreateSparkleForBinding(binding);
@@ -1877,6 +2861,11 @@ public class CleaningMinigameTester : MonoBehaviour
         binding.originalColliderEnabled = new bool[binding.spotColliders.Length];
         for (int i = 0; i < binding.spotColliders.Length; i++)
         {
+            if (binding.spotColliders[i] is MeshCollider meshCollider)
+            {
+                meshCollider.convex = true;
+            }
+
             binding.originalColliderEnabled[i] = binding.spotColliders[i] != null && binding.spotColliders[i].enabled;
         }
     }
@@ -1903,7 +2892,7 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         Renderer sparkleRenderer = sparkleObject.GetComponent<Renderer>();
-        Shader sparkleShader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Texture");
+        Shader sparkleShader = GetDoubleSidedTransparentShader();
         Material sparkleMaterial = new Material(sparkleShader);
         sparkleMaterial.mainTexture = sparkleTexture1 != null ? sparkleTexture1 : sparkleTexture2;
         sparkleRenderer.material = sparkleMaterial;
@@ -1932,6 +2921,7 @@ public class CleaningMinigameTester : MonoBehaviour
             if (binding.runtimeMaterial == null)
             {
                 binding.runtimeMaterial = binding.spotRenderer.material;
+                ApplyDoubleSidedTransparentShader(binding.runtimeMaterial);
             }
 
             if (binding.sparkleObject != null)
@@ -2011,11 +3001,6 @@ public class CleaningMinigameTester : MonoBehaviour
             return true;
         }
 
-        if (GetScrewButtonRect().Contains(guiMousePosition))
-        {
-            return true;
-        }
-
         if (GetFinishButtonRect().Contains(guiMousePosition))
         {
             return true;
@@ -2034,8 +3019,7 @@ public class CleaningMinigameTester : MonoBehaviour
     private Rect GetClothButtonRect()
     {
         const float size = 72f;
-        const float gap = 12f;
-        return new Rect(Screen.width - size * 2f - gap - 24f, Screen.height - size - 24f, size, size);
+        return new Rect(Screen.width - size - 24f, Screen.height - size - 24f, size, size);
     }
 
     private Rect GetScrewButtonRect()
@@ -2065,6 +3049,7 @@ public class CleaningMinigameTester : MonoBehaviour
                 continue;
             }
 
+            PrepareTargetPhysics(target.rootObject);
             SetObjectActive(target.rootObject, target == activeTarget);
         }
 
@@ -2072,6 +3057,29 @@ public class CleaningMinigameTester : MonoBehaviour
         {
             orbitTarget = activeTarget.rootObject.transform;
             FrameCameraOnTarget(activeTarget.rootObject.transform);
+        }
+    }
+
+    private void PrepareTargetPhysics(GameObject targetRoot)
+    {
+        if (targetRoot == null)
+        {
+            return;
+        }
+
+        Rigidbody[] rigidbodies = targetRoot.GetComponentsInChildren<Rigidbody>(true);
+        for (int i = 0; i < rigidbodies.Length; i++)
+        {
+            Rigidbody targetRigidbody = rigidbodies[i];
+            if (targetRigidbody == null)
+            {
+                continue;
+            }
+
+            targetRigidbody.useGravity = false;
+            targetRigidbody.isKinematic = true;
+            targetRigidbody.linearVelocity = Vector3.zero;
+            targetRigidbody.angularVelocity = Vector3.zero;
         }
     }
 
@@ -2085,7 +3093,7 @@ public class CleaningMinigameTester : MonoBehaviour
         _screwPhaseCompleted = false;
         _isClothSelected = false;
         _isScrewSelected = false;
-        Cursor.visible = true;
+        SetCleaningCursorVisible(true);
         SetActiveCleaningTarget(null);
         UpdateToolVisibility();
     }
@@ -2152,21 +3160,51 @@ public class CleaningMinigameTester : MonoBehaviour
             return;
         }
 
-        Bounds targetBounds = CalculateTargetBounds(target);
-        Vector3 lookPoint = targetBounds.center + cameraTargetOffset;
+        Vector3 lookPoint = target.position + cameraTargetOffset;
         Vector3 viewDirection = cameraViewOffset.sqrMagnitude > 0.001f
             ? cameraViewOffset.normalized
             : new Vector3(0f, 0.25f, -1f).normalized;
-        float largestDimension = Mathf.Max(targetBounds.size.x, Mathf.Max(targetBounds.size.y, targetBounds.size.z));
-        _cameraDistance = Mathf.Clamp(
-            largestDimension * Mathf.Max(1f, cameraFrameDistanceMultiplier),
-            minCameraDistance,
-            maxCameraDistance);
+
+        if (target.name == "OldTableFan")
+        {
+            viewDirection = Quaternion.AngleAxis(oldTableFanInitialCameraYawOffset, Vector3.up) * viewDirection;
+        }
+
+        _cameraDistance = GetDefaultCameraDistanceForTarget(target);
 
         Transform cameraTransform = interactionCamera.transform;
+        cameraTransform.SetParent(null, true);
         cameraTransform.position = lookPoint + viewDirection * _cameraDistance;
         cameraTransform.LookAt(lookPoint);
         _orbitVerticalAngle = 0f;
+    }
+
+    private float GetDefaultCameraDistanceForTarget(Transform target)
+    {
+        if (target != null)
+        {
+            if (target.name == "OldTableFan")
+            {
+                return Mathf.Clamp(6f, minCameraDistance, maxCameraDistance);
+            }
+
+            if (target.name == "InductionCooker")
+            {
+                return Mathf.Clamp(4.5f, minCameraDistance, maxCameraDistance);
+            }
+        }
+
+        if (target == null)
+        {
+            return Mathf.Clamp(5f, minCameraDistance, maxCameraDistance);
+        }
+
+        Bounds targetBounds = CalculateTargetBounds(target);
+        float largestDimension = Mathf.Max(1f, Mathf.Max(targetBounds.size.x, Mathf.Max(targetBounds.size.y, targetBounds.size.z)));
+        return Mathf.Clamp(
+            largestDimension * Mathf.Max(1f, cameraFrameDistanceMultiplier),
+            minCameraDistance,
+            maxCameraDistance);
     }
 
     private void AdjustCameraZoom(float distanceDelta)
@@ -2176,8 +3214,7 @@ public class CleaningMinigameTester : MonoBehaviour
             return;
         }
 
-        Bounds targetBounds = CalculateTargetBounds(orbitTarget);
-        Vector3 lookPoint = targetBounds.center + cameraTargetOffset;
+        Vector3 lookPoint = orbitTarget.position + cameraTargetOffset;
         Transform cameraTransform = interactionCamera.transform;
         Vector3 fromTarget = cameraTransform.position - lookPoint;
         if (fromTarget.sqrMagnitude < 0.001f)
@@ -2190,6 +3227,30 @@ public class CleaningMinigameTester : MonoBehaviour
         _cameraDistance = Mathf.Clamp(fromTarget.magnitude + distanceDelta, minCameraDistance, maxCameraDistance);
         cameraTransform.position = lookPoint + fromTarget.normalized * _cameraDistance;
         cameraTransform.LookAt(lookPoint);
+    }
+
+    private void StabilizeCameraPose()
+    {
+        if (interactionCamera == null || orbitTarget == null || _isChoosingTarget)
+        {
+            return;
+        }
+
+        Vector3 lookPoint = orbitTarget.position + cameraTargetOffset;
+        Vector3 cameraPosition = interactionCamera.transform.position;
+        float distance = Vector3.Distance(cameraPosition, lookPoint);
+        bool invalidPosition =
+            float.IsNaN(cameraPosition.x) ||
+            float.IsNaN(cameraPosition.y) ||
+            float.IsNaN(cameraPosition.z) ||
+            distance > maxCameraDistance + 3f ||
+            Mathf.Abs(cameraPosition.y - lookPoint.y) > maxCameraDistance + 3f;
+
+        if (invalidPosition)
+        {
+            Debug.LogWarning("[CleaningTester] Camera moved outside the cleaning target frame. Resetting camera.");
+            FrameCameraOnTarget(orbitTarget);
+        }
     }
 
     private Bounds CalculateTargetBounds(Transform target)
@@ -2404,6 +3465,28 @@ public class CleaningMinigameTester : MonoBehaviour
         }
 
         return Color.white;
+    }
+
+    private Shader GetDoubleSidedTransparentShader()
+    {
+        return Shader.Find("Unlit/DoubleSidedTexture")
+            ?? Shader.Find("Unlit/Transparent")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Unlit/Texture");
+    }
+
+    private void ApplyDoubleSidedTransparentShader(Material material)
+    {
+        if (material == null)
+        {
+            return;
+        }
+
+        Shader doubleSidedShader = GetDoubleSidedTransparentShader();
+        if (doubleSidedShader != null)
+        {
+            material.shader = doubleSidedShader;
+        }
     }
 
     private void SetMaterialAlpha(Material material, float alpha, Color fallbackColor)

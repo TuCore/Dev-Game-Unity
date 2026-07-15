@@ -191,6 +191,11 @@ public class PlayerController : MonoBehaviour
 
     private bool _wasLocked;
 
+    public void ForceUnlockGameplayInput()
+    {
+        _wasLocked = false;
+    }
+
     private bool IsGameplayInputLocked()
     {
         CacheMinigameManager();

@@ -158,6 +158,7 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
     public RepairQuality EndMinigame()
     {
         RepairQuality quality = CalculateRepairQuality();
+        _isActive = false;
 
         if (!_hasReportedCompletion)
         {
@@ -165,7 +166,6 @@ public class CleaningMinigame : MonoBehaviour, IMinigame
             OnMinigameCompleted?.Invoke(quality);
         }
 
-        _isActive = false;
         return quality;
     }
 

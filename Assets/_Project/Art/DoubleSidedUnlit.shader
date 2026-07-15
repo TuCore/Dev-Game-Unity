@@ -3,11 +3,20 @@ Shader "Unlit/DoubleSidedTexture"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _Color ("Color", Color) = (1,1,1,1)
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags
+        {
+            "Queue"="Transparent"
+            "RenderType"="Transparent"
+            "IgnoreProjector"="True"
+        }
+
         Cull Off
+        ZWrite Off
+        Blend SrcAlpha OneMinusSrcAlpha
         
         Pass
         {
@@ -30,6 +39,7 @@ Shader "Unlit/DoubleSidedTexture"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            fixed4 _Color;
 
             v2f vert (appdata v)
             {
@@ -41,10 +51,12 @@ Shader "Unlit/DoubleSidedTexture"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                fixed4 col = tex2D(_MainTex, i.uv);
+                fixed4 col = tex2D(_MainTex, i.uv) * _Color;
                 return col;
             }
             ENDCG
         }
     }
+
+    FallBack "Unlit/Transparent"
 }

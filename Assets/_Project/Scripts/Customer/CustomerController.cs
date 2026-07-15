@@ -157,7 +157,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
 
         // 2. Randomize properties
-        _selectedMinigame = (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+        _selectedMinigame = ResolveMinigameForSelectedItem(_selectedItemPrefab);
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
 
@@ -191,6 +191,26 @@ public class CustomerController : MonoBehaviour, IInteractable
         DialogueUI.Instance.ShowDialogue(archetype.archetypeName, angry, LeaveStore, null, "Đóng");
     }
 
+    private MinigameType ResolveMinigameForSelectedItem(GameObject selectedItemPrefab)
+    {
+        if (selectedItemPrefab != null)
+        {
+            MinigameToPlay profile = selectedItemPrefab.GetComponentInChildren<MinigameToPlay>(true);
+            if (profile != null && profile.OverrideRandomTask)
+            {
+                return profile.Minigame;
+            }
+
+            string itemName = selectedItemPrefab.name.Replace("(Clone)", string.Empty).Trim();
+            if (itemName == "OldTableFan" || itemName == "InductionCooker")
+            {
+                return MinigameType.Cleaning;
+            }
+        }
+
+        return (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+    }
+
     private void AcceptOrder(string itemName, int apptDay, float apptHour)
     {
         currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, 1, _selectedBasePay, apptDay, apptHour);
@@ -198,7 +218,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         if (_selectedItemPrefab != null && itemDropPoint != null)
         {
             GameObject droppedItem = Instantiate(_selectedItemPrefab, itemDropPoint.position, itemDropPoint.rotation);
-            RepairableItem repairable = droppedItem.GetComponentInChildren<RepairableItem>();
+            RepairableItem repairable = GetOrCreateRepairableItem(droppedItem);
             if (repairable != null)
             {
                 repairable.linkedOrder = currentOrder;
@@ -214,6 +234,72 @@ public class CustomerController : MonoBehaviour, IInteractable
 
         string agreement = "Cảm ơn, nhớ đúng hẹn nhé!";
         DialogueUI.Instance.ShowDialogue(archetype.archetypeName, agreement, LeaveStore, null, "Đóng");
+    }
+
+    private RepairableItem GetOrCreateRepairableItem(GameObject droppedItem)
+    {
+        if (droppedItem == null)
+        {
+            return null;
+        }
+
+        RepairableItem repairable = droppedItem.GetComponentInChildren<RepairableItem>();
+        if (repairable != null)
+        {
+            return repairable;
+        }
+
+        string itemName = droppedItem.name.Replace("(Clone)", string.Empty).Trim();
+        if (itemName != "OldTableFan" && itemName != "InductionCooker")
+        {
+            return null;
+        }
+
+        if (droppedItem.GetComponent<MinigameToPlay>() == null)
+        {
+            droppedItem.AddComponent<MinigameToPlay>();
+        }
+
+        if (droppedItem.GetComponent<Rigidbody>() == null)
+        {
+            Rigidbody body = droppedItem.AddComponent<Rigidbody>();
+            body.useGravity = false;
+            body.isKinematic = true;
+        }
+
+        if (droppedItem.GetComponentInChildren<Collider>() == null)
+        {
+            BoxCollider collider = droppedItem.AddComponent<BoxCollider>();
+            FitColliderToRenderers(collider, droppedItem);
+        }
+
+        return droppedItem.AddComponent<RepairableItem>();
+    }
+
+    private void FitColliderToRenderers(BoxCollider collider, GameObject rootObject)
+    {
+        if (collider == null || rootObject == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = rootObject.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length == 0)
+        {
+            collider.center = Vector3.zero;
+            collider.size = Vector3.one;
+            return;
+        }
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        collider.center = rootObject.transform.InverseTransformPoint(bounds.center);
+        Vector3 localSize = rootObject.transform.InverseTransformVector(bounds.size);
+        collider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
     }
 
     private void ProcessPickup()

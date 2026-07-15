@@ -56,8 +56,8 @@ public class MinigameManager : MonoBehaviour
 
     private void HandleMinigameCompleted(RepairQuality quality)
     {
-        OnMinigameCompleted?.Invoke(quality);
         CleanupMinigame();
+        OnMinigameCompleted?.Invoke(quality);
     }
 
     private void CleanupMinigame()
