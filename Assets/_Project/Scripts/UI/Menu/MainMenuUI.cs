@@ -63,6 +63,8 @@ namespace AnhThoDien.UI.Menu
         {
             Debug.Log("Starting New Game...");
             
+            if (AudioManager.Instance != null) AudioManager.Instance.StopMusic();
+            
             // Xóa các dữ liệu cũ (reset quá trình chơi)
             PlayerPrefs.DeleteKey("Money");
             PlayerPrefs.DeleteKey("CurrentDay");
@@ -83,6 +85,8 @@ namespace AnhThoDien.UI.Menu
         private void OnContinueClicked()
         {
             Debug.Log("Continuing Game...");
+            
+            if (AudioManager.Instance != null) AudioManager.Instance.StopMusic();
             
             // Báo cho game biết đây là lượt chơi tiếp tục
             PlayerPrefs.SetInt("IsNewGame", 0);
