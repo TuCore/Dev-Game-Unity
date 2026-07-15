@@ -303,14 +303,14 @@ public class AudioManager : MonoBehaviour
     /// <summary>
     /// Phát tiếng môi trường (Ambience - tiếng mưa, tiếng chim hót buổi sáng...)
     /// </summary>
-    public void PlayAmbience(string soundName)
+    public void PlayAmbience(string soundName, float volumeScale = 1f)
     {
         if (TryGetSound(soundName, out SoundEntry entry))
         {
             if (ambienceSource != null && ambienceSource.clip == entry.clip && ambienceSource.isPlaying) return;
 
             ambienceSource.clip = entry.clip;
-            ambienceSource.volume = entry.volume;
+            ambienceSource.volume = entry.volume * volumeScale;
             ambienceSource.Play();
         }
     }
