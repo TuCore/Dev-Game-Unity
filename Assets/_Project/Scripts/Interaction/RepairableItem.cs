@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using Minigames.Diagnosis;
 
-public enum MinigameType { Soldering, Diagnosis }
+public enum MinigameType { Soldering, Diagnosis, Rewiring, Cleaning }
 
 public class RepairableItem : MonoBehaviour
 {
@@ -99,6 +99,14 @@ public class RepairableItem : MonoBehaviour
             else if (minigameToPlay == MinigameType.Diagnosis)
             {
                 targetMinigame = FindObjectOfType<DiagnosisMinigame>(true);
+            }
+            else if (minigameToPlay == MinigameType.Rewiring)
+            {
+                targetMinigame = FindObjectOfType<RewiringController>(true);
+            }
+            else if (minigameToPlay == MinigameType.Cleaning)
+            {
+                targetMinigame = FindObjectOfType<CleaningMinigame>(true);
             }
             
             if (targetMinigame != null)

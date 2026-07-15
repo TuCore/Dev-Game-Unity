@@ -321,7 +321,8 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
 
         // 2. Randomize properties
-        _selectedMinigame = (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+        MinigameType[] availableMinigames = (MinigameType[])System.Enum.GetValues(typeof(MinigameType));
+        _selectedMinigame = availableMinigames[Random.Range(0, availableMinigames.Length)];
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
 
