@@ -156,8 +156,20 @@ public class CustomerController : MonoBehaviour, IInteractable
             _selectedItemPrefab = itemPrefabToDrop;
         }
 
-        // 2. Randomize properties
-        _selectedMinigame = (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+        // 2. Randomize properties - Tỷ lệ: Nối dây 50%, Khám bệnh/Dò mạch 30%, Hàn mạch 20%
+        float roll = Random.value;
+        if (roll < 0.5f)
+        {
+            _selectedMinigame = MinigameType.Rewiring; // 50% (0.0 đến < 0.5)
+        }
+        else if (roll < 0.8f)
+        {
+            _selectedMinigame = MinigameType.Diagnosis; // 30% (0.5 đến < 0.8)
+        }
+        else
+        {
+            _selectedMinigame = MinigameType.Soldering; // 20% (0.8 đến 1.0)
+        }
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
 

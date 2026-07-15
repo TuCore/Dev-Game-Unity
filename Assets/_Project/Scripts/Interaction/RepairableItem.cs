@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using Minigames.Diagnosis;
 
-public enum MinigameType { Soldering, Diagnosis }
+public enum MinigameType { Soldering, Diagnosis, Rewiring }
 
 public class RepairableItem : MonoBehaviour
 {
@@ -83,6 +83,21 @@ public class RepairableItem : MonoBehaviour
             else if (minigameToPlay == MinigameType.Diagnosis)
             {
                 targetMinigame = FindObjectOfType<DiagnosisMinigame>(true);
+            }
+            else if (minigameToPlay == MinigameType.Rewiring)
+            {
+                targetMinigame = FindObjectOfType<RewiringController>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject rewiringRoot = new GameObject("RewiringMinigame_Root");
+                    RewiringDemoUI demoUI = rewiringRoot.AddComponent<RewiringDemoUI>();
+                    targetMinigame = rewiringRoot.GetComponentInChildren<RewiringController>(true);
+                    if (targetMinigame != null && targetMinigame is MonoBehaviour mb)
+                    {
+                        mb.gameObject.SetActive(false);
+                    }
+                    demoUI.ShowUI(false);
+                }
             }
             
             if (targetMinigame != null)

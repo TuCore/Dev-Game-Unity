@@ -53,6 +53,12 @@ public class RewiringDemoUI : MonoBehaviour
     private GUIStyle _guideArrowBtnStyle;
     private GUIStyle _guidePageIndicatorStyle;
 
+    private Vector3 _isolatedOffset = Vector3.zero;
+    private Vector3 _savedPlayerPosition;
+    private Quaternion _savedPlayerRotation;
+    private Quaternion _savedCameraLocalRotation;
+    private bool _hasSavedPlayerPose = false;
+
     public class DemoTerminalElement : MonoBehaviour
     {
         public RewiringTerminal data;
@@ -90,15 +96,33 @@ public class RewiringDemoUI : MonoBehaviour
         public DemoTerminalElement endElem;
     }
 
-    private void Start()
+    private void Awake()
     {
-        SetupCamera();
         SetupController();
+        SetupCamera();
         SetupPreviewLine();
         PreloadAudioClips();
-        if (Application.isPlaying || transform.childCount < 5)
+    }
+
+    private void Start()
+    {
+        if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
         {
-            InitializeDemoBoard(3);
+            if (transform.childCount < 5)
+            {
+                InitializeDemoBoard(RewiringController.GetRandomDifficulty());
+            }
+        }
+        else if (Application.isPlaying)
+        {
+            if (_controller != null && _controller.IsActive)
+            {
+                ShowUI(true);
+            }
+            else
+            {
+                ShowUI(false);
+            }
         }
     }
 
@@ -110,18 +134,139 @@ public class RewiringDemoUI : MonoBehaviour
 
     private void SetupCamera()
     {
-        _mainCamera = Camera.main;
-        if (_mainCamera == null)
+        UpdateIsolatedOffset();
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
         {
-            GameObject camObj = new GameObject("Demo_MainCamera");
-            _mainCamera = camObj.AddComponent<Camera>();
-            camObj.tag = "MainCamera";
+            _mainCamera = Camera.main;
+            if (_mainCamera == null)
+            {
+                GameObject camObj = new GameObject("Demo_MainCamera");
+                _mainCamera = camObj.AddComponent<Camera>();
+                camObj.tag = "MainCamera";
+            }
         }
-        _mainCamera.clearFlags = CameraClearFlags.SolidColor;
-        _mainCamera.orthographic = true;
-        _mainCamera.orthographicSize = 4.8f;
-        _mainCamera.transform.position = new Vector3(0, 0, -10f);
-        _mainCamera.backgroundColor = new Color(0.12f, 0.13f, 0.15f, 1f); // Nền xám kim loại cơ khí
+        else
+        {
+            Transform existingCam = transform.Find("RewiringMinigameCamera");
+            if (existingCam != null)
+            {
+                _mainCamera = existingCam.GetComponent<Camera>();
+            }
+            if (_mainCamera == null)
+            {
+                GameObject camObj = new GameObject("RewiringMinigameCamera");
+                camObj.transform.SetParent(this.transform);
+                _mainCamera = camObj.AddComponent<Camera>();
+            }
+            _mainCamera.depth = 15; // Render phía trên camera của người chơi
+        }
+
+        if (_mainCamera != null)
+        {
+            _mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            _mainCamera.orthographic = true;
+            _mainCamera.orthographicSize = 4.8f;
+            _mainCamera.transform.position = _isolatedOffset + new Vector3(0, 0, -10f);
+            _mainCamera.backgroundColor = new Color(0.12f, 0.13f, 0.15f, 1f); // Nền xám kim loại cơ khí
+            if (Application.isPlaying && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+            {
+                if (_controller == null || !_controller.IsActive)
+                {
+                    _mainCamera.gameObject.SetActive(false);
+                }
+            }
+        }
+    }
+
+    private void UpdateIsolatedOffset()
+    {
+        if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            _isolatedOffset = Vector3.zero;
+        }
+        else
+        {
+            _isolatedOffset = new Vector3(0f, -5000f, 0f);
+            transform.position = _isolatedOffset;
+        }
+    }
+
+    public void InitializeForGameplay(RewiringController controller, int difficulty)
+    {
+        UpdateIsolatedOffset();
+        _controller = controller;
+        int targetDifficulty = difficulty >= 0 ? difficulty : RewiringController.GetRandomDifficulty();
+        InitializeDemoBoard(targetDifficulty);
+    }
+
+    public void ShowUI(bool show)
+    {
+        UpdateIsolatedOffset();
+        if (Application.isPlaying && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            if (show)
+            {
+                SavePlayerPose();
+            }
+            else if (_hasSavedPlayerPose)
+            {
+                RestorePlayerPose();
+            }
+        }
+
+        gameObject.SetActive(show);
+        if (_mainCamera != null && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            _mainCamera.transform.position = _isolatedOffset + new Vector3(0, 0, -10f);
+            _mainCamera.gameObject.SetActive(show);
+        }
+        if (Application.isPlaying)
+        {
+            Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = show;
+        }
+    }
+
+    private void SavePlayerPose()
+    {
+        if (_hasSavedPlayerPose) return;
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            _savedPlayerPosition = player.transform.position;
+            _savedPlayerRotation = player.transform.rotation;
+            _hasSavedPlayerPose = true;
+
+            PlayerCamera playerCam = player.GetComponentInChildren<PlayerCamera>(true);
+            if (playerCam != null)
+            {
+                _savedCameraLocalRotation = playerCam.transform.localRotation;
+            }
+        }
+    }
+
+    private void RestorePlayerPose()
+    {
+        if (!_hasSavedPlayerPose) return;
+        _hasSavedPlayerPose = false;
+
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            CharacterController cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+
+            player.transform.position = _savedPlayerPosition;
+            player.transform.rotation = _savedPlayerRotation;
+
+            if (cc != null) cc.enabled = true;
+
+            PlayerCamera playerCam = player.GetComponentInChildren<PlayerCamera>(true);
+            if (playerCam != null)
+            {
+                playerCam.SyncRotation(_savedCameraLocalRotation);
+            }
+        }
     }
 
     private void SetupController()
@@ -137,8 +282,11 @@ public class RewiringDemoUI : MonoBehaviour
         GameObject controllerObj = new GameObject("RewiringLogic_Controller");
         controllerObj.transform.SetParent(this.transform);
         _controller = controllerObj.AddComponent<RewiringController>();
-        _controller.Initialize(null, 1);
-        _controller.StartMinigame();
+        if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            _controller.Initialize(null, RewiringController.GetRandomDifficulty());
+            _controller.StartMinigame();
+        }
     }
 
     private void SetupPreviewLine()
@@ -239,15 +387,15 @@ public class RewiringDemoUI : MonoBehaviour
 
     private Vector2 GetCellWorldPosition(int r, int c)
     {
-        float startX = -(_gridCols - 1) * _cellWidth * 0.5f;
-        float startY = (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
+        float startX = _isolatedOffset.x - (_gridCols - 1) * _cellWidth * 0.5f;
+        float startY = _isolatedOffset.y + (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
         return new Vector2(startX + c * _cellWidth, startY - r * _cellHeight);
     }
 
     private Vector2Int GetCellFromWorldPosition(Vector3 worldPos)
     {
-        float startX = -(_gridCols - 1) * _cellWidth * 0.5f;
-        float startY = (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
+        float startX = _isolatedOffset.x - (_gridCols - 1) * _cellWidth * 0.5f;
+        float startY = _isolatedOffset.y + (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
 
         int col = Mathf.RoundToInt((worldPos.x - startX) / _cellWidth);
         int row = Mathf.RoundToInt((startY - worldPos.y) / _cellHeight);
@@ -383,8 +531,8 @@ public class RewiringDemoUI : MonoBehaviour
         _gridVisualHolder = new GameObject("Grid_Visual_Board");
         _gridVisualHolder.transform.SetParent(this.transform);
 
-        float startX = -(_gridCols - 1) * _cellWidth * 0.5f;
-        float startY = (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
+        float startX = _isolatedOffset.x - (_gridCols - 1) * _cellWidth * 0.5f;
+        float startY = _isolatedOffset.y + (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
         float halfW = _cellWidth * 0.5f;
         float halfH = _cellHeight * 0.5f;
 
@@ -393,11 +541,11 @@ public class RewiringDemoUI : MonoBehaviour
         float maxY = startY + halfH;
         float minY = startY - (_gridRows - 1) * _cellHeight - halfH;
 
-        // 1. Tạo nền kim loại (Metallic background plate) bên dưới lưới (z = 0.8f)
+        // 1. Tạo nền kim loại (Metallic background plate) bên dưới lưới (z = _isolatedOffset.z + 0.8f)
         GameObject bgObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
         bgObj.name = "MetallicBackground";
         bgObj.transform.SetParent(_gridVisualHolder.transform);
-        bgObj.transform.position = new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, 0.8f);
+        bgObj.transform.position = new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, _isolatedOffset.z + 0.8f);
         bgObj.transform.localScale = new Vector3(maxX - minX, maxY - minY, 1f);
 
         Collider bgCol = bgObj.GetComponent<Collider>();
@@ -421,23 +569,23 @@ public class RewiringDemoUI : MonoBehaviour
         bgMr.material.color = new Color(0.28f, 0.3f, 0.34f, 1f);
 #endif
 
-        // 2. Kẻ đường rãnh chia ô kim loại (Dark Metallic Grooves z = 0.5f)
+        // 2. Kẻ đường rãnh chia ô kim loại (Dark Metallic Grooves z = _isolatedOffset.z + 0.5f)
         for (int r = 0; r <= _gridRows; r++)
         {
             float y = maxY - r * _cellHeight;
-            CreateGridLine(new Vector3(minX, y, 0.5f), new Vector3(maxX, y, 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
+            CreateGridLine(new Vector3(minX, y, _isolatedOffset.z + 0.5f), new Vector3(maxX, y, _isolatedOffset.z + 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
         }
         for (int c = 0; c <= _gridCols; c++)
         {
             float x = minX + c * _cellWidth;
-            CreateGridLine(new Vector3(x, maxY, 0.5f), new Vector3(x, minY, 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
+            CreateGridLine(new Vector3(x, maxY, _isolatedOffset.z + 0.5f), new Vector3(x, minY, _isolatedOffset.z + 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
         }
 
-        // 3. Khung viền kim loại ngoài cùng (Gunmetal Frame z = 0.4f)
-        CreateGridLine(new Vector3(minX, maxY, 0.4f), new Vector3(maxX, maxY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
-        CreateGridLine(new Vector3(maxX, maxY, 0.4f), new Vector3(maxX, minY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
-        CreateGridLine(new Vector3(maxX, minY, 0.4f), new Vector3(minX, minY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
-        CreateGridLine(new Vector3(minX, minY, 0.4f), new Vector3(minX, maxY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        // 3. Khung viền kim loại ngoài cùng (Gunmetal Frame z = _isolatedOffset.z + 0.4f)
+        CreateGridLine(new Vector3(minX, maxY, _isolatedOffset.z + 0.4f), new Vector3(maxX, maxY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        CreateGridLine(new Vector3(maxX, maxY, _isolatedOffset.z + 0.4f), new Vector3(maxX, minY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        CreateGridLine(new Vector3(maxX, minY, _isolatedOffset.z + 0.4f), new Vector3(minX, minY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        CreateGridLine(new Vector3(minX, minY, _isolatedOffset.z + 0.4f), new Vector3(minX, maxY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
     }
 
     private void CreateGridLine(Vector3 start, Vector3 end, float width, Color color)
@@ -476,7 +624,7 @@ public class RewiringDemoUI : MonoBehaviour
         if (_dragStartTerminal != null && _previewLine != null && _previewLine.enabled)
         {
             Vector3 mousePos = _mainCamera.ScreenToWorldPoint(Input.mousePosition);
-            mousePos.z = 0f;
+            mousePos.z = _isolatedOffset.z;
 
             Vector2Int mouseCell = GetCellFromWorldPosition(mousePos);
             if (_currentCellPath.Count == 0)
@@ -623,8 +771,8 @@ public class RewiringDemoUI : MonoBehaviour
             if (_previewCoreStart != null)
             {
                 _previewCoreStart.enabled = true;
-                _previewCoreStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, -0.22f));
-                _previewCoreStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.22f));
+                _previewCoreStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, _isolatedOffset.z - 0.22f));
+                _previewCoreStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.22f));
             }
 
             if (_previewBootStart != null)
@@ -632,15 +780,15 @@ public class RewiringDemoUI : MonoBehaviour
                 _previewBootStart.enabled = true;
                 Vector3 pBoot0 = pCoreStart1 - dirStart * (minDim * 0.05f);
                 Vector3 pBoot1 = pCoreStart1 + dirStart * (minDim * 0.05f);
-                _previewBootStart.SetPosition(0, new Vector3(pBoot0.x, pBoot0.y, -0.19f));
-                _previewBootStart.SetPosition(1, new Vector3(pBoot1.x, pBoot1.y, -0.19f));
+                _previewBootStart.SetPosition(0, new Vector3(pBoot0.x, pBoot0.y, _isolatedOffset.z - 0.19f));
+                _previewBootStart.SetPosition(1, new Vector3(pBoot1.x, pBoot1.y, _isolatedOffset.z - 0.19f));
             }
 
             _previewLine.positionCount = _currentDrawPoints.Count;
-            _previewLine.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.16f));
+            _previewLine.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.16f));
             for (int i = 1; i < _currentDrawPoints.Count; i++)
             {
-                _previewLine.SetPosition(i, new Vector3(_currentDrawPoints[i].x, _currentDrawPoints[i].y, -0.16f));
+                _previewLine.SetPosition(i, new Vector3(_currentDrawPoints[i].x, _currentDrawPoints[i].y, _isolatedOffset.z - 0.16f));
             }
         }
         else if (_currentDrawPoints.Count == 1)
@@ -648,7 +796,7 @@ public class RewiringDemoUI : MonoBehaviour
             if (_previewCoreStart != null) _previewCoreStart.enabled = false;
             if (_previewBootStart != null) _previewBootStart.enabled = false;
             _previewLine.positionCount = 1;
-            _previewLine.SetPosition(0, new Vector3(_currentDrawPoints[0].x, _currentDrawPoints[0].y, -0.16f));
+            _previewLine.SetPosition(0, new Vector3(_currentDrawPoints[0].x, _currentDrawPoints[0].y, _isolatedOffset.z - 0.16f));
         }
     }
 
@@ -926,8 +1074,8 @@ public class RewiringDemoUI : MonoBehaviour
             coreStartObj.transform.SetParent(holderObj.transform);
             LineRenderer lrStart = coreStartObj.AddComponent<LineRenderer>();
             lrStart.positionCount = 2;
-            lrStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, -0.22f));
-            lrStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.22f));
+            lrStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, _isolatedOffset.z - 0.22f));
+            lrStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.22f));
             lrStart.startWidth = minDim * 0.17f;
             lrStart.endWidth = lrStart.startWidth;
             lrStart.numCapVertices = 12;
@@ -942,8 +1090,8 @@ public class RewiringDemoUI : MonoBehaviour
             coreEndObj.transform.SetParent(holderObj.transform);
             LineRenderer lrEnd = coreEndObj.AddComponent<LineRenderer>();
             lrEnd.positionCount = 2;
-            lrEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.22f));
-            lrEnd.SetPosition(1, new Vector3(pCoreEnd0.x, pCoreEnd0.y, -0.22f));
+            lrEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.22f));
+            lrEnd.SetPosition(1, new Vector3(pCoreEnd0.x, pCoreEnd0.y, _isolatedOffset.z - 0.22f));
             lrEnd.startWidth = minDim * 0.17f;
             lrEnd.endWidth = lrEnd.startWidth;
             lrEnd.numCapVertices = 12;
@@ -959,8 +1107,8 @@ public class RewiringDemoUI : MonoBehaviour
             bootStartObj.transform.SetParent(holderObj.transform);
             LineRenderer lrBootStart = bootStartObj.AddComponent<LineRenderer>();
             lrBootStart.positionCount = 2;
-            lrBootStart.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.19f) - dirStart * (minDim * 0.05f));
-            lrBootStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.19f) + dirStart * (minDim * 0.05f));
+            lrBootStart.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.19f) - dirStart * (minDim * 0.05f));
+            lrBootStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.19f) + dirStart * (minDim * 0.05f));
             lrBootStart.startWidth = minDim * 0.38f;
             lrBootStart.endWidth = lrBootStart.startWidth;
             lrBootStart.numCapVertices = 12;
@@ -974,8 +1122,8 @@ public class RewiringDemoUI : MonoBehaviour
                 bootEndObj.transform.SetParent(holderObj.transform);
                 LineRenderer lrBootEnd = bootEndObj.AddComponent<LineRenderer>();
                 lrBootEnd.positionCount = 2;
-                lrBootEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.19f) - dirEnd * (minDim * 0.05f));
-                lrBootEnd.SetPosition(1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.19f) + dirEnd * (minDim * 0.05f));
+                lrBootEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.19f) - dirEnd * (minDim * 0.05f));
+                lrBootEnd.SetPosition(1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.19f) + dirEnd * (minDim * 0.05f));
                 lrBootEnd.startWidth = minDim * 0.38f;
                 lrBootEnd.endWidth = lrBootEnd.startWidth;
                 lrBootEnd.numCapVertices = 12;
@@ -1009,16 +1157,16 @@ public class RewiringDemoUI : MonoBehaviour
 
         if (worldPoints.Count >= 2)
         {
-            lr.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.16f));
+            lr.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.16f));
             for (int i = 1; i < worldPoints.Count - 1; i++)
             {
-                lr.SetPosition(i, new Vector3(worldPoints[i].x, worldPoints[i].y, -0.16f));
+                lr.SetPosition(i, new Vector3(worldPoints[i].x, worldPoints[i].y, _isolatedOffset.z - 0.16f));
             }
-            lr.SetPosition(worldPoints.Count - 1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.16f));
+            lr.SetPosition(worldPoints.Count - 1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.16f));
         }
         else
         {
-            lr.SetPosition(0, new Vector3(worldPoints[0].x, worldPoints[0].y, -0.16f));
+            lr.SetPosition(0, new Vector3(worldPoints[0].x, worldPoints[0].y, _isolatedOffset.z - 0.16f));
         }
 
         wireElem.line = lr;
@@ -1190,7 +1338,8 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 GameObject bridgeObj = new GameObject($"Bridge_{bCell.x}_{bCell.y}");
                 bridgeObj.transform.SetParent(this.transform);
-                bridgeObj.transform.position = GetCellWorldPosition(bCell.x, bCell.y);
+                Vector2 bPos = GetCellWorldPosition(bCell.x, bCell.y);
+                bridgeObj.transform.position = new Vector3(bPos.x, bPos.y, _isolatedOffset.z);
                 RewiringBridge bridgeComp = bridgeObj.AddComponent<RewiringBridge>();
                 bridgeComp.Initialize(bCell);
                 bridgeComp.CreateVisualModel(_cellWidth, _cellHeight);
@@ -1204,7 +1353,8 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 GameObject obsObj = new GameObject($"Obstacle_{oCell.x}_{oCell.y}");
                 obsObj.transform.SetParent(this.transform);
-                obsObj.transform.position = GetCellWorldPosition(oCell.x, oCell.y);
+                Vector2 oPos = GetCellWorldPosition(oCell.x, oCell.y);
+                obsObj.transform.position = new Vector3(oPos.x, oPos.y, _isolatedOffset.z);
                 RewiringObstacle obsComp = obsObj.AddComponent<RewiringObstacle>();
                 obsComp.Initialize(oCell, RewiringObstacle.ObstacleType.BurntCapacitor);
                 obsComp.CreateVisualModel(_cellWidth, _cellHeight);
@@ -1234,7 +1384,7 @@ public class RewiringDemoUI : MonoBehaviour
         Vector2 worldPos = GetCellWorldPosition(gridCell.x, gridCell.y);
         GameObject obj = new GameObject(name);
         obj.transform.SetParent(this.transform);
-        obj.transform.position = worldPos;
+        obj.transform.position = new Vector3(worldPos.x, worldPos.y, _isolatedOffset.z);
 
         float cylScale = Mathf.Min(_cellWidth, _cellHeight) * 0.62f;
 
@@ -1322,47 +1472,25 @@ public class RewiringDemoUI : MonoBehaviour
         float bottomY = Screen.height - 72f;
         float centerX = Screen.width / 2f;
 
-        if (GUI.Button(new Rect(centerX - 350, bottomY - 68, 180, btnHeight), "↩ UNDO (Lùi)", _buttonStyle))
+        if (GUI.Button(new Rect(centerX - 350, bottomY, 180, btnHeight), "↩ UNDO (Lùi)", _buttonStyle))
         {
             OnUndoClicked();
         }
 
-        if (GUI.Button(new Rect(centerX - 155, bottomY - 68, 310, btnHeight), "★ KIỂM TRA CHẤT LƯỢNG ★", _buttonStyle))
+        if (GUI.Button(new Rect(centerX - 155, bottomY, 310, btnHeight), "★ KIỂM TRA CHẤT LƯỢNG ★", _buttonStyle))
         {
             OnCheckQualityClicked();
         }
 
-        if (GUI.Button(new Rect(centerX + 170, bottomY - 68, 180, btnHeight), "🗑 RESET (Xóa)", _buttonStyle))
+        if (GUI.Button(new Rect(centerX + 170, bottomY, 180, btnHeight), "🗑 RESET (Xóa)", _buttonStyle))
         {
             OnResetClicked();
         }
 
-        float w4 = Mathf.Min(220f, (Screen.width - 60f) / 4f);
-        float startX = centerX - w4 * 2f - 15f;
-        if (GUI.Button(new Rect(startX, bottomY, w4, 48), "1. Dễ (30 Ô - 3 Cặp)", _buttonStyle))
-        {
-            InitializeDemoBoard(0);
-        }
-
-        if (GUI.Button(new Rect(startX + w4 + 10f, bottomY, w4, 48), "2. Vừa (48 Ô - 4 Cặp)", _buttonStyle))
-        {
-            InitializeDemoBoard(1);
-        }
-
-        if (GUI.Button(new Rect(startX + (w4 + 10f) * 2f, bottomY, w4, 48), "3. Khó (70 Ô - 6 Cặp)", _buttonStyle))
-        {
-            InitializeDemoBoard(2);
-        }
-
-        if (GUI.Button(new Rect(startX + (w4 + 10f) * 3f, bottomY, w4, 48), "4. Khổ Hạnh (Extreme)", _buttonStyle))
-        {
-            InitializeDemoBoard(3);
-        }
-
-        // Result Popup (đặt phía trên cụm nút bấm bottomY - 68, nằm giữa bảng mạch và 3 nút action)
+        // Result Popup (đặt phía trên cụm nút action bottomY)
         if (!string.IsNullOrEmpty(_resultText))
         {
-            GUI.Box(new Rect(Screen.width * 0.12f, bottomY - 144, Screen.width * 0.76f, 66), _resultText, _resultStyle);
+            GUI.Box(new Rect(Screen.width * 0.12f, bottomY - 76, Screen.width * 0.76f, 66), _resultText, _resultStyle);
         }
 
         // Hiển thị Cửa sổ Hướng dẫn chơi (Tutorial Modal) trên cùng nếu đang bật
@@ -1443,6 +1571,10 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Á đù, nối thế này bị đè chéo mạch rồi! Khách lấy về dùng được nhưng dễ bị phàn nàn và mất uy tín.", 4f);
             }
+            if (_controller != null && _controller.IsActive && Application.isPlaying)
+            {
+                StartCoroutine(CompleteGameplayAfterDelay(quality, 2.0f));
+            }
         }
         else if (quality == RepairQuality.Perfect)
         {
@@ -1454,6 +1586,19 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Ngon lành! Mạch hàn chắc nịch, dây đi gọn gàng chuẩn thợ có tâm Sài Gòn!", 4f, "Tiếng báo hiệu-chính xác");
             }
+            if (_controller != null && _controller.IsActive && Application.isPlaying)
+            {
+                StartCoroutine(CompleteGameplayAfterDelay(quality, 1.8f));
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator CompleteGameplayAfterDelay(RepairQuality quality, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (_controller != null && _controller.IsActive)
+        {
+            _controller.EndMinigame();
         }
     }
 
