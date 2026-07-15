@@ -26,6 +26,8 @@ public class CustomerSpawner : MonoBehaviour
 
     private void Update()
     {
+        if (DayClock.Instance != null && !DayClock.Instance.IsRunning) return;
+
         // Debug override
         if (CustomInputManager.GetKeyDown("Secondary"))
         {

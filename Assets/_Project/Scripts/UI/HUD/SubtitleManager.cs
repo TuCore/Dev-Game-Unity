@@ -178,7 +178,7 @@ public class SubtitleManager : MonoBehaviour
             AudioManager.Instance.PlaySFX("Tiếng mở cửa");
         }
 
-        _subtitlePanel.SetActive(false);
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
         onComplete?.Invoke();
     }
 
@@ -201,12 +201,14 @@ public class SubtitleManager : MonoBehaviour
             yield return StartCoroutine(AnimateSubtitle(entry.speaker, entry.message, entry.duration, entry.sfxName));
             yield return new WaitForSeconds(0.3f);
         }
-        _subtitlePanel.SetActive(false);
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
         onComplete?.Invoke();
     }
 
     private IEnumerator AnimateSubtitle(string speaker, string message, float duration, string sfxName = null)
     {
+        if (_subtitlePanel == null) yield break;
+
         _subtitlePanel.SetActive(true);
         _speakerText.text = string.IsNullOrEmpty(speaker) ? "" : $"[{speaker}]";
         _messageText.text = "";
@@ -223,12 +225,13 @@ public class SubtitleManager : MonoBehaviour
 
         for (int i = 0; i <= totalChars; i++)
         {
+            if (_messageText == null) yield break;
             _messageText.text = message.Substring(0, i);
             yield return new WaitForSeconds(typeDelay);
         }
 
         // Giữ phụ đề trên màn hình cho hết thời lượng
         yield return new WaitForSeconds(Mathf.Max(1f, duration * 0.6f));
-        _subtitlePanel.SetActive(false);
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
     }
 }

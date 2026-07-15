@@ -42,9 +42,23 @@ public class DaySummaryUI : MonoBehaviour
         Canvas canvas = null;
         GameObject existingCanvas = GameObject.Find("HUD_Canvas");
         if (existingCanvas != null) canvas = existingCanvas.GetComponent<Canvas>();
-        else canvas = FindFirstObjectByType<Canvas>();
+        
+        if (canvas == null)
+        {
+            GameObject newCanvasObj = new GameObject("DaySummary_Canvas");
+            canvas = newCanvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 999;
+            newCanvasObj.AddComponent<UnityEngine.UI.CanvasScaler>().uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            newCanvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        }
 
-        if (canvas == null) return;
+        if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            GameObject eventSystemObj = new GameObject("EventSystem");
+            eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            eventSystemObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+        }
 
         // 1. Fullscreen Background
         _panel = new GameObject("DaySummaryPanel");
@@ -248,6 +262,7 @@ public class DaySummaryUI : MonoBehaviour
 
     private void ShowSummary()
     {
+        if (_panel == null) CreateUI();
         if (_panel == null) return;
         
         Time.timeScale = 0f;

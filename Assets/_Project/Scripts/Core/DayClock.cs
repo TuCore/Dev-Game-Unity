@@ -109,7 +109,16 @@ public class DayClock : MonoBehaviour
     public void StartDay()
     {
         _currentTime = 0f;
-        _isRunning = true;
+        
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            _isRunning = true;
+        }
+        else
+        {
+            _isRunning = false;
+        }
+
         OnDayStarted?.Invoke();
     }
 

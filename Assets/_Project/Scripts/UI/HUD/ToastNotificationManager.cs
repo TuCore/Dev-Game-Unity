@@ -83,6 +83,7 @@ public class ToastNotificationManager : MonoBehaviour
 
     public void ShowToast(string message, float duration = 3f)
     {
+        if (_toastPanel == null) CreateToastUI();
         if (_toastPanel == null) return;
 
         _toastText.text = message;
@@ -94,27 +95,31 @@ public class ToastNotificationManager : MonoBehaviour
 
     private IEnumerator AnimateToast(float duration)
     {
+        if (_toastRect == null) yield break;
+
         float animSpeed = 10f;
         
         // Trượt lên
-        while (100 - _toastRect.anchoredPosition.y > 1f)
+        while (_toastRect != null && 100 - _toastRect.anchoredPosition.y > 1f)
         {
             _toastRect.anchoredPosition = Vector2.Lerp(_toastRect.anchoredPosition, new Vector2(0, 100), Time.deltaTime * animSpeed);
             yield return null;
         }
-        _toastRect.anchoredPosition = new Vector2(0, 100);
+        if (_toastRect != null) _toastRect.anchoredPosition = new Vector2(0, 100);
 
         // Chờ
         yield return new WaitForSeconds(duration);
 
+        if (_toastRect == null) yield break;
+
         // Trượt xuống
-        while (_toastRect.anchoredPosition.y - (-200) > 1f)
+        while (_toastRect != null && _toastRect.anchoredPosition.y - (-200) > 1f)
         {
             _toastRect.anchoredPosition = Vector2.Lerp(_toastRect.anchoredPosition, new Vector2(0, -200), Time.deltaTime * animSpeed);
             yield return null;
         }
-        _toastRect.anchoredPosition = new Vector2(0, -200);
+        if (_toastRect != null) _toastRect.anchoredPosition = new Vector2(0, -200);
 
-        _toastPanel.SetActive(false);
+        if (_toastPanel != null) _toastPanel.SetActive(false);
     }
 }
