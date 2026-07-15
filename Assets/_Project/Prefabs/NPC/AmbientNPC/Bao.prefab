@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 8434829966523769835}
   - component: {fileID: 2324345043972695887}
   - component: {fileID: 2929640562614678804}
+  - component: {fileID: 7334403693508457636}
+  - component: {fileID: 7879073007541664281}
   m_Layer: 0
   m_Name: Bao
   m_TagString: Untagged
@@ -50,7 +52,7 @@ CharacterController:
     m_Bits: 0
   m_LayerOverridePriority: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Height: 2
   m_Radius: 0.5
@@ -66,7 +68,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8047668875230541433}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e3958e0c7e81ad4f9ee59a28fbda4f8, type: 3}
   m_Name: 
@@ -83,6 +85,47 @@ MonoBehaviour:
   loopPatrol: 1
   deliveryPrefab: {fileID: 0}
   dropForwardOffset: 0.8
+--- !u!195 &7334403693508457636
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8047668875230541433}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!114 &7879073007541664281
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8047668875230541433}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e417db90654f82c47aaa7d92e35e7bc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerController
+  archetype: {fileID: 0}
+  counterTarget: {fileID: 0}
+  exitTarget: {fileID: 0}
+  itemPrefabToDrop: {fileID: 0}
+  possibleItemsToDrop: []
+  itemDropPoint: {fileID: 0}
+  currentState: 0
 --- !u!1 &8325195179485142281
 GameObject:
   m_ObjectHideFlags: 0

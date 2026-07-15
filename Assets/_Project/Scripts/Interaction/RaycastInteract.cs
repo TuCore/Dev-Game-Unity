@@ -1,8 +1,15 @@
+using System;
 using UnityEngine;
 using TMPro;
 
 public class RaycastInteract : MonoBehaviour
 {
+    [Header("Customer Aim Assist")]
+    [SerializeField] private float customerAimAssistRadius = 0.85f;
+    [SerializeField] private float customerAimViewportRadius = 0.16f;
+    [SerializeField] private float customerAimHeight = 1.35f;
+    [SerializeField] private float customerCacheRefreshInterval = 0.2f;
+
     [Header("Cấu hình tương tác")]
     [SerializeField] private float interactRange = 5f; // Tăng khoảng cách tương tác lên 5 mét
     [SerializeField] private LayerMask interactableMask = ~0; // Mặc định là Everything để tránh bị lỗi Nothing
@@ -18,6 +25,9 @@ public class RaycastInteract : MonoBehaviour
     private GameObject _placementGhost;
     private float _heldItemRotationOffset = 0f; // Lưu góc xoay tuỳ chỉnh
     private MinigameManager _minigameManager;
+    private AnhThoDien.UI.HUD.CrosshairUI _crosshairUI;
+    private CustomerController[] _cachedCustomers;
+    private float _nextCustomerCacheRefreshTime;
 
     private void Start()
     {
@@ -28,6 +38,7 @@ public class RaycastInteract : MonoBehaviour
         }
         
         _minigameManager = FindObjectOfType<MinigameManager>();
+        _crosshairUI = FindFirstObjectByType<AnhThoDien.UI.HUD.CrosshairUI>();
 
         // Tự tạo một HoldPosition nếu chưa gán trong Editor
         if (holdPosition == null && _cam != null)
@@ -139,6 +150,7 @@ public class RaycastInteract : MonoBehaviour
         if (_minigameManager != null && _minigameManager.IsMinigameActive)
         {
             if (_promptText != null) _promptText.text = "";
+            SetCrosshairTargeting(false);
             return;
         }
 
@@ -149,10 +161,14 @@ public class RaycastInteract : MonoBehaviour
         Ray ray = _cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
         RaycastHit hit;
         bool isHit = Physics.Raycast(ray, out hit, interactRange, interactableMask);
+        RaycastHit interactionHit;
+        bool hasInteractionHit = TryFindUsableEmptyHandHit(ray, out interactionHit);
 
         // 1. Nếu đang cầm một đồ vật, xác định vị trí thả
         if (_currentlyHeldItem != null)
         {
+            SetCrosshairTargeting(false);
+
             // Nhận input con lăn chuột để xoay
             float scroll = Input.GetAxis("Mouse ScrollWheel");
             if (Mathf.Abs(scroll) > 0.01f)
@@ -220,9 +236,21 @@ public class RaycastInteract : MonoBehaviour
 
         // 2. Nếu tay đang trống, tìm đồ để nhặt/tương tác
         string promptText = "";
+        CustomerController customerTarget = FindCustomerAimTarget(ray);
         
-        if (isHit)
+        if (customerTarget != null)
         {
+            promptText += customerTarget.GetInteractionPrompt();
+
+            if (CustomInputManager.GetKeyDown("Interact"))
+            {
+                customerTarget.Interact();
+            }
+        }
+        else if (hasInteractionHit)
+        {
+            hit = interactionHit;
+
             // Xử lý đồ vật có thể nhặt/tương tác bằng E
             IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
             if (interactable != null)
@@ -259,11 +287,11 @@ public class RaycastInteract : MonoBehaviour
                 }
                 else if (repairable.HasRequiredParts())
                 {
-                    promptText += "<color=#00FF00>Nhấn [F] để Sửa chữa (Đủ đồ)</color>";
+                    promptText += $"<color=#00FF00>Nhấn [F] để Sửa chữa</color>\n<color=#D7F8FF>Cần: {repairable.GetRequiredPartsText()}</color>";
                 }
                 else
                 {
-                    promptText += $"<color=#FF0000>Thiếu: {repairable.GetMissingPartsText()}</color>";
+                    promptText += $"<color=#FF0000>{repairable.GetMissingPartsText()}</color>";
                 }
                 
                 if (CustomInputManager.GetKeyDown("Secondary"))
@@ -274,12 +302,217 @@ public class RaycastInteract : MonoBehaviour
         }
 
         // Luôn cập nhật (hoặc xóa) chữ hiển thị trên màn hình
+        SetCrosshairTargeting(customerTarget != null);
+
         if (_promptText != null)
         {
             if (_promptText.text != promptText)
             {
                 _promptText.text = promptText;
             }
+        }
+    }
+
+    private bool TryFindUsableEmptyHandHit(Ray ray, out RaycastHit usableHit)
+    {
+        usableHit = default;
+
+        RaycastHit[] hits = Physics.RaycastAll(ray, interactRange, interactableMask, QueryTriggerInteraction.Collide);
+        if (hits == null || hits.Length == 0)
+        {
+            return false;
+        }
+
+        Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            RaycastHit candidate = hits[i];
+            if (candidate.collider == null)
+            {
+                continue;
+            }
+
+            if (IsUsableEmptyHandHit(candidate))
+            {
+                usableHit = candidate;
+                return true;
+            }
+
+            if (ShouldIgnoreEmptyHandBlocker(candidate))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private bool IsUsableEmptyHandHit(RaycastHit hit)
+    {
+        if (hit.collider.GetComponentInParent<RepairableItem>() != null)
+        {
+            return true;
+        }
+
+        if (hit.collider.GetComponentInParent<PickupItem>() != null)
+        {
+            return true;
+        }
+
+        IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
+        return interactable != null && !string.IsNullOrEmpty(interactable.GetInteractionPrompt());
+    }
+
+    private bool ShouldIgnoreEmptyHandBlocker(RaycastHit hit)
+    {
+        CustomerController customer = hit.collider.GetComponentInParent<CustomerController>();
+        return customer != null && string.IsNullOrEmpty(customer.GetInteractionPrompt());
+    }
+
+    private CustomerController FindCustomerAimTarget(Ray ray)
+    {
+        CustomerController bestCustomer = null;
+        float bestScore = float.MaxValue;
+
+        RaycastHit[] sphereHits = Physics.SphereCastAll(ray, customerAimAssistRadius, interactRange, interactableMask, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < sphereHits.Length; i++)
+        {
+            CustomerController customer = sphereHits[i].collider.GetComponentInParent<CustomerController>();
+            if (TryGetCustomerAimScore(customer, ray, out float score) && score < bestScore)
+            {
+                bestScore = score;
+                bestCustomer = customer;
+            }
+        }
+
+        CustomerController[] customers = GetCachedCustomers();
+        for (int i = 0; i < customers.Length; i++)
+        {
+            CustomerController customer = customers[i];
+            if (TryGetCustomerAimScore(customer, ray, out float score) && score < bestScore)
+            {
+                bestScore = score;
+                bestCustomer = customer;
+            }
+        }
+
+        return bestCustomer;
+    }
+
+    private bool TryGetCustomerAimScore(CustomerController customer, Ray ray, out float score)
+    {
+        score = 0f;
+
+        if (customer == null || !customer.isActiveAndEnabled)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(customer.GetInteractionPrompt()))
+        {
+            return false;
+        }
+
+        Vector3 aimPoint = GetCustomerAimPoint(customer);
+        Vector3 fromCamera = aimPoint - _cam.transform.position;
+        float distance = fromCamera.magnitude;
+        if (distance <= 0.01f || distance > interactRange + customerAimAssistRadius)
+        {
+            return false;
+        }
+
+        float forwardDistance = Vector3.Dot(fromCamera, ray.direction);
+        if (forwardDistance <= 0f || forwardDistance > interactRange)
+        {
+            return false;
+        }
+
+        float distanceFromAimRay = (fromCamera - ray.direction * forwardDistance).magnitude;
+        Vector3 viewportPoint = _cam.WorldToViewportPoint(aimPoint);
+        Vector2 viewportOffset = new Vector2(viewportPoint.x - 0.5f, viewportPoint.y - 0.5f);
+
+        if (viewportPoint.z <= 0f || (distanceFromAimRay > customerAimAssistRadius && viewportOffset.magnitude > customerAimViewportRadius))
+        {
+            return false;
+        }
+
+        if (!HasClearLineToCustomer(customer, aimPoint, distance))
+        {
+            return false;
+        }
+
+        score = viewportOffset.sqrMagnitude * 100f + distanceFromAimRay + distance * 0.01f;
+        return true;
+    }
+
+    private Vector3 GetCustomerAimPoint(CustomerController customer)
+    {
+        Collider[] colliders = customer.GetComponentsInChildren<Collider>();
+        bool hasBounds = false;
+        Bounds bounds = new Bounds(customer.transform.position, Vector3.zero);
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] == null || !colliders[i].enabled)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = colliders[i].bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(colliders[i].bounds);
+            }
+        }
+
+        Vector3 point = hasBounds ? bounds.center : customer.transform.position;
+        point.y = Mathf.Max(point.y, customer.transform.position.y + customerAimHeight);
+        return point;
+    }
+
+    private bool HasClearLineToCustomer(CustomerController customer, Vector3 aimPoint, float distance)
+    {
+        Vector3 origin = _cam.transform.position;
+        Vector3 direction = (aimPoint - origin).normalized;
+        float checkDistance = Mathf.Max(0f, distance - 0.05f);
+
+        if (!Physics.Raycast(origin, direction, out RaycastHit blocker, checkDistance, interactableMask, QueryTriggerInteraction.Ignore))
+        {
+            return true;
+        }
+
+        CustomerController blockerCustomer = blocker.collider.GetComponentInParent<CustomerController>();
+        return blockerCustomer == customer;
+    }
+
+    private CustomerController[] GetCachedCustomers()
+    {
+        if (_cachedCustomers == null || Time.time >= _nextCustomerCacheRefreshTime)
+        {
+            _cachedCustomers = FindObjectsOfType<CustomerController>();
+            _nextCustomerCacheRefreshTime = Time.time + customerCacheRefreshInterval;
+        }
+
+        return _cachedCustomers;
+    }
+
+    private void SetCrosshairTargeting(bool isTargeting)
+    {
+        if (_crosshairUI == null)
+        {
+            _crosshairUI = FindFirstObjectByType<AnhThoDien.UI.HUD.CrosshairUI>();
+        }
+
+        if (_crosshairUI != null)
+        {
+            _crosshairUI.SetTargeting(isTargeting);
         }
     }
 
@@ -290,6 +523,8 @@ public class RaycastInteract : MonoBehaviour
         {
             _promptText.text = "";
         }
+
+        SetCrosshairTargeting(false);
     }
 }
 

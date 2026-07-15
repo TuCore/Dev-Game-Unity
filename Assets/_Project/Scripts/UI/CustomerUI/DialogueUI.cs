@@ -35,6 +35,7 @@ public class DialogueUI : MonoBehaviour
     private bool isTyping;
 
     private bool isDialogueActive = false;
+    private CustomerController activeSpeaker;
 
     private void Awake()
     {
@@ -49,7 +50,7 @@ public class DialogueUI : MonoBehaviour
         if (secondaryButton != null) secondaryButton.onClick.AddListener(OnSecondaryClicked);
     }
 
-    public void ShowDialogue(string npcName, string text, Action onPrimary = null, Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "")
+    public void ShowDialogue(string npcName, string text, Action onPrimary = null, Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "", CustomerController speaker = null)
     {
         if (dialoguePanel == null) return;
         
@@ -57,8 +58,33 @@ public class DialogueUI : MonoBehaviour
         
         onPrimaryAction = onPrimary;
         onSecondaryAction = onSecondary;
+
+        if (activeSpeaker != null && activeSpeaker != speaker)
+        {
+            activeSpeaker.SetDialoguePaused(false);
+        }
+
+        activeSpeaker = speaker;
+        if (activeSpeaker != null)
+        {
+            activeSpeaker.SetDialoguePaused(true);
+        }
         
-        npcNameText.text = npcName;
+        if (npcNameText != null)
+        {
+            string displayName = string.IsNullOrWhiteSpace(npcName) ? "Khách hàng" : npcName;
+            npcNameText.gameObject.SetActive(true);
+            npcNameText.text = displayName;
+            npcNameText.color = new Color(1f, 0.86f, 0.34f, 1f);
+            npcNameText.fontStyle = FontStyles.Bold;
+            npcNameText.alignment = TextAlignmentOptions.Left;
+            npcNameText.textWrappingMode = TextWrappingModes.NoWrap;
+            npcNameText.overflowMode = TextOverflowModes.Ellipsis;
+            npcNameText.enableAutoSizing = true;
+            npcNameText.fontSizeMin = 14f;
+            npcNameText.fontSizeMax = Mathf.Max(npcNameText.fontSizeMax, 20f);
+            npcNameText.margin = new Vector4(10f, 0f, 10f, 0f);
+        }
         fullText = text;
         dialoguePanel.SetActive(true);
         
@@ -145,6 +171,12 @@ public class DialogueUI : MonoBehaviour
     {
         isDialogueActive = false;
         if (dialoguePanel != null) dialoguePanel.SetActive(false);
+
+        if (activeSpeaker != null)
+        {
+            activeSpeaker.SetDialoguePaused(false);
+            activeSpeaker = null;
+        }
         
         // Restore player movement
         PlayerController player = FindObjectOfType<PlayerController>();
