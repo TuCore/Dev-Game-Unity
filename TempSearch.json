@@ -1,0 +1,3 @@
+{
+  "csharpCode": "using UnityEngine; using UnityEditor; using UnityEngine.SceneManagement; public class Script { public static void Main() { var scene = SceneManager.GetActiveScene(); Debug.Log($\"Active Scene: {scene.name}\"); var roots = scene.GetRootGameObjects(); foreach (var root in roots) { Debug.Log(root.name); var comps = root.GetComponentsInChildren<MonoBehaviour>(true); foreach(var c in comps) { if (c.GetType().Name.Contains(\"Task\") || c.GetType().Name.Contains(\"Quest\") || c.GetType().Name.Contains(\"Objective\")) { Debug.Log($\"Found quest script {c.GetType().Name} on {c.gameObject.name}\"); } } } } }"
+}

@@ -74,8 +74,11 @@ public class TaskHUDUI : MonoBehaviour
 
     private void Start()
     {
-        BuildOrBindUI();
-        Refresh();
+        if (SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            BuildOrBindUI();
+            Refresh();
+        }
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
