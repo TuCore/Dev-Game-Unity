@@ -285,6 +285,48 @@ public class PhoneUIBuilder : MonoBehaviour
 
         CreateAppIcon(appsGrid.transform, "Tin Nhắn", "chat.png", phoneManager, chatApp);
 
+        // Customer Messages App
+        CustomerMessagesApp customerMessagesApp = CreateAppScreen<CustomerMessagesApp>("CustomerMessagesAppScreen", screenObj.transform, "Khách Hàng", new Color(0.04f, 0.12f, 0.18f));
+        GameObject customerMessagesContent = CreateUIObject("Content", customerMessagesApp.transform);
+        RectTransform customerMessagesRect = customerMessagesContent.GetComponent<RectTransform>();
+        customerMessagesRect.anchorMin = new Vector2(0, 0); customerMessagesRect.anchorMax = new Vector2(1, 1);
+        customerMessagesRect.offsetMin = new Vector2(20, 24); customerMessagesRect.offsetMax = new Vector2(-20, -108);
+        VerticalLayoutGroup customerMessagesLayout = customerMessagesContent.AddComponent<VerticalLayoutGroup>();
+        customerMessagesLayout.spacing = 12; customerMessagesLayout.childControlHeight = false; customerMessagesLayout.childForceExpandHeight = false;
+        customerMessagesLayout.childControlWidth = false; customerMessagesLayout.childForceExpandWidth = false;
+        customerMessagesLayout.childAlignment = TextAnchor.UpperCenter;
+
+        TextMeshProUGUI customerMessagesTitle = CreateTextObj("TitleText", customerMessagesContent.transform, "Tin nhắn khách", 20, TextAlignmentOptions.Left).GetComponent<TextMeshProUGUI>();
+        customerMessagesTitle.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 32);
+        customerMessagesTitle.fontStyle = FontStyles.Bold;
+        customerMessagesTitle.raycastTarget = false;
+
+        TextMeshProUGUI customerMessagesEmpty = CreateTextObj("EmptyText", customerMessagesContent.transform, "Chưa có tin nhắn từ khách.\nNhận đơn sửa đồ để khách nhắn lịch hẹn.", 16, TextAlignmentOptions.Center).GetComponent<TextMeshProUGUI>();
+        customerMessagesEmpty.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 110);
+        customerMessagesEmpty.color = new Color(0.82f, 0.86f, 0.92f);
+        customerMessagesEmpty.textWrappingMode = TextWrappingModes.Normal;
+        customerMessagesEmpty.raycastTarget = false;
+
+        GameObject customerMessagesLogCard = CreateCard(customerMessagesContent.transform, new Vector2(360, 435), new Color(0.08f, 0.09f, 0.11f), 14);
+        TextMeshProUGUI customerMessagesLog = CreateTextObj("MessageLogText", customerMessagesLogCard.transform, "", 15, TextAlignmentOptions.TopLeft, true, new Vector2(16, 14), new Vector2(-16, -14)).GetComponent<TextMeshProUGUI>();
+        customerMessagesLog.textWrappingMode = TextWrappingModes.Normal;
+        customerMessagesLog.raycastTarget = false;
+        customerMessagesLog.gameObject.SetActive(false);
+
+        GameObject customerMessagesButtonObj = CreateCard(customerMessagesContent.transform, new Vector2(360, 48), new Color(0.08f, 0.48f, 0.72f), 12, false);
+        TextMeshProUGUI customerMessagesButtonText = CreateTextObj("Txt", customerMessagesButtonObj.transform, "Làm mới", 17, TextAlignmentOptions.Center, true).GetComponent<TextMeshProUGUI>();
+        customerMessagesButtonText.fontStyle = FontStyles.Bold;
+        customerMessagesButtonText.raycastTarget = false;
+        Button customerMessagesButton = customerMessagesButtonObj.AddComponent<Button>();
+
+        SetPrivateField(customerMessagesApp, "titleText", customerMessagesTitle);
+        SetPrivateField(customerMessagesApp, "messageLogText", customerMessagesLog);
+        SetPrivateField(customerMessagesApp, "emptyText", customerMessagesEmpty);
+        SetPrivateField(customerMessagesApp, "refreshButtonText", customerMessagesButtonText);
+        SetPrivateField(customerMessagesApp, "refreshButton", customerMessagesButton);
+
+        CreateAppIcon(appsGrid.transform, "Khách Hàng", "customer_messages.png", phoneManager, customerMessagesApp);
+
         // 5. Shop App (S-Market)
         ShopApp shopApp = CreateAppScreen<ShopApp>("ShopAppScreen", screenObj.transform, "S-Market", new Color(0.12f, 0.05f, 0.02f));
         GameObject shopContent = CreateUIObject("Content", shopApp.transform);

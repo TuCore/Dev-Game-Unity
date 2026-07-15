@@ -35,6 +35,7 @@ public class CustomerController : MonoBehaviour, IInteractable
     private CustomerOrder currentOrder;
     public CustomerState currentState = CustomerState.Wandering;
     private bool hasInteracted = false;
+    private bool isDialoguePaused = false;
     
     private Transform ambientPointA;
     private Transform ambientPointB;
@@ -47,6 +48,15 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private Vector3 approachOffset;
     private bool hasConvergedToQueue = false;
+    private Vector3 currentMoveDestination;
+    private Vector3 currentQueueDestination;
+    private Vector3 lastStuckCheckPosition;
+    private float nextStuckCheckTime;
+    private float stuckTimer;
+
+    private const float DestinationUpdateTolerance = 0.35f;
+    private const float StuckCheckInterval = 0.5f;
+    private const float StuckRecoverAfter = 2.5f;
 
     private void Awake()
     {
@@ -61,6 +71,8 @@ public class CustomerController : MonoBehaviour, IInteractable
         if (agent != null)
         {
             agent.updateRotation = false; // TẮT CHẶN: Để script tự xoay mặt (chống moonwalk do NavMeshAgent)
+            agent.autoRepath = true;
+            agent.isStopped = false;
         }
 
         // TẮT CHẶN: Đảm bảo Rigidbody không đánh lộn với NavMeshAgent gây văng tung tóe (teleport)
@@ -97,7 +109,152 @@ public class CustomerController : MonoBehaviour, IInteractable
         UnityEngine.AI.NavMeshHit hit;
         if (UnityEngine.AI.NavMesh.SamplePosition(randomWander, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
         {
-            if (agent != null) agent.SetDestination(hit.position);
+            TrySetDestination(hit.position, 1.5f);
+        }
+    }
+
+    private bool TrySetDestination(Vector3 targetPosition, float sampleRadius = 4f)
+    {
+        if (agent == null || !agent.enabled)
+        {
+            return false;
+        }
+
+        if (!agent.isOnNavMesh)
+        {
+            if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out UnityEngine.AI.NavMeshHit selfHit, 8f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                agent.Warp(selfHit.position);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (!UnityEngine.AI.NavMesh.SamplePosition(targetPosition, out UnityEngine.AI.NavMeshHit hit, sampleRadius, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            return false;
+        }
+
+        Vector3 sampledDestination = hit.position;
+        currentMoveDestination = sampledDestination;
+        agent.isStopped = false;
+
+        if (agent.hasPath && (agent.destination - sampledDestination).sqrMagnitude <= DestinationUpdateTolerance * DestinationUpdateTolerance)
+        {
+            return true;
+        }
+
+        return agent.SetDestination(sampledDestination);
+    }
+
+    private bool HasReachedDestination(float extraDistance = 0f)
+    {
+        if (agent == null || agent.pathPending)
+        {
+            return false;
+        }
+
+        float reachDistance = agent.stoppingDistance + extraDistance;
+        if (agent.hasPath && agent.pathStatus != UnityEngine.AI.NavMeshPathStatus.PathInvalid)
+        {
+            return agent.remainingDistance <= reachDistance
+                && Vector3.Distance(transform.position, currentMoveDestination) <= reachDistance + 0.9f;
+        }
+
+        return Vector3.Distance(transform.position, currentMoveDestination) <= reachDistance + 0.25f;
+    }
+
+    private bool HasReachedQueueSpot()
+    {
+        if (agent == null || agent.pathPending)
+        {
+            return false;
+        }
+
+        return Vector3.Distance(transform.position, currentQueueDestination) <= 1.6f;
+    }
+
+    private void RecoverIfStuck()
+    {
+        if (!ShouldRecoverMovement())
+        {
+            stuckTimer = 0f;
+            lastStuckCheckPosition = transform.position;
+            nextStuckCheckTime = Time.time + StuckCheckInterval;
+            return;
+        }
+
+        if (Time.time < nextStuckCheckTime)
+        {
+            return;
+        }
+
+        bool stillFar = Vector3.Distance(transform.position, currentMoveDestination) > agent.stoppingDistance + 1.2f;
+        bool barelyMoved = Vector3.Distance(transform.position, lastStuckCheckPosition) < 0.08f;
+        bool barelyMoving = agent.velocity.sqrMagnitude < 0.015f;
+
+        stuckTimer = stillFar && barelyMoved && barelyMoving && !agent.pathPending
+            ? stuckTimer + StuckCheckInterval
+            : 0f;
+
+        lastStuckCheckPosition = transform.position;
+        nextStuckCheckTime = Time.time + StuckCheckInterval;
+
+        if (stuckTimer < StuckRecoverAfter)
+        {
+            return;
+        }
+
+        stuckTimer = 0f;
+        if (currentState == CustomerState.Wandering)
+        {
+            PickRandomWanderPoint();
+        }
+        else if (currentState == CustomerState.AmbientWalking)
+        {
+            SetNextAmbientDestination();
+        }
+        else if (currentState == CustomerState.Visiting || currentState == CustomerState.ReturningForPickup)
+        {
+            hasConvergedToQueue = true;
+            TrySetDestination(currentQueueDestination, 5f);
+        }
+        else if (currentState == CustomerState.Leaving && exitTarget != null)
+        {
+            TrySetDestination(exitTarget.position, 12f);
+        }
+    }
+
+    private bool ShouldRecoverMovement()
+    {
+        return currentState == CustomerState.Wandering
+            || currentState == CustomerState.Visiting
+            || currentState == CustomerState.ReturningForPickup
+            || currentState == CustomerState.AmbientWalking
+            || currentState == CustomerState.Leaving;
+    }
+
+    public void SetDialoguePaused(bool paused)
+    {
+        isDialoguePaused = paused;
+
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh)
+        {
+            return;
+        }
+
+        agent.isStopped = paused;
+        if (paused)
+        {
+            agent.velocity = Vector3.zero;
+            return;
+        }
+
+        if (!agent.hasPath && ShouldRecoverMovement())
+        {
+            RecoverIfStuck();
         }
     }
 
@@ -105,6 +262,8 @@ public class CustomerController : MonoBehaviour, IInteractable
     {
         this.currentOrder = order;
         this.currentState = CustomerState.ReturningForPickup;
+        this.hasInteracted = false;
+        this.hasConvergedToQueue = false;
         if (!storeLine.Contains(this)) storeLine.Add(this);
     }
 
@@ -126,8 +285,26 @@ public class CustomerController : MonoBehaviour, IInteractable
             {
                 finalTargetPos = hit.position;
             }
-            agent.SetDestination(finalTargetPos);
+            TrySetDestination(finalTargetPos, 10f);
         }
+    }
+
+    private void SetNextAmbientDestination()
+    {
+        if (ambientPointA == null || ambientPointB == null || exitTarget == null)
+        {
+            return;
+        }
+
+        Vector2 randomCircle = Random.insideUnitCircle * 8f;
+        Vector3 randomOffset = new Vector3(randomCircle.x, 0, randomCircle.y);
+        Vector3 finalTargetPos = exitTarget.position;
+        if (UnityEngine.AI.NavMesh.SamplePosition(exitTarget.position + randomOffset, out UnityEngine.AI.NavMeshHit hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            finalTargetPos = hit.position;
+        }
+
+        TrySetDestination(finalTargetPos, 10f);
     }
 
     private void Update()
@@ -161,11 +338,18 @@ public class CustomerController : MonoBehaviour, IInteractable
             }
         }
 
+        if (isDialoguePaused)
+        {
+            return;
+        }
+
+        RecoverIfStuck();
+
         if (agent.pathPending) return;
 
         if (currentState == CustomerState.Wandering)
         {
-            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+            if (HasReachedDestination())
             {
                 wanderCount--;
                 if (wanderCount <= 0)
@@ -186,14 +370,14 @@ public class CustomerController : MonoBehaviour, IInteractable
             UpdateQueuePosition();
             
             // Chỉ tương tác nếu đứng đầu hàng
-            if (storeLine.IndexOf(this) == 0 && agent.remainingDistance <= 1.5f)
+            if (storeLine.IndexOf(this) == 0 && HasReachedQueueSpot())
             {
                 currentState = (currentState == CustomerState.Visiting) ? CustomerState.WaitingToNegotiate : CustomerState.WaitingForPickup;
             }
         }
         else if (currentState == CustomerState.AmbientWalking)
         {
-            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+            if (HasReachedDestination())
             {
                 // Quay đầu đi ngược lại!
                 if (ambientPointA != null && ambientPointB != null)
@@ -209,11 +393,11 @@ public class CustomerController : MonoBehaviour, IInteractable
                     {
                         finalTargetPos = hit.position;
                     }
-                    agent.SetDestination(finalTargetPos);
+                    TrySetDestination(finalTargetPos, 10f);
                 }
             }
         }
-        else if (currentState == CustomerState.Leaving && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        else if (currentState == CustomerState.Leaving && HasReachedDestination(0.25f))
         {
             Destroy(gameObject);
         }
@@ -222,6 +406,8 @@ public class CustomerController : MonoBehaviour, IInteractable
     private void UpdateQueuePosition()
     {
         if (counterTarget == null) return;
+
+        storeLine.RemoveAll(customer => customer == null);
 
         int myIndex = storeLine.IndexOf(this);
         if (myIndex == -1) 
@@ -242,6 +428,11 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
 
         Vector3 exactQueuePos = counterTarget.position + queueOffset;
+        currentQueueDestination = exactQueuePos;
+        if (UnityEngine.AI.NavMesh.SamplePosition(exactQueuePos, out UnityEngine.AI.NavMeshHit queueHit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            currentQueueDestination = queueHit.position;
+        }
 
         // Nếu khách còn đang ở xa (hơn 10m) thì đi vào điểm lệch (approachOffset) để tản ra nhiều đường
         if (!hasConvergedToQueue && Vector3.Distance(transform.position, exactQueuePos) > 10f)
@@ -249,14 +440,14 @@ public class CustomerController : MonoBehaviour, IInteractable
             Vector3 approachPos = exactQueuePos + approachOffset;
             if (UnityEngine.AI.NavMesh.SamplePosition(approachPos, out UnityEngine.AI.NavMeshHit hitSample, 10f, UnityEngine.AI.NavMesh.AllAreas))
             {
-                agent.SetDestination(hitSample.position);
+                TrySetDestination(hitSample.position, 2f);
             }
         }
         else
         {
             // Đã tới gần tiệm, bắt đầu đi thẳng vào hàng ngay ngắn
             hasConvergedToQueue = true;
-            agent.SetDestination(exactQueuePos);
+            TrySetDestination(currentQueueDestination, 1.5f);
         }
     }
 
@@ -265,16 +456,33 @@ public class CustomerController : MonoBehaviour, IInteractable
         if (storeLine.Contains(this)) storeLine.Remove(this);
     }
 
+    private string CustomerDisplayName
+    {
+        get
+        {
+            return archetype != null && !string.IsNullOrWhiteSpace(archetype.archetypeName)
+                ? archetype.archetypeName
+                : "Khách hàng";
+        }
+    }
+
+    private void ShowCustomerDialogue(string npcName, string text, System.Action onPrimary = null, System.Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "")
+    {
+        if (DialogueUI.Instance != null)
+        {
+            DialogueUI.Instance.ShowDialogue(npcName, text, onPrimary, onSecondary, primaryText, secondaryText, this);
+        }
+    }
+
     public string GetInteractionPrompt()
     {
         if ((currentState == CustomerState.WaitingToNegotiate || currentState == CustomerState.Visiting) && !hasInteracted) 
         {
-            string npcName = archetype != null ? archetype.archetypeName : "Khách hàng";
-            return $"Nói chuyện với {npcName}";
+            return $"Nói chuyện với {CustomerDisplayName}";
         }
         
         if ((currentState == CustomerState.WaitingForPickup || currentState == CustomerState.ReturningForPickup) && !hasInteracted)
-            return $"Trả đồ cho {(archetype != null ? archetype.archetypeName : "Khách hàng")}";
+            return $"Trả đồ cho {CustomerDisplayName}";
             
         return "";
     }
@@ -301,11 +509,7 @@ public class CustomerController : MonoBehaviour, IInteractable
             ? archetype.greetingDialogues[Random.Range(0, archetype.greetingDialogues.Count)] 
             : "Tôi có món đồ bị hỏng, sửa giúp tôi nhé!";
 
-        if (DialogueUI.Instance != null)
-        {
-            string npcName = archetype != null ? archetype.archetypeName : "Khách hàng";
-            DialogueUI.Instance.ShowDialogue(npcName, greeting, ShowNegotiationOptions);
-        }
+        ShowCustomerDialogue(CustomerDisplayName, greeting, ShowNegotiationOptions);
     }
 
     private void ShowNegotiationOptions()
@@ -336,23 +540,20 @@ public class CustomerController : MonoBehaviour, IInteractable
 
         string offer = $"Bác thợ xem giúp em con {itemName} này. Công cán gửi bác {_selectedBasePay:N0} đ. Cứ thong thả làm, đến {apptHour:00}:00 ngày {apptDay} em qua lấy hàng.";
         
-        if (DialogueUI.Instance != null)
-        {
-            DialogueUI.Instance.ShowDialogue(
-                archetype.archetypeName, 
-                offer, 
-                () => AcceptOrder(itemName, apptDay, apptHour), 
-                () => RefuseOrder(), 
-                "Nhận sửa", 
-                "Từ chối"
-            );
-        }
+        ShowCustomerDialogue(
+            CustomerDisplayName,
+            offer,
+            () => AcceptOrder(itemName, apptDay, apptHour),
+            () => RefuseOrder(),
+            "Nhận sửa",
+            "Từ chối"
+        );
     }
 
     private void RefuseOrder()
     {
         string angry = "Thế thì thôi vậy, tôi mang ra tiệm khác!";
-        DialogueUI.Instance.ShowDialogue(archetype.archetypeName, angry, LeaveStore, null, "Đóng");
+        ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Đóng");
     }
 
     private void AcceptOrder(string itemName, int apptDay, float apptHour)
@@ -378,7 +579,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
 
         string agreement = "Cảm ơn, nhớ đúng hẹn nhé!";
-        DialogueUI.Instance.ShowDialogue(archetype.archetypeName, agreement, LeaveStore, null, "Đóng");
+        ShowCustomerDialogue(CustomerDisplayName, agreement, LeaveStore, null, "Đóng");
     }
 
     private void ProcessPickup()
@@ -418,7 +619,7 @@ public class CustomerController : MonoBehaviour, IInteractable
                 }
             }
 
-            DialogueUI.Instance.ShowDialogue(archetype.archetypeName, satisfied, LeaveStore);
+            ShowCustomerDialogue(CustomerDisplayName, satisfied, LeaveStore);
         }
         else
         {
@@ -426,7 +627,7 @@ public class CustomerController : MonoBehaviour, IInteractable
             {
                 // Dễ tính: cho thêm thời gian
                 currentOrder.appointmentDay += 1;
-                DialogueUI.Instance.ShowDialogue(archetype.archetypeName, "Chưa xong à? Thôi cứ làm đi, mai tôi quay lại lấy.", LeaveStore);
+                ShowCustomerDialogue(CustomerDisplayName, "Chưa xong à? Thôi cứ làm đi, mai tôi quay lại lấy.", LeaveStore);
                 hasInteracted = false; // Reset for next time
             }
             else
@@ -456,7 +657,7 @@ public class CustomerController : MonoBehaviour, IInteractable
                     }
                 }
 
-                DialogueUI.Instance.ShowDialogue(archetype.archetypeName, angry, LeaveStore);
+                ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore);
             }
         }
     }
@@ -468,7 +669,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         hasInteracted = false;
         if (exitTarget != null)
         {
-            agent.SetDestination(exitTarget.position);
+            TrySetDestination(exitTarget.position, 12f);
         }
     }
 }

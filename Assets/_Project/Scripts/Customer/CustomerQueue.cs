@@ -48,6 +48,7 @@ public class CustomerQueue : MonoBehaviour
         }
 
         _activeOrders.Add(order);
+        CustomerMessageLog.AddOrderAccepted(order);
         OnCustomerArrived?.Invoke(order);
         TaskManager.EnsureInstance().NotifyOrderAccepted(order);
         
@@ -71,6 +72,7 @@ public class CustomerQueue : MonoBehaviour
     {
         if (_activeOrders.Remove(order))
         {
+            CustomerMessageLog.AddOrderCompleted(order);
             OnOrderCompleted?.Invoke(order);
             TaskManager.EnsureInstance().NotifyOrderReturned(order);
             if (SubtitleManager.Instance != null)
@@ -88,6 +90,7 @@ public class CustomerQueue : MonoBehaviour
     {
         if (_activeOrders.Remove(order))
         {
+            CustomerMessageLog.AddOrderFailed(order);
             OnCustomerLeft?.Invoke(order);
             
             if (ToastNotificationManager.Instance != null)
