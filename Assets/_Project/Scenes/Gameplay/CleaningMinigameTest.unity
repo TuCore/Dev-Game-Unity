@@ -1000,6 +1000,7 @@ MonoBehaviour:
   difficultyLevel: 1
   screenSpaceSpotPaddingPixels: 32
   screenSpaceScrewPaddingPixels: 24
+  autoAddSpotMeshColliders: 1
   requiredSwipeDistancePixels: 70
   requiredWipePasses: 5
   opacityLossPerWipe: 0.2
@@ -1012,7 +1013,6 @@ MonoBehaviour:
   screwHiddenLocalY: -0.03
   screwInstalledLocalY: 0
   wrongInteractionPenalty: 5
-  randomizeCleaningTargetOrder: 1
   cameraTargetOffset: {x: 0, y: 0.35, z: 0}
   cameraViewOffset: {x: 0, y: 0.8, z: -3}
   autoStartOnPlay: 1
@@ -1911,43 +1911,43 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.65
+      value: -0.65014935
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.54
+      value: -0.5393904
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.266
+      value: 0.2618905
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.47290257
+      value: 0.47082955
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.5380252
+      value: 0.540171
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.4837146
+      value: -0.48573264
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.5029038
+      value: 0.50059825
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 95.50299
+      value: 95.74899
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: -60.72101
+      value: -56.392
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 27.884003
+      value: 32.192
       objectReference: {fileID: 0}
     - target: {fileID: -548337570385555557, guid: 177ff0bb73c022f4ca8ffc342a9dfbd7, type: 3}
       propertyPath: m_Name
