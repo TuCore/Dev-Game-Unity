@@ -19,16 +19,24 @@ MonoBehaviour:
   - "H\xF4m qua bu\u1ED3n tay th\xE1o c\xE1i n\xE0y ra lau ch\xF9i, th\u1EBF qu\xE1i
     n\xE0o l\xFAc l\u1EAFp l\u1EA1i d\u01B0 ra c\u1EA3 n\u1EAFm \u1ED1c... \xD4ng
     nh\xE9t l\u1EA1i h\u1ED9 c\xE1i."
+  greetingAudioClips:
+  - {fileID: 8300000, guid: 075a0c648e1775344abe1af7d87051c6, type: 3}
   satisfiedDialogues:
   - "Xong r\u1ED3i \xE0? \u0110\u1EC3 test th\u1EED xem... Ok, l\xEAn \u0111i\u1EC7n
     r\u1ED3i. Ti\u1EC1n c\xF4ng \u0111\xE2y nh\xE9 th\u1EE3!"
+  satisfiedAudioClips:
+  - {fileID: 8300000, guid: 9b10010937b2db84fb4f7d92f22df95f, type: 3}
   unsatisfiedDialogues:
   - "Tr\u1EDDi \u01A1i, s\u1EBFp ng\xE2m \u0111\u1ED3 c\u1EE7a em l\xE2u th\u1EBF?
     \u0110ang c\u1EA7n g\u1EA5p m\xE0... Th\xF4i \u0111\u01B0a em mang ra h\xE3ng
     cho l\u1EB9."
+  unsatisfiedAudioClips:
+  - {fileID: 8300000, guid: f8b593b84d51fcb4fadc2eff759d425a, type: 3}
   leavingDialogues:
   - "C\xE1i b\u1EC7nh l\u1EB7t v\u1EB7t m\xE0 ch\xE9m \u0111\u1EB9p th\u1EBF ch\xFA
     em? Th\xF4i c\u1EA5t v\xE0o \u0111i!"
+  leavingAudioClips:
+  - {fileID: 8300000, guid: 2c45147d0abc9474ea9153a2ce46f774, type: 3}
   personality: 1
   canNegotiatePrice: 0
   tipMultiplier: 1
