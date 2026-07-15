@@ -173,7 +173,7 @@ public class CleaningMinigameTester : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.R))
+        if (CustomInputManager.GetKeyDown("CleanSpray"))
         {
             _showGuideMenu = !_showGuideMenu;
         }
@@ -219,7 +219,7 @@ public class CleaningMinigameTester : MonoBehaviour
             HandleMouseCleaning();
         }
 
-        if (Input.GetKeyDown(KeyCode.X))
+        if (CustomInputManager.GetKeyDown("CleanWipe"))
         {
             _minigame.RegisterMistake();
             Debug.Log("[CleaningTester] Forced mistake.");
@@ -2418,3 +2418,5 @@ public class CleaningMinigameTester : MonoBehaviour
         material.color = color;
     }
 }
+
+

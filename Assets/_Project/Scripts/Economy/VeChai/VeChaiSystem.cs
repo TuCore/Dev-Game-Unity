@@ -67,6 +67,15 @@ public class VeChaiSystem : MonoBehaviour
         }
         _currentOfferings = shuffled.GetRange(0, count);
 
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Chú Ve Chai", "Ai đồng hồ cũ, quạt cháy, nồi cơm điện hỏng, bàn ủi hư... bán đê~~!", 5f, "Tiếng mở cửa");
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng mở cửa");
+        }
+
         OnVeChaiArrived?.Invoke();
     }
 
@@ -80,6 +89,14 @@ public class VeChaiSystem : MonoBehaviour
 
         economy.SpendCash(buyPrice);
         _currentOfferings.Remove(itemName);
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Chú Ve Chai", $"Đã bán {itemName} cho chú với giá {buyPrice:N0} đ nha!", 3f, "Tiếng thanh toán");
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng thanh toán");
+        }
         OnItemPurchased?.Invoke(itemName);
         return true;
     }
@@ -100,6 +117,17 @@ public class VeChaiSystem : MonoBehaviour
 
         float sellPrice = basePrice * sellPriceMultiplier * qualityMultiplier;
         economy.AddCash(sellPrice);
+        if (sellPrice > 0)
+        {
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Chú Ve Chai", $"Món {itemName} sửa ngon đấy, chú mua lại {sellPrice:N0} đ!", 3f, "Tiếng thanh toán");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng thanh toán");
+            }
+        }
         OnItemSold?.Invoke(itemName, sellPrice);
     }
 
@@ -108,6 +136,18 @@ public class VeChaiSystem : MonoBehaviour
     /// </summary>
     public void DismissVeChai()
     {
+        if (_veChaiAvailable)
+        {
+            if (SubtitleManager.Instance != null)
+            {
+                SubtitleManager.Instance.ShowSubtitle("Chú Ve Chai", "Không ai mua bán gì à, tui đạp xe qua hẻm khác đây~~", 3f, "Tiếng đóng cửa");
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX("Tiếng đóng cửa");
+            }
+        }
+
         _veChaiAvailable = false;
         _currentOfferings.Clear();
         OnVeChaiLeft?.Invoke();

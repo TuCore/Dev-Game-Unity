@@ -4,6 +4,16 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
-  m_configObjects: {}
+  m_Scenes:
+  - enabled: 1
+    path: Assets/_Project/Scenes/Menu/MainMenu.unity
+    guid: bb7dcc31d10632d4795e8be05c2ef923
+  - enabled: 1
+    path: Assets/_Project/Scenes/Gameplay/Shop_Main.unity
+    guid: bddca72b43a74284b81aad14ba448f38
+  - enabled: 1
+    path: Assets/_Project/Scenes/Gameplay/VietnamStreet.unity
+    guid: 068e24914f1773543b080422ff433780
+  m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
   m_UseUCBPForAssetBundles: 0
