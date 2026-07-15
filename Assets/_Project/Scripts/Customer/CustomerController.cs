@@ -267,13 +267,13 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     public string GetInteractionPrompt()
     {
-        if (currentState == CustomerState.WaitingToNegotiate && !hasInteracted) 
+        if ((currentState == CustomerState.WaitingToNegotiate || currentState == CustomerState.Visiting) && !hasInteracted) 
         {
             string npcName = archetype != null ? archetype.archetypeName : "Khách hàng";
             return $"Nói chuyện với {npcName}";
         }
         
-        if (currentState == CustomerState.WaitingForPickup && !hasInteracted)
+        if ((currentState == CustomerState.WaitingForPickup || currentState == CustomerState.ReturningForPickup) && !hasInteracted)
             return $"Trả đồ cho {(archetype != null ? archetype.archetypeName : "Khách hàng")}";
             
         return "";
@@ -283,12 +283,12 @@ public class CustomerController : MonoBehaviour, IInteractable
     {
         if (hasInteracted) return;
 
-        if (currentState == CustomerState.WaitingToNegotiate)
+        if (currentState == CustomerState.WaitingToNegotiate || currentState == CustomerState.Visiting)
         {
             hasInteracted = true;
             StartNegotiation();
         }
-        else if (currentState == CustomerState.WaitingForPickup)
+        else if (currentState == CustomerState.WaitingForPickup || currentState == CustomerState.ReturningForPickup)
         {
             hasInteracted = true;
             ProcessPickup();
@@ -357,7 +357,7 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void AcceptOrder(string itemName, int apptDay, float apptHour)
     {
-        currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, 1, _selectedBasePay, apptDay, apptHour);
+        currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, _selectedDifficulty, _selectedBasePay, apptDay, apptHour);
         
         if (_selectedItemPrefab != null && itemDropPoint != null)
         {
@@ -367,6 +367,7 @@ public class CustomerController : MonoBehaviour, IInteractable
             {
                 repairable.linkedOrder = currentOrder;
                 repairable.SetRandomizedProperties(_selectedMinigame, _selectedDifficulty, _selectedBasePay);
+                Debug.Log($"[CustomerController] Repair profile: minigame={_selectedMinigame}, difficulty={_selectedDifficulty}, requiredParts={repairable.GetRequiredPartsText()}, reward={_selectedBasePay}");
                 Debug.Log($"[CustomerController] Đã tạo món đồ. Minigame: {_selectedMinigame}, Độ khó: {_selectedDifficulty}, Giá: {_selectedBasePay}");
             }
         }

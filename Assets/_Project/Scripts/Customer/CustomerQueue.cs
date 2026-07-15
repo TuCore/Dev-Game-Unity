@@ -49,6 +49,7 @@ public class CustomerQueue : MonoBehaviour
 
         _activeOrders.Add(order);
         OnCustomerArrived?.Invoke(order);
+        TaskManager.EnsureInstance().NotifyOrderAccepted(order);
         
         if (ToastNotificationManager.Instance != null)
         {
@@ -71,6 +72,7 @@ public class CustomerQueue : MonoBehaviour
         if (_activeOrders.Remove(order))
         {
             OnOrderCompleted?.Invoke(order);
+            TaskManager.EnsureInstance().NotifyOrderReturned(order);
             if (SubtitleManager.Instance != null)
             {
                 SubtitleManager.Instance.ShowSubtitle("Khách Hàng", "Sửa kỹ ghê, máy chạy êm ru! Gửi anh thêm chút tiền tip nha.", 4f, "Tiếng thanh toán");

@@ -12,9 +12,12 @@ namespace AnhThoDien.UI.HUD
         [Header("Crosshair Settings")]
         [SerializeField] private float dotSize = 6f;
         [SerializeField] private Color dotColor = new Color(1f, 1f, 1f, 0.85f);
+        [SerializeField] private float targetDotSize = 11f;
+        [SerializeField] private Color targetDotColor = new Color(0.25f, 1f, 0.55f, 1f);
         [SerializeField] private bool createOnAwake = true;
 
         private Image _crosshairImage;
+        private RectTransform _crosshairRect;
 
         private void Awake()
         {
@@ -51,6 +54,7 @@ namespace AnhThoDien.UI.HUD
             dotObj.transform.SetParent(this.transform, false);
 
             RectTransform rect = dotObj.GetComponent<RectTransform>();
+            _crosshairRect = rect;
             // Căn giữa tuyệt đối
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -77,6 +81,25 @@ namespace AnhThoDien.UI.HUD
         }
 
         // Khử răng cưa và vẽ một hình tròn mềm mại bằng code
+        public void SetTargeting(bool isTargeting)
+        {
+            if (_crosshairImage == null)
+            {
+                CreateCrosshair();
+            }
+
+            if (_crosshairImage != null)
+            {
+                _crosshairImage.color = isTargeting ? targetDotColor : dotColor;
+            }
+
+            if (_crosshairRect != null)
+            {
+                float size = isTargeting ? targetDotSize : dotSize;
+                _crosshairRect.sizeDelta = new Vector2(size, size);
+            }
+        }
+
         private Sprite CreateCircleSprite(int size)
         {
             Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
