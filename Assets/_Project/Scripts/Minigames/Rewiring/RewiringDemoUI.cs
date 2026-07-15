@@ -58,6 +58,7 @@ public class RewiringDemoUI : MonoBehaviour
     private Quaternion _savedPlayerRotation;
     private Quaternion _savedCameraLocalRotation;
     private bool _hasSavedPlayerPose = false;
+    private bool _isAutoCompleting = false;
 
     public class DemoTerminalElement : MonoBehaviour
     {
@@ -202,6 +203,7 @@ public class RewiringDemoUI : MonoBehaviour
     public void ShowUI(bool show)
     {
         UpdateIsolatedOffset();
+        if (show) _isAutoCompleting = false;
         if (Application.isPlaying && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
         {
             if (show)
@@ -214,7 +216,6 @@ public class RewiringDemoUI : MonoBehaviour
             }
         }
 
-        gameObject.SetActive(show);
         if (_mainCamera != null && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
         {
             _mainCamera.transform.position = _isolatedOffset + new Vector3(0, 0, -10f);
@@ -225,6 +226,7 @@ public class RewiringDemoUI : MonoBehaviour
             Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = show;
         }
+        gameObject.SetActive(show);
     }
 
     private void SavePlayerPose()
@@ -1022,6 +1024,12 @@ public class RewiringDemoUI : MonoBehaviour
         {
             SubtitleManager.Instance.ShowSubtitle("Minigame Nối Dây", $"Đã kết nối dây màu [{startElem.data.Color}]!", 1.5f);
         }
+
+        if (_controller != null && _controller.IsActive && _controller.AreAllTerminalsConnected() && !_isAutoCompleting)
+        {
+            _isAutoCompleting = true;
+            StartCoroutine(AutoCheckQualityAndComplete(1.2f));
+        }
     }
 
     private void BuildWireHolder(DemoWireElement wireElem, List<Vector2Int> cellPath, List<Vector2> worldPoints)
@@ -1315,6 +1323,7 @@ public class RewiringDemoUI : MonoBehaviour
         }
         _terminals.Clear();
         _resultText = "";
+        _isAutoCompleting = false;
 
         SetupGridBoardParameters(difficulty);
         SetupGridVisuals();
@@ -1386,7 +1395,7 @@ public class RewiringDemoUI : MonoBehaviour
         obj.transform.SetParent(this.transform);
         obj.transform.position = new Vector3(worldPos.x, worldPos.y, _isolatedOffset.z);
 
-        float cylScale = Mathf.Min(_cellWidth, _cellHeight) * 0.62f;
+        float cylScale = Mathf.Min(_cellWidth, _cellHeight) * 0.48f;
 
         CircleCollider2D col = obj.AddComponent<CircleCollider2D>();
         col.radius = cylScale * 0.55f;
@@ -1456,33 +1465,40 @@ public class RewiringDemoUI : MonoBehaviour
     {
         InitGUIStyles();
 
+        // Tự động co giãn theo tỷ lệ màn hình (chuẩn 1080p)
+        float scale = Mathf.Clamp(Screen.height / 1080f, 0.5f, 1.5f);
+        Matrix4x4 oldMatrix = GUI.matrix;
+        GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1f));
+
+        float vWidth = Screen.width / scale;
+        float vHeight = Screen.height / scale;
+
         // Top Banner (Ngắn gọn và súc tích)
-        GUI.Box(new Rect(0, 0, Screen.width, 56), "", _titleStyle);
-        GUI.Label(new Rect(0, 8, Screen.width, 40), "Minigame nối dây", _titleStyle);
+        GUI.Box(new Rect(0, 0, vWidth, 40), "", _titleStyle);
+        GUI.Label(new Rect(0, 6, vWidth, 28), "Minigame nối dây", _titleStyle);
 
         // Nút Hướng dẫn chơi ở góc phải Top Banner
-        if (GUI.Button(new Rect(Screen.width - 235, 8, 220, 40), "❓ HƯỚNG DẪN CHƠI", _buttonStyle))
+        if (GUI.Button(new Rect(vWidth - 190, 6, 175, 28), "❓ HƯỚNG DẪN CHƠI", _buttonStyle))
         {
             _showGuide = !_showGuide;
         }
 
         // Bottom Buttons
-        float btnWidth = 270;
-        float btnHeight = 54;
-        float bottomY = Screen.height - 72f;
-        float centerX = Screen.width / 2f;
+        float btnHeight = 38;
+        float bottomY = vHeight - 52f;
+        float centerX = vWidth / 2f;
 
-        if (GUI.Button(new Rect(centerX - 350, bottomY, 180, btnHeight), "↩ UNDO (Lùi)", _buttonStyle))
+        if (GUI.Button(new Rect(centerX - 275, bottomY, 135, btnHeight), "↩ UNDO (Lùi)", _buttonStyle))
         {
             OnUndoClicked();
         }
 
-        if (GUI.Button(new Rect(centerX - 155, bottomY, 310, btnHeight), "★ KIỂM TRA CHẤT LƯỢNG ★", _buttonStyle))
+        if (GUI.Button(new Rect(centerX - 125, bottomY, 250, btnHeight), "★ KIỂM TRA CHẤT LƯỢNG ★", _buttonStyle))
         {
             OnCheckQualityClicked();
         }
 
-        if (GUI.Button(new Rect(centerX + 170, bottomY, 180, btnHeight), "🗑 RESET (Xóa)", _buttonStyle))
+        if (GUI.Button(new Rect(centerX + 140, bottomY, 135, btnHeight), "🗑 RESET (Xóa)", _buttonStyle))
         {
             OnResetClicked();
         }
@@ -1490,14 +1506,16 @@ public class RewiringDemoUI : MonoBehaviour
         // Result Popup (đặt phía trên cụm nút action bottomY)
         if (!string.IsNullOrEmpty(_resultText))
         {
-            GUI.Box(new Rect(Screen.width * 0.12f, bottomY - 76, Screen.width * 0.76f, 66), _resultText, _resultStyle);
+            GUI.Box(new Rect(vWidth * 0.15f, bottomY - 76, vWidth * 0.70f, 66), _resultText, _resultStyle);
         }
 
         // Hiển thị Cửa sổ Hướng dẫn chơi (Tutorial Modal) trên cùng nếu đang bật
         if (_showGuide)
         {
-            DrawGuideModal();
+            DrawGuideModal(vWidth, vHeight);
         }
+
+        GUI.matrix = oldMatrix;
     }
 
     private void OnUndoClicked()
@@ -1589,6 +1607,23 @@ public class RewiringDemoUI : MonoBehaviour
             if (_controller != null && _controller.IsActive && Application.isPlaying)
             {
                 StartCoroutine(CompleteGameplayAfterDelay(quality, 1.8f));
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator AutoCheckQualityAndComplete(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (_controller != null && _controller.IsActive)
+        {
+            RepairQuality quality = _controller.EvaluateRewiringQuality();
+            if (quality != RepairQuality.Broken)
+            {
+                if (SubtitleManager.Instance != null)
+                {
+                    SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Hoàn thành)", $"Hoàn tất nối dây! Đánh giá: {quality}", 2.0f);
+                }
+                StartCoroutine(CompleteGameplayAfterDelay(quality, 1.2f));
             }
         }
     }
@@ -1718,7 +1753,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _titleStyle = new GUIStyle(GUI.skin.box)
         {
-            fontSize = 28,
+            fontSize = 18,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1726,7 +1761,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 22,
+            fontSize = 16,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1734,14 +1769,14 @@ public class RewiringDemoUI : MonoBehaviour
 
         _buttonStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 18,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
 
         _labelStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 16,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true
@@ -1749,7 +1784,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _resultStyle = new GUIStyle(GUI.skin.box)
         {
-            fontSize = 22,
+            fontSize = 15,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true,
@@ -1762,7 +1797,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideTitleStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 35,
+            fontSize = 18,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true,
@@ -1772,7 +1807,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideBodyStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 30,
+            fontSize = 14,
             fontStyle = FontStyle.Normal,
             alignment = TextAnchor.UpperLeft,
             richText = true,
@@ -1782,7 +1817,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideCloseBtnStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 32,
+            fontSize = 15,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1794,7 +1829,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideArrowBtnStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 46,
+            fontSize = 22,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1802,7 +1837,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guidePageIndicatorStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 32,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true
@@ -1819,28 +1854,28 @@ public class RewiringDemoUI : MonoBehaviour
         return result;
     }
 
-    private void DrawGuideModal()
+    private void DrawGuideModal(float vWidth, float vHeight)
     {
         // Nền tối mờ bao phủ toàn màn hình
         GUI.color = new Color(0, 0, 0, 0.85f);
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(0, 0, vWidth, vHeight), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float popupW = Mathf.Min(1650f, Screen.width * 0.90f);
-        float popupH = Mathf.Min(980f, Screen.height * 0.92f);
-        float popupX = (Screen.width - popupW) / 2f;
-        float popupY = (Screen.height - popupH) / 2f;
+        float popupW = Mathf.Min(980f, vWidth * 0.86f);
+        float popupH = Mathf.Min(620f, vHeight * 0.88f);
+        float popupX = (vWidth - popupW) / 2f;
+        float popupY = (vHeight - popupH) / 2f;
 
         GUI.Box(new Rect(popupX, popupY, popupW, popupH), "", _popupWindowStyle);
 
         // Nút mũi tên chuyển trang (Side Arrow navigation like sketch)
-        float arrowW = 90f;
-        float arrowH = 180f;
-        float arrowY = popupY + (popupH - arrowH) / 2f - 40f;
+        float arrowW = 55f;
+        float arrowH = 110f;
+        float arrowY = popupY + (popupH - arrowH) / 2f - 20f;
 
         if (_guidePageIndex > 0)
         {
-            if (GUI.Button(new Rect(popupX - arrowW - 15f, arrowY, arrowW, arrowH), "◀", _guideArrowBtnStyle))
+            if (GUI.Button(new Rect(popupX - arrowW - 10f, arrowY, arrowW, arrowH), "◀", _guideArrowBtnStyle))
             {
                 _guidePageIndex--;
             }
@@ -1848,7 +1883,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         if (_guidePageIndex < 3)
         {
-            if (GUI.Button(new Rect(popupX + popupW + 15f, arrowY, arrowW, arrowH), "▶", _guideArrowBtnStyle))
+            if (GUI.Button(new Rect(popupX + popupW + 10f, arrowY, arrowW, arrowH), "▶", _guideArrowBtnStyle))
             {
                 _guidePageIndex++;
             }
@@ -1861,18 +1896,18 @@ public class RewiringDemoUI : MonoBehaviour
         else if (_guidePageIndex == 2) pageTitle = "BƯỚC 3/4 : CẦU VƯỢT GỐM (BRIDGE) - KHUNG CHỮ THẬP";
         else if (_guidePageIndex == 3) pageTitle = "BƯỚC 4/4 : CHƯỚNG NGẠI VẬT & CÔNG CỤ HỖ TRỢ";
 
-        GUI.Label(new Rect(popupX + 25f, popupY + 18f, popupW - 50f, 95f), $"📖 HƯỚNG DẪN CHƠI - {pageTitle}", _guideTitleStyle);
+        GUI.Label(new Rect(popupX + 25f, popupY + 12f, popupW - 50f, 38f), $"📖 HƯỚNG DẪN CHƠI - {pageTitle}", _guideTitleStyle);
 
         // Khung "Ảnh minh họa" (Top Illustration Box like sketch)
-        float illusX = popupX + 50f;
-        float illusY = popupY + 118f;
-        float illusW = popupW - 100f;
-        float illusH = popupH * 0.42f;
+        float illusX = popupX + 35f;
+        float illusY = popupY + 52f;
+        float illusW = popupW - 70f;
+        float illusH = popupH * 0.45f;
         DrawSlideIllustration(_guidePageIndex, new Rect(illusX, illusY, illusW, illusH));
 
         // Nội dung mô tả ngắn gọn bên dưới ảnh minh họa (Bottom Text lines)
-        float descY = illusY + illusH + 20f;
-        float descH = popupH - (descY - popupY) - 150f;
+        float descY = illusY + illusH + 14f;
+        float descH = popupH - (descY - popupY) - 105f;
         
         string descText = "";
         if (_guidePageIndex == 0)
@@ -1907,13 +1942,13 @@ public class RewiringDemoUI : MonoBehaviour
             if (i == _guidePageIndex) dots += " <color=#00FF88><b>[ ● Trang " + (i + 1) + " ]</b></color> ";
             else dots += " <color=#888888>○ Trang " + (i + 1) + "</color> ";
         }
-        GUI.Label(new Rect(popupX, popupY + popupH - 152f, popupW, 48f), dots, _guidePageIndicatorStyle);
+        GUI.Label(new Rect(popupX, popupY + popupH - 92f, popupW, 30f), dots, _guidePageIndicatorStyle);
 
         // Nút THOÁT / XÁC NHẬN siêu rộng bên dưới cùng (Bottom Exit Button like sketch)
-        float btnW = Mathf.Min(680f, popupW - 140f);
-        float btnH = 68f;
+        float btnW = Mathf.Min(460f, popupW - 120f);
+        float btnH = 42f;
         float btnX = popupX + (popupW - btnW) / 2f;
-        float btnY = popupY + popupH - 94f;
+        float btnY = popupY + popupH - 56f;
 
         string btnText = _guidePageIndex < 3 ? "✔ ĐÃ HIỂU (THOÁT)" : "✔ ĐÃ HIỂU & BẮT ĐẦU CHƠI";
         if (GUI.Button(new Rect(btnX, btnY, btnW, btnH), btnText, _guideCloseBtnStyle))
@@ -1976,8 +2011,8 @@ public class RewiringDemoUI : MonoBehaviour
                                "<b>[■]</b> ━━━<color=#FF5555><b>[ X ]</b></color>━━━ <b>[■]</b> (Đè chéo!)\n\n\n" +
                                "<color=#FFC800>⚠ Dây Đỏ & Xanh cắt ngang ô thường\n⚠ Bị trừ điểm & tiền thưởng</color>";
 
-            GUI.Label(new Rect(rect.x, rect.y + 20f, halfW, rect.height - 25f), leftText, _guideBodyStyle);
-            GUI.Label(new Rect(rect.x + halfW, rect.y + 20f, halfW, rect.height - 25f), rightText, _guideBodyStyle);
+            GUI.Label(new Rect(rect.x + 15f, rect.y + 15f, halfW - 25f, rect.height - 25f), leftText, _guideBodyStyle);
+            GUI.Label(new Rect(rect.x + halfW + 15f, rect.y + 15f, halfW - 25f, rect.height - 25f), rightText, _guideBodyStyle);
         }
         else if (pageIndex == 2)
         {

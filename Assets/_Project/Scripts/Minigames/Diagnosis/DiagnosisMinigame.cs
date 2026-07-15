@@ -46,6 +46,7 @@ namespace Minigames.Diagnosis
         private int _currentProbes = 0;
         private bool _usedHint = false;
         private bool _isPlaying = false;
+        private bool _isFinishing = false;
 
         private void Awake()
         {
@@ -370,6 +371,8 @@ namespace Minigames.Diagnosis
         public void StartMinigame()
         {
             IsActive = true;
+            _isFinishing = false;
+            gameObject.SetActive(true);
             
             // Hiện UI minigame lên màn hình
             if (minigameBoardUI != null)
@@ -449,6 +452,13 @@ namespace Minigames.Diagnosis
                 {
                     AudioManager.Instance.PlaySFX("Tiếng báo hiệu-chính xác");
                 }
+
+                if (_faultsFound >= _totalFaultsToFind && !_isFinishing)
+                {
+                    _isFinishing = true;
+                    LockAllNodes();
+                    StartCoroutine(AutoFinishCoroutine(1.5f));
+                }
             }
             else
             {
@@ -492,11 +502,13 @@ namespace Minigames.Diagnosis
                 }
             }
 
-            // Nếu đạt giới hạn số lần đo, khóa toàn bộ các Node lại
-            if (maxProbesAllowed > 0 && _currentProbes >= maxProbesAllowed)
+            // Nếu đạt giới hạn số lần đo, khóa toàn bộ các Node lại và tự động kết thúc
+            if (maxProbesAllowed > 0 && _currentProbes >= maxProbesAllowed && !_isFinishing)
             {
+                _isFinishing = true;
                 Debug.Log("<color=orange>[Diagnosis] Đã hết lượt đo! Khóa bảng mạch.</color>");
                 LockAllNodes();
+                StartCoroutine(AutoFinishCoroutine(1.8f));
             }
         }
 
@@ -509,6 +521,15 @@ namespace Minigames.Diagnosis
                     var btn = node.GetComponent<UnityEngine.UI.Button>();
                     if (btn != null) btn.interactable = false;
                 }
+            }
+        }
+
+        private System.Collections.IEnumerator AutoFinishCoroutine(float delay)
+        {
+            yield return new UnityEngine.WaitForSeconds(delay);
+            if (IsActive && _isPlaying)
+            {
+                FinishDiagnosis();
             }
         }
 
@@ -543,6 +564,7 @@ namespace Minigames.Diagnosis
             
             Debug.Log($"[Diagnosis] Kết thúc khám. Đánh giá: {quality}. Thời gian: {_timeElapsed:F1}s");
             OnMinigameCompleted?.Invoke(quality);
+            gameObject.SetActive(false);
         }
 
         public RepairQuality EndMinigame()
@@ -566,6 +588,7 @@ namespace Minigames.Diagnosis
 
             Debug.Log($"[Diagnosis] Kết thúc khám. Đánh giá: {quality}. Thời gian: {_timeElapsed:F1}s");
             OnMinigameCompleted?.Invoke(quality);
+            gameObject.SetActive(false);
 
             return quality;
         }

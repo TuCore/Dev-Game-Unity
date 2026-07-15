@@ -95,10 +95,58 @@ public class RepairableItem : MonoBehaviour
             if (minigameToPlay == MinigameType.Soldering)
             {
                 targetMinigame = FindObjectOfType<SolderingMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject prefab = Resources.Load<GameObject>("Prefabs/Minigames/Soldering/SolderingMinigamePrefab");
+#if UNITY_EDITOR
+                    if (prefab == null)
+                    {
+                        string[] possiblePaths = {
+                            "Assets/_Project/Prefabs/Minigames/Soldering/SolderingMinigamePrefab.prefab",
+                            "Assets/_Project/Prefabs/Minigames/SolderingMinigamePrefab.prefab"
+                        };
+                        foreach (var path in possiblePaths)
+                        {
+                            prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                            if (prefab != null) break;
+                        }
+                    }
+#endif
+                    if (prefab != null)
+                    {
+                        GameObject instance = Instantiate(prefab);
+                        instance.name = "SolderingMinigame_Root";
+                        targetMinigame = instance.GetComponentInChildren<SolderingMinigame>(true);
+                        if (targetMinigame != null && targetMinigame is MonoBehaviour mb)
+                        {
+                            mb.gameObject.SetActive(false);
+                        }
+                    }
+                }
             }
             else if (minigameToPlay == MinigameType.Diagnosis)
             {
                 targetMinigame = FindObjectOfType<DiagnosisMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject prefab = Resources.Load<GameObject>("Prefabs/Minigames/Diagnosis/DiagnosisMinigamePrefab");
+#if UNITY_EDITOR
+                    if (prefab == null)
+                    {
+                        prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/Minigames/Diagnosis/DiagnosisMinigamePrefab.prefab");
+                    }
+#endif
+                    if (prefab != null)
+                    {
+                        GameObject instance = Instantiate(prefab);
+                        instance.name = "DiagnosisMinigame_Root";
+                        targetMinigame = instance.GetComponentInChildren<DiagnosisMinigame>(true);
+                        if (targetMinigame != null && targetMinigame is MonoBehaviour mb)
+                        {
+                            mb.gameObject.SetActive(false);
+                        }
+                    }
+                }
             }
             else if (minigameToPlay == MinigameType.Rewiring)
             {
