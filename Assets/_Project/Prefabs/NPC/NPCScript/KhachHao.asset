@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55857ac605242aa459303e98238b9212, type: 3}
+  m_Name: KhachHao
+  m_EditorClassIdentifier: Assembly-CSharp::NPCArchetype
+  archetypeName: 
+  description: 
+  requiredReputation: 0
+  greetingDialogues:
+  - "\xD4ng ch\u1EE7 xem v\u1EDBt v\xE1t \u0111\u01B0\u1EE3c c\xE1i \u0111\u1ED1ng
+    n\xE0y kh\xF4ng, ch\u1EE9 t\xF4i l\xE0 t\xF4i mu\u1ED1n n\xE9m cho \u0111\u1ED3ng
+    n\xE1t l\u1EAFm r\u1ED3i."
+  satisfiedDialogues:
+  - "M\xE1y ch\u1EA1y \xEAm ru! Tay ngh\u1EC1 s\u1EBFp v\u1EABn x\u1ECBn nh\u01B0
+    ng\xE0y n\xE0o, c\u1EA7m ti\u1EC1n \u0111i nh\u1EADu nha!"
+  unsatisfiedDialogues:
+  - "H\u1EB9n m\u1EA5y ng\xE0y r\u1ED3i m\xE0 gi\u1EDD ra v\u1EABn ch\u01B0a \u0111\u1EE5ng
+    t\u1EDBi l\xE0 sao? L\xE0m \u0103n ch\xE1n qu\xE1, tr\u1EA3 \u0111\u1ED3 \u0111\xE2y
+    tui \u0111em ti\u1EC7m kh\xE1c!"
+  leavingDialogues:
+  - "B\xE1o gi\xE1 \u1EA3o \xE0? Ti\u1EC1n c\xF4ng s\u1EEDa ch\u1EEBng n\xE0y th\xE0
+    th\xEAm v\xE0i \u0111\u1ED3ng mua m\xE1y m\u1EDBi c\xF2n h\u01A1n. Ch\xE0o s\u1EBFp!"
+  personality: 1
+  canNegotiatePrice: 0
+  tipMultiplier: 1
+  patienceMultiplier: 1
+  preferredItems: []

@@ -10,7 +10,8 @@ public enum CustomerState
     WaitingToNegotiate,
     Leaving,
     ReturningForPickup,
-    WaitingForPickup
+    WaitingForPickup,
+    AmbientWalking
 }
 
 [RequireComponent(typeof(NavMeshAgent))]
@@ -32,39 +33,71 @@ public class CustomerController : MonoBehaviour, IInteractable
     private NavMeshAgent agent;
     private Animator animator;
     private CustomerOrder currentOrder;
-    private CustomerState currentState = CustomerState.Wandering;
+    public CustomerState currentState = CustomerState.Wandering;
     private bool hasInteracted = false;
     
-    // Configurable wandering points around the street
-    private Transform[] wanderPoints;
+    private Transform ambientPointA;
+    private Transform ambientPointB;
+    
+    // Queue static list để xếp hàng
+    public static List<CustomerController> storeLine = new List<CustomerController>();
+
+    private Vector3 originalBodyScale;
+    private int wanderCount = 0; // Số điểm muốn đi dạo trước khi vào tiệm
+
+    private Vector3 approachOffset;
+    private bool hasConvergedToQueue = false;
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponentInChildren<Animator>();
+        if (animator != null)
+        {
+            originalBodyScale = animator.transform.localScale;
+            animator.applyRootMotion = false; // TẮT CHẶN: Tránh Animator dành quyền di chuyển gây teleport
+        }
+        
+        if (agent != null)
+        {
+            agent.updateRotation = false; // TẮT CHẶN: Để script tự xoay mặt (chống moonwalk do NavMeshAgent)
+        }
+
+        // TẮT CHẶN: Đảm bảo Rigidbody không đánh lộn với NavMeshAgent gây văng tung tóe (teleport)
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+        }
     }
 
     private void Start()
     {
-        // Tăng stopping distance để NPC không dồn cục
-        agent.stoppingDistance = 1.5f;
-        agent.avoidancePriority = Random.Range(30, 70); // Mỗi NPC ưu tiên tránh nhau khác nhau
+        agent.stoppingDistance = 0.5f;
+        agent.avoidancePriority = Random.Range(30, 70); 
         
-        // Default to visiting for now if spawned specifically for store
-        // If it's a returning customer, the Spawner will override this state.
-        if (currentState != CustomerState.ReturningForPickup)
+        // Tạo một góc tiếp cận ngẫu nhiên (rộng 8m) để khách đi từ xa không bị trùng đường
+        Vector2 randCircle = Random.insideUnitCircle * 8f;
+        approachOffset = new Vector3(randCircle.x, 0, randCircle.y);
+
+        if (currentState != CustomerState.ReturningForPickup && currentState != CustomerState.AmbientWalking)
         {
-            // Tạm thời để 100% khách vào tiệm để dễ test
-            if (Random.value > -1f) // Bỏ cái 50% đi
-            {
-                currentState = CustomerState.Visiting;
-                if (counterTarget != null)
-                {
-                    // Thêm offset ngẫu nhiên để NPC không đứng chồng lên nhau
-                    Vector3 offset = new Vector3(Random.Range(-2f, 2f), 0, Random.Range(-1f, 1f));
-                    agent.SetDestination(counterTarget.position + offset);
-                }
-            }
+            currentState = CustomerState.Wandering;
+            wanderCount = Random.Range(2, 6); // Đi dạo từ 2 đến 5 điểm trước khi vào tiệm
+            PickRandomWanderPoint();
+        }
+    }
+
+    private void PickRandomWanderPoint()
+    {
+        // Đi dạo ngẫu nhiên trong bán kính 10m xung quanh vị trí hiện tại
+        Vector2 randomCircle = Random.insideUnitCircle * 10f;
+        Vector3 randomWander = transform.position + new Vector3(randomCircle.x, 0, randomCircle.y);
+        
+        UnityEngine.AI.NavMeshHit hit;
+        if (UnityEngine.AI.NavMesh.SamplePosition(randomWander, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            if (agent != null) agent.SetDestination(hit.position);
         }
     }
 
@@ -72,33 +105,164 @@ public class CustomerController : MonoBehaviour, IInteractable
     {
         this.currentOrder = order;
         this.currentState = CustomerState.ReturningForPickup;
-        if (counterTarget != null) agent.SetDestination(counterTarget.position);
+        if (!storeLine.Contains(this)) storeLine.Add(this);
+    }
+
+    public void SetAmbientWalker(Transform pointA, Transform pointB, bool startAtA)
+    {
+        this.currentState = CustomerState.AmbientWalking;
+        this.ambientPointA = pointA;
+        this.ambientPointB = pointB;
+        this.exitTarget = startAtA ? pointB : pointA;
+        
+        if (agent != null) 
+        {
+            // Tạo đích đến ngẫu nhiên trong bán kính 8 mét quanh điểm chốt để đi thành nhiều làn khác nhau
+            Vector2 randomCircle = Random.insideUnitCircle * 8f;
+            Vector3 randomOffset = new Vector3(randomCircle.x, 0, randomCircle.y);
+            
+            Vector3 finalTargetPos = this.exitTarget.position;
+            if (UnityEngine.AI.NavMesh.SamplePosition(this.exitTarget.position + randomOffset, out UnityEngine.AI.NavMeshHit hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                finalTargetPos = hit.position;
+            }
+            agent.SetDestination(finalTargetPos);
+        }
     }
 
     private void Update()
     {
-        // Xử lý dừng animation (Moonwalk)
         if (animator != null)
         {
-            if (agent.velocity.magnitude > 0.1f) animator.speed = 1f;
-            else animator.speed = 0f;
+            if (agent.velocity.magnitude > 0.1f) 
+            {
+                animator.speed = 1f;
+                animator.transform.localScale = originalBodyScale; // Reset khi đi
+                
+                // Ép NPC luôn quay mặt về hướng nó đang di chuyển (chống lỗi đi lùi / moonwalk)
+                if (agent.velocity.sqrMagnitude > 0.01f)
+                {
+                    // Dùng steeringTarget (điểm đến tiếp theo) thay vì velocity để chống bị rung giật (jitter)
+                    Vector3 moveDirection = (agent.steeringTarget - transform.position).normalized;
+                    moveDirection.y = 0; // Giữ cho không bị ngửa mặt lên trời
+                    if (moveDirection != Vector3.zero)
+                    {
+                        Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
+                    }
+                }
+            }
+            else 
+            {
+                animator.speed = 0f;
+                // Hiệu ứng "thở" (co giãn nhẹ) khi đứng yên, chỉ scale phần thân (animator) để không bị lỗi xuyên tường
+                float breathe = Mathf.Sin(Time.time * 3f) * 0.015f;
+                animator.transform.localScale = originalBodyScale + new Vector3(breathe, breathe, breathe);
+            }
         }
 
         if (agent.pathPending) return;
 
-        // Tăng khoảng cách dừng để khách không bị kẹt vào bàn
-        if (currentState == CustomerState.Visiting && (!agent.pathPending && agent.remainingDistance <= 1.5f))
+        if (currentState == CustomerState.Wandering)
         {
-            currentState = CustomerState.WaitingToNegotiate;
+            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+            {
+                wanderCount--;
+                if (wanderCount <= 0)
+                {
+                    // Đi dạo chán rồi, rẽ vào tiệm thôi!
+                    currentState = CustomerState.Visiting;
+                    if (!storeLine.Contains(this)) storeLine.Add(this);
+                }
+                else
+                {
+                    // Đi dạo tiếp điểm khác
+                    PickRandomWanderPoint();
+                }
+            }
         }
-        else if (currentState == CustomerState.ReturningForPickup && agent.remainingDistance <= agent.stoppingDistance)
+        else if (currentState == CustomerState.Visiting || currentState == CustomerState.ReturningForPickup)
         {
-            currentState = CustomerState.WaitingForPickup;
+            UpdateQueuePosition();
+            
+            // Chỉ tương tác nếu đứng đầu hàng
+            if (storeLine.IndexOf(this) == 0 && agent.remainingDistance <= 1.5f)
+            {
+                currentState = (currentState == CustomerState.Visiting) ? CustomerState.WaitingToNegotiate : CustomerState.WaitingForPickup;
+            }
         }
-        else if (currentState == CustomerState.Leaving && agent.remainingDistance <= agent.stoppingDistance)
+        else if (currentState == CustomerState.AmbientWalking)
         {
-            Destroy(gameObject); // Khách rời khỏi màn hình
+            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+            {
+                // Quay đầu đi ngược lại!
+                if (ambientPointA != null && ambientPointB != null)
+                {
+                    // Quay đầu đi thẳng về điểm kia
+                    this.exitTarget = (this.exitTarget == ambientPointA) ? ambientPointB : ambientPointA;
+                    
+                    Vector2 randomCircle = Random.insideUnitCircle * 8f;
+                    Vector3 randomOffset = new Vector3(randomCircle.x, 0, randomCircle.y);
+                    
+                    Vector3 finalTargetPos = this.exitTarget.position;
+                    if (UnityEngine.AI.NavMesh.SamplePosition(this.exitTarget.position + randomOffset, out UnityEngine.AI.NavMeshHit hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        finalTargetPos = hit.position;
+                    }
+                    agent.SetDestination(finalTargetPos);
+                }
+            }
         }
+        else if (currentState == CustomerState.Leaving && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void UpdateQueuePosition()
+    {
+        if (counterTarget == null) return;
+
+        int myIndex = storeLine.IndexOf(this);
+        if (myIndex == -1) 
+        {
+            storeLine.Add(this);
+            myIndex = storeLine.Count - 1;
+        }
+
+        // Xếp hàng lùi về phía sau (ngược hướng nhìn của counter) cách nhau 1.5m
+        Vector3 queueOffset = -counterTarget.forward * (myIndex * 1.5f);
+        
+        // Tránh bị dính vào tường (nếu quầy gần tường)
+        UnityEngine.AI.NavMeshHit hit;
+        if (UnityEngine.AI.NavMesh.Raycast(counterTarget.position, counterTarget.position + queueOffset, out hit, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            // Nếu bị vướng tường, xếp dạt sang ngang (right)
+            queueOffset = counterTarget.right * (myIndex * 1.5f);
+        }
+
+        Vector3 exactQueuePos = counterTarget.position + queueOffset;
+
+        // Nếu khách còn đang ở xa (hơn 10m) thì đi vào điểm lệch (approachOffset) để tản ra nhiều đường
+        if (!hasConvergedToQueue && Vector3.Distance(transform.position, exactQueuePos) > 10f)
+        {
+            Vector3 approachPos = exactQueuePos + approachOffset;
+            if (UnityEngine.AI.NavMesh.SamplePosition(approachPos, out UnityEngine.AI.NavMeshHit hitSample, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                agent.SetDestination(hitSample.position);
+            }
+        }
+        else
+        {
+            // Đã tới gần tiệm, bắt đầu đi thẳng vào hàng ngay ngắn
+            hasConvergedToQueue = true;
+            agent.SetDestination(exactQueuePos);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (storeLine.Contains(this)) storeLine.Remove(this);
     }
 
     public string GetInteractionPrompt()
@@ -170,7 +334,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         int apptDay = currentHour > 15f ? currentDay + 1 : currentDay;
         float apptHour = currentHour > 15f ? 10f : currentHour + 4f;
 
-        string offer = $"Anh sửa món {itemName} này giúp tôi. Tôi gửi {_selectedBasePay:N0} đ. Lúc {apptHour:00}:00 ngày {apptDay} tôi quay lại lấy nhé.";
+        string offer = $"Bác thợ xem giúp em con {itemName} này. Công cán gửi bác {_selectedBasePay:N0} đ. Cứ thong thả làm, đến {apptHour:00}:00 ngày {apptDay} em qua lấy hàng.";
         
         if (DialogueUI.Instance != null)
         {
@@ -298,6 +462,7 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void LeaveStore()
     {
+        if (storeLine.Contains(this)) storeLine.Remove(this);
         currentState = CustomerState.Leaving;
         hasInteracted = false;
         if (exitTarget != null)
