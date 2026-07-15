@@ -24,7 +24,7 @@ public class IntroSequenceController : MonoBehaviour
 
     [Header("Settings")]
     public float typeSpeed = 0.03f;
-    public string nextSceneName = "VietnamStreet";
+    public string nextSceneName = "Shop_Main";
 
     [Header("Dialogue Content")]
     public DialogueLine[] lines;
