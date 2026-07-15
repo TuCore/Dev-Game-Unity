@@ -138,6 +138,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCamera
   mouseSensitivity: 100
+  cameraHeight: 5
   playerBody: {fileID: 2389231495761638467}
   minigameManager: {fileID: 0}
 --- !u!114 &4462722112532780449
@@ -232,8 +233,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 5
+  runSpeed: 12
   gravity: -9.81
   jumpHeight: 1.5
+  footstepVolume: 0.85
+  footstepInterval: 0.42
   minigameManager: {fileID: 0}
   groundCheck: {fileID: 6957586973139033382}
   groundDistance: 0.4

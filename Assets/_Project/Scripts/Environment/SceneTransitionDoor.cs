@@ -10,6 +10,9 @@ public class SceneTransitionDoor : MonoBehaviour, IInteractable
     [Tooltip("Dòng chữ hiện lên khi chỉ chuột vào cửa")]
     [SerializeField] private string interactionPrompt = "Mở cửa ra phố";
 
+    [Tooltip("Dòng chữ hiện lên khi chuyển cảnh")]
+    [SerializeField] private string loadingMessage = "Đang đi tới chỗ làm...";
+
     public string GetInteractionPrompt()
     {
         return interactionPrompt;
@@ -24,7 +27,7 @@ public class SceneTransitionDoor : MonoBehaviour, IInteractable
                 AudioManager.Instance.PlaySFX("Tiếng mở cửa");
             }
             Debug.Log("[SceneTransitionDoor] Đang chuyển tới scene: " + targetSceneName);
-            LoadingScreenManager.LoadScene(targetSceneName);
+            LoadingScreenManager.LoadScene(targetSceneName, loadingMessage);
         }
         else
         {

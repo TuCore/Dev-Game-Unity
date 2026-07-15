@@ -3,7 +3,30 @@ using System.Collections.Generic;
 
 public class CustomerQueue : MonoBehaviour
 {
-    public static CustomerQueue Instance { get; private set; }
+    private static CustomerQueue _instance;
+    public static CustomerQueue Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindFirstObjectByType<CustomerQueue>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("CustomerQueue_Singleton");
+                    _instance = go.AddComponent<CustomerQueue>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            return _instance;
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void InitializeOnLoad()
+    {
+        var init = Instance;
+    }
 
     [Header("Cấu hình hàng đợi")]
     [SerializeField] private int maxSimultaneousCustomers = 3;
@@ -24,14 +47,18 @@ public class CustomerQueue : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) 
+        if (_instance != null && _instance != this) 
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
+            Destroy(this); // Chỉ huỷ component này, không huỷ gameObject (CustomerManager)
         }
         else 
         {
-            Destroy(gameObject);
+            _instance = this;
+            // Di chuyển component này ra khỏi CustomerManager nếu nó đang nằm trên đó
+            if (gameObject.name != "CustomerQueue_Singleton" && transform.parent == null)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
         }
     }
 

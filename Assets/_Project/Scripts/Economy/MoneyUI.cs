@@ -11,7 +11,7 @@ public class MoneyUI : MonoBehaviour
         _economy = GetComponent<EconomyManager>();
         if (_economy == null)
         {
-            _economy = FindObjectOfType<EconomyManager>();
+            _economy = FindFirstObjectByType<EconomyManager>();
         }
 
         if (_economy != null)
@@ -28,7 +28,7 @@ public class MoneyUI : MonoBehaviour
         }
         else
         {
-            canvas = FindObjectOfType<Canvas>();
+            canvas = FindFirstObjectByType<Canvas>();
         }
 
         if (canvas != null)
@@ -67,6 +67,15 @@ public class MoneyUI : MonoBehaviour
         {
             UpdateMoneyText(_economy.CurrentCash);
         }
+
+        MinigameManager.OnMinigameStartedGlobal += HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal += HandleMinigameCompleted;
+        SubscribeToMinigameManagerInstance();
+
+        if (IsMinigameCurrentlyActive())
+        {
+            if (_moneyText != null) _moneyText.gameObject.SetActive(false);
+        }
     }
 
     private float _lastCash = -1f;
@@ -89,7 +98,7 @@ public class MoneyUI : MonoBehaviour
 
     private void SpawnFloatingText(float amount)
     {
-        if (_moneyText == null) return;
+        if (_moneyText == null || !_moneyText.gameObject.activeInHierarchy) return;
 
         GameObject floatObj = new GameObject("FloatingText");
         floatObj.transform.SetParent(_moneyText.transform.parent, false);
@@ -126,13 +135,65 @@ public class MoneyUI : MonoBehaviour
         floatObj.AddComponent<FloatingTextAnim>();
     }
 
+    private void HandleMinigameStarted(IMinigame minigame)
+    {
+        if (_moneyText != null)
+        {
+            _moneyText.gameObject.SetActive(false);
+        }
+    }
+
+    private void HandleMinigameCompleted(RepairQuality quality)
+    {
+        if (_moneyText != null)
+        {
+            _moneyText.gameObject.SetActive(true);
+        }
+    }
+
+    private bool IsMinigameCurrentlyActive()
+    {
+        if (MinigameManager.Instance != null && MinigameManager.Instance.IsMinigameActive)
+        {
+            return true;
+        }
+        MinigameManager mm = FindFirstObjectByType<MinigameManager>();
+        return mm != null && mm.IsMinigameActive;
+    }
+
+    private void SubscribeToMinigameManagerInstance()
+    {
+        MinigameManager mm = MinigameManager.Instance != null ? MinigameManager.Instance : FindFirstObjectByType<MinigameManager>();
+        if (mm != null)
+        {
+            mm.OnMinigameStarted -= HandleMinigameStarted;
+            mm.OnMinigameStarted += HandleMinigameStarted;
+            mm.OnMinigameCompleted -= HandleMinigameCompleted;
+            mm.OnMinigameCompleted += HandleMinigameCompleted;
+        }
+    }
+
+    private void UnsubscribeFromMinigameManagerInstance()
+    {
+        MinigameManager mm = MinigameManager.Instance != null ? MinigameManager.Instance : FindFirstObjectByType<MinigameManager>();
+        if (mm != null)
+        {
+            mm.OnMinigameStarted -= HandleMinigameStarted;
+            mm.OnMinigameCompleted -= HandleMinigameCompleted;
+        }
+    }
+
     private void OnDestroy()
     {
         if (_economy != null)
         {
             _economy.OnCashChanged -= UpdateMoneyText;
         }
+        MinigameManager.OnMinigameStartedGlobal -= HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal -= HandleMinigameCompleted;
+        UnsubscribeFromMinigameManagerInstance();
     }
 }
 
 // Trigger recompile
+

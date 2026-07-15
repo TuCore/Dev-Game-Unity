@@ -19,16 +19,24 @@ MonoBehaviour:
   - "\xD4ng ch\u1EE7 xem v\u1EDBt v\xE1t \u0111\u01B0\u1EE3c c\xE1i \u0111\u1ED1ng
     n\xE0y kh\xF4ng, ch\u1EE9 t\xF4i l\xE0 t\xF4i mu\u1ED1n n\xE9m cho \u0111\u1ED3ng
     n\xE1t l\u1EAFm r\u1ED3i."
+  greetingAudioClips:
+  - {fileID: 8300000, guid: 1111111111111111111111111111aa04, type: 3}
   satisfiedDialogues:
   - "M\xE1y ch\u1EA1y \xEAm ru! Tay ngh\u1EC1 s\u1EBFp v\u1EABn x\u1ECBn nh\u01B0
     ng\xE0y n\xE0o, c\u1EA7m ti\u1EC1n \u0111i nh\u1EADu nha!"
+  satisfiedAudioClips:
+  - {fileID: 8300000, guid: 1111111111111111111111111111aa03, type: 3}
   unsatisfiedDialogues:
   - "H\u1EB9n m\u1EA5y ng\xE0y r\u1ED3i m\xE0 gi\u1EDD ra v\u1EABn ch\u01B0a \u0111\u1EE5ng
     t\u1EDBi l\xE0 sao? L\xE0m \u0103n ch\xE1n qu\xE1, tr\u1EA3 \u0111\u1ED3 \u0111\xE2y
     tui \u0111em ti\u1EC7m kh\xE1c!"
+  unsatisfiedAudioClips:
+  - {fileID: 8300000, guid: 1111111111111111111111111111aa02, type: 3}
   leavingDialogues:
   - "B\xE1o gi\xE1 \u1EA3o \xE0? Ti\u1EC1n c\xF4ng s\u1EEDa ch\u1EEBng n\xE0y th\xE0
     th\xEAm v\xE0i \u0111\u1ED3ng mua m\xE1y m\u1EDBi c\xF2n h\u01A1n. Ch\xE0o s\u1EBFp!"
+  leavingAudioClips:
+  - {fileID: 8300000, guid: 1111111111111111111111111111aa01, type: 3}
   personality: 1
   canNegotiatePrice: 0
   tipMultiplier: 1
