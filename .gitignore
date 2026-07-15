@@ -32,6 +32,7 @@ ExportedObj/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -64,3 +65,6 @@ crashlytics-build.properties
 # Codex IDE workspace
 .codex/
 .codex
+
+# AI Agent workspace
+.agent/

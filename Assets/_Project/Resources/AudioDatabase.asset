@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 426d71c4095e50d44bfdde090f492e34, type: 3}
+  m_Name: AudioDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::AudioDatabase
+  mappings:
+  - key: 521590__fission9__hiking-boot-footsteps-on-stone
+    clip: {fileID: 8300000, guid: 2419859379b571f49abcc1b0d1d56c4b, type: 3}
+  - key: "Nh\u1EA1c qu\u1EA9y"
+    clip: {fileID: 8300000, guid: bfddf0f481d5e9e43afe556b6fa5d9aa, type: 3}
+  - key: "Ti\u1EBFng b\xE1o hi\u1EC7u-ch\xEDnh x\xE1c"
+    clip: {fileID: 8300000, guid: 23016ba7106d5b84ca51aef34a85eb73, type: 3}
+  - key: "Ti\u1EBFng b\u01B0\u1EDBc ch\xE2n"
+    clip: {fileID: 8300000, guid: 530091b22fa7db04693f9c7a38cf28ab, type: 3}
+  - key: "Ti\u1EBFng d\xF2 kim lo\u1EA1i"
+    clip: {fileID: 8300000, guid: 108eb3c009847ee47afdde4f65626bb6, type: 3}
+  - key: "Ti\u1EBFng g\xF5 ph\xEDm"
+    clip: {fileID: 8300000, guid: cc6326b61c06e07448631e9c67036092, type: 3}
+  - key: "Ti\u1EBFng h\xE0n kim lo\u1EA1i"
+    clip: {fileID: 8300000, guid: f3e7fc2d5fbf880449dac9a0160cf3c0, type: 3}
+  - key: "Ti\u1EBFng l\u1EA5y l\xE1 b\xE0i"
+    clip: {fileID: 8300000, guid: 31e01914813c2ba499f8a738058c60ef, type: 3}
+  - key: "Ti\u1EBFng m\u1EDF b\u1EA3ng m\u1EA1ch"
+    clip: {fileID: 8300000, guid: 15b75faa59d87274bb947797344499ad, type: 3}
+  - key: "Ti\u1EBFng m\u1EDF c\u1EEDa"
+    clip: {fileID: 8300000, guid: e813c0f05c5f2bd42a203136f369c857, type: 3}
+  - key: "Ti\u1EBFng m\u1EDF h\u1ED9p"
+    clip: {fileID: 8300000, guid: 635daf7867b6f484a9ab5cda9b942780, type: 3}
+  - key: "Ti\u1EBFng r\xE8n"
+    clip: {fileID: 8300000, guid: 51e9def44b3b314408e18c5a9a44281b, type: 3}
+  - key: "Ti\u1EBFng r\u1EEDa ch\xE9n b\xE1t"
+    clip: {fileID: 8300000, guid: 52f713df2462cc046a1dce393ff8a598, type: 3}
+  - key: "Ti\u1EBFng thanh to\xE1n"
+    clip: {fileID: 8300000, guid: f9d29c1043be47c4c8b85ac19c34684e, type: 3}
+  - key: "Ti\u1EBFng th\xF4ng b\xE1o t\u1EEB \u0111i\u1EC7n tho\u1EA1i"
+    clip: {fileID: 8300000, guid: 9927d9947e961e24cbab989c4b9752a0, type: 3}
+  - key: "Ti\u1EBFng th\u1EA3y x\xFAc x\u1EAFc"
+    clip: {fileID: 8300000, guid: 1c15d368b8140874486cbd3d98058c16, type: 3}
+  - key: "Ti\u1EBFng v\xF4 \u0111i\u1EC7n"
+    clip: {fileID: 8300000, guid: 8f74bc5f5f0f29040a902e11cf58649c, type: 3}
+  - key: "Ti\u1EBFng \u0111\u1EB7t \u0111\u1ED3"
+    clip: {fileID: 8300000, guid: 512f9b66aaec01647bee3220d8f8afd1, type: 3}
+  - key: "\xC2m thanh bu\u1ED5i s\xE1ng"
+    clip: {fileID: 8300000, guid: 7464d63a3ce5bee4f831738c2b2db0e6, type: 3}
+  - key: "\U0001F3B5Nh\u1EA1c lofi chill ch\u01A1i game, h\u1ECDc b\xE0i,... hay
+      nh\u1EA5t, lukrembo royal music\U0001F3B5  Thi\u1EC7n SUS - Thi\u1EC7n SUS"
+    clip: {fileID: 8300000, guid: 55ec5267dd53d1549933e8cc9d129e7d, type: 3}

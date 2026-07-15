@@ -55,6 +55,8 @@ namespace DevGameUnity.NPC
             }
         }
 
+        private bool isTurning; // Đang ở trạng thái xoay tại chỗ — không xét arrival
+
         private void Update()
         {
             if (delivered && !loopPatrol)
@@ -66,7 +68,8 @@ namespace DevGameUnity.NPC
             var toTarget = patrolPointB - transform.position;
             toTarget.y = 0f;
 
-            if (toTarget.magnitude <= arrivalDistance)
+            // Chỉ xét đến đích khi không đang xoay (tránh ping-pong swap gây đi vòng cung)
+            if (!isTurning && toTarget.magnitude <= arrivalDistance)
             {
                 if (!delivered && deliveryPrefab != null)
                 {
@@ -78,6 +81,12 @@ namespace DevGameUnity.NPC
                     var temp = patrolPointA;
                     patrolPointA = patrolPointB;
                     patrolPointB = temp;
+
+                    toTarget = patrolPointB - transform.position;
+                    toTarget.y = 0f;
+
+                    // Bắt đầu pha xoay tại chỗ — ngăn di chuyển và ngăn swap lại
+                    isTurning = true;
                 }
                 else
                 {
@@ -89,8 +98,28 @@ namespace DevGameUnity.NPC
             }
 
             var direction = toTarget.sqrMagnitude > 0.001f ? toTarget.normalized : transform.forward;
+            float angleToTarget = Vector3.Angle(transform.forward, direction);
+
+            // Xoay người nhanh và dứt khoát về hướng di chuyển (RotateTowards thay vì Slerp tiệm cận)
+            float maxDegreesPerSecond = angleToTarget > 15f ? turnSpeed * 80f : turnSpeed * 40f;
             var desiredRotation = Quaternion.LookRotation(direction, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, turnSpeed * Time.deltaTime);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, desiredRotation, maxDegreesPerSecond * Time.deltaTime);
+
+            // Khi đang xoay hoặc góc còn lớn (> 5 độ): dừng di chuyển thẳng hoàn toàn
+            float moveMultiplier;
+            if (isTurning)
+            {
+                // Kết thúc pha xoay khi đã căn chỉnh xong (sai số ≤ 2°)
+                if (angleToTarget <= 2f)
+                {
+                    isTurning = false;
+                }
+                moveMultiplier = 0f;
+            }
+            else
+            {
+                moveMultiplier = angleToTarget > 5f ? 0f : Mathf.Clamp01((5f - angleToTarget) / 5f);
+            }
 
             if (controller.isGrounded && verticalVelocity < 0f)
             {
@@ -98,7 +127,7 @@ namespace DevGameUnity.NPC
             }
 
             verticalVelocity += gravity * Time.deltaTime;
-            var motion = direction * movementSpeed;
+            var motion = direction * (movementSpeed * moveMultiplier);
             motion.y = verticalVelocity;
             controller.Move(motion * Time.deltaTime);
         }
@@ -162,6 +191,26 @@ namespace DevGameUnity.NPC
 
             verticalVelocity += gravity * Time.deltaTime;
             controller.Move(Vector3.up * (verticalVelocity * Time.deltaTime));
+        }
+
+        // Vẽ hỗ trợ trực quan trong Scene để bạn dễ dàng kéo thanh trượt
+        private void OnDrawGizmosSelected()
+        {
+            // 1. Điểm NPC sẽ đứng lại
+            Vector3 standPoint = transform.position + transform.forward * walkDistance;
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(standPoint, 0.5f);
+            
+            // Vẽ đường nối từ NPC đến chỗ đứng
+            Gizmos.DrawLine(transform.position, standPoint);
+
+            // 2. Điểm thả đồ
+            Vector3 dropPoint = standPoint + transform.forward * dropForwardOffset;
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(dropPoint, new Vector3(0.5f, 0.5f, 0.5f));
+            
+            // Vẽ đường nối từ chỗ đứng tới chỗ thả đồ
+            Gizmos.DrawLine(standPoint, dropPoint);
         }
     }
 }

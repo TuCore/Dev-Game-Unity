@@ -43,6 +43,11 @@ public class ItemInspect : MonoBehaviour
             item.transform.localRotation = Quaternion.identity;
         }
 
+        if (SubtitleManager.Instance != null && item != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Soi lỗi)", $"Món [{item.name}] này có vẻ hỏng nặng hoặc rỉ sét rồi, phải chẩn đoán kỹ từng mạch thôi!", 4f, "Tiếng đặt đồ");
+        }
+
         OnInspectStarted?.Invoke(item);
     }
 
@@ -58,6 +63,15 @@ public class ItemInspect : MonoBehaviour
         if (_currentItem != null)
         {
             _currentItem.transform.SetParent(null);
+        }
+
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Đã nắm sơ sơ tình trạng, đem ra bàn sửa hoặc chuẩn bị minigame ngay nào!", 3f, "Tiếng đặt đồ");
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng đặt đồ");
         }
 
         _currentItem = null;
