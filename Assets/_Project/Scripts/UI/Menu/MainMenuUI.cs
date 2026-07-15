@@ -58,13 +58,6 @@ namespace AnhThoDien.UI.Menu
             }
         }
 
-        private void Update()
-        {
-            if (isPlayingIntro && Input.anyKeyDown)
-            {
-                SkipIntro();
-            }
-        }
 
         private void OnNewGameClicked()
         {
@@ -82,89 +75,10 @@ namespace AnhThoDien.UI.Menu
             PlayerPrefs.SetInt("HasSaveGame", 1);
             PlayerPrefs.Save();
 
-            if (introPanel == null || introText == null)
-            {
-                CreateIntroUI();
-            }
-
-            if (introPanel != null && introText != null)
-            {
-                introCoroutine = StartCoroutine(PlayIntroRoutine());
-            }
-            else
-            {
-                LoadingScreenManager.LoadScene("Shop_Main");
-            }
+            LoadingScreenManager.LoadScene("IntroScene");
         }
 
-        private void CreateIntroUI()
-        {
-            Canvas canvas = FindAnyObjectByType<Canvas>();
-            if (canvas == null) return;
 
-            introPanel = new GameObject("IntroPanel");
-            introPanel.transform.SetParent(canvas.transform, false);
-            introPanel.transform.SetAsLastSibling();
-            Image bg = introPanel.AddComponent<Image>();
-            bg.color = Color.black;
-            RectTransform bgRect = introPanel.GetComponent<RectTransform>();
-            bgRect.anchorMin = Vector2.zero;
-            bgRect.anchorMax = Vector2.one;
-            bgRect.sizeDelta = Vector2.zero;
-
-            GameObject textObj = new GameObject("IntroText");
-            textObj.transform.SetParent(introPanel.transform, false);
-            introText = textObj.AddComponent<Text>();
-            introText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            introText.fontSize = 32;
-            introText.color = Color.white;
-            introText.alignment = TextAnchor.MiddleCenter;
-            
-            RectTransform textRect = textObj.GetComponent<RectTransform>();
-            textRect.anchorMin = new Vector2(0.1f, 0.1f);
-            textRect.anchorMax = new Vector2(0.9f, 0.9f);
-            textRect.sizeDelta = Vector2.zero;
-
-            introPanel.SetActive(false);
-        }
-
-        private IEnumerator PlayIntroRoutine()
-        {
-            isPlayingIntro = true;
-            introPanel.SetActive(true);
-            introText.text = "";
-
-            // Typewriter effect
-            foreach (char c in introMessage.ToCharArray())
-            {
-                introText.text += c;
-                yield return new WaitForSeconds(typingSpeed);
-            }
-
-            // Wait a few seconds after finishing
-            yield return new WaitForSeconds(2.5f);
-            
-            LoadGameplayScene();
-        }
-
-        private void SkipIntro()
-        {
-            if (introCoroutine != null)
-            {
-                StopCoroutine(introCoroutine);
-            }
-            LoadGameplayScene();
-        }
-
-        private void LoadGameplayScene()
-        {
-            isPlayingIntro = false;
-            if (introPanel != null)
-            {
-                Destroy(introPanel);
-            }
-            LoadingScreenManager.LoadScene("Shop_Main");
-        }
 
         private void OnContinueClicked()
         {
