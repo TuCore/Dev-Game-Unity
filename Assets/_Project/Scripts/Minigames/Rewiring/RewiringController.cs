@@ -15,6 +15,7 @@ public class RewiringController : MonoBehaviour, IMinigame
     [Header("Danh sách Cọc và Dây hiện tại")]
     [SerializeField] private List<RewiringTerminal> allTerminals = new List<RewiringTerminal>();
     [SerializeField] private List<RewiringWire> activeWires = new List<RewiringWire>();
+    [SerializeField] private RewiringDemoUI uiController;
 
     private bool _isActive = false;
     private int _currentDifficulty = 1;
@@ -28,12 +29,39 @@ public class RewiringController : MonoBehaviour, IMinigame
     public event System.Action<RepairQuality> OnMinigameCompleted;
 
     /// <summary>
-    /// Khởi tạo minigame với danh sách lỗi từ hệ thống random và cấp độ khó.
+    /// Sinh độ khó ngẫu nhiên cho bảng mạch nối dây theo tỷ lệ:
+    /// - Dễ (0): 35%
+    /// - Vừa (1): 30%
+    /// - Khó (2): 25%
+    /// - Khổ Hạnh (3): 10%
+    /// </summary>
+    public static int GetRandomDifficulty()
+    {
+        float roll = Random.value * 100f;
+        if (roll < 35f) return 0;       // Dễ - 35%
+        if (roll < 65f) return 1;       // Vừa - 30%
+        if (roll < 90f) return 2;       // Khó - 25%
+        return 3;                       // Khổ Hạnh - 10%
+    }
+
+    /// <summary>
+    /// Khởi tạo minigame với danh sách lỗi từ hệ thống random và độ khó ngẫu nhiên theo tỷ lệ.
     /// </summary>
     public void Initialize(List<string> faults, int difficultyLevel)
     {
         _assignedFaults = faults != null ? new List<string>(faults) : new List<string>();
-        _currentDifficulty = Mathf.Max(1, difficultyLevel);
+        _currentDifficulty = GetRandomDifficulty();
+
+        if (uiController == null)
+        {
+            uiController = GetComponentInParent<RewiringDemoUI>(true);
+            if (uiController == null) uiController = FindObjectOfType<RewiringDemoUI>(true);
+        }
+
+        if (uiController != null)
+        {
+            uiController.InitializeForGameplay(this, _currentDifficulty);
+        }
     }
 
     /// <summary>
@@ -43,6 +71,18 @@ public class RewiringController : MonoBehaviour, IMinigame
     {
         _isActive = true;
         gameObject.SetActive(true);
+        if (uiController != null)
+        {
+            uiController.ShowUI(true);
+        }
+        if (SubtitleManager.Instance != null)
+        {
+            SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Nối dây)", "Mở bảng mạch ra! Hãy nối chính xác các cặp dây cùng màu, cẩn thận đừng để chập mạch.", 3.5f, "Tiếng đặt đồ");
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX("Tiếng đặt đồ");
+        }
     }
 
     /// <summary>
@@ -52,6 +92,10 @@ public class RewiringController : MonoBehaviour, IMinigame
     {
         if (!_isActive) return;
         _isActive = false;
+        if (uiController != null)
+        {
+            uiController.ShowUI(false);
+        }
         gameObject.SetActive(false);
     }
 
@@ -225,6 +269,10 @@ public class RewiringController : MonoBehaviour, IMinigame
 
         RepairQuality quality = EvaluateRewiringQuality();
         _isActive = false;
+        if (uiController != null)
+        {
+            uiController.ShowUI(false);
+        }
         gameObject.SetActive(false);
 
         OnMinigameCompleted?.Invoke(quality);

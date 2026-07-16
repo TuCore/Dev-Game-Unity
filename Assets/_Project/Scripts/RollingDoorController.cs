@@ -8,16 +8,49 @@ public class RollingDoorController : MonoBehaviour, IInteractable
     private Collider doorCollider;
     private Animator animator;
 
+    [Header("Cấu hình Animation")]
+    [Tooltip("Thời điểm cửa mở hoàn toàn (0.5 = một nửa clip)")]
+    [SerializeField] private float openNormalizedTime = 0.5f; 
+    [Tooltip("Tốc độ cuộn cửa (clip gốc 24s nên để 2-3 cho nhanh)")]
+    [SerializeField] private float animationSpeed = 2.5f;
+
     void Start()
     {
         doorCollider = GetComponent<Collider>();
         animator = GetComponentInChildren<Animator>();
         
-        // Ensure animation starts stopped at 0
         if (animator != null)
         {
             animator.Play("Rolling", 0, 0f);
             animator.SetFloat("Speed", 0f);
+        }
+    }
+
+    void Update()
+    {
+        if (animator == null) return;
+        
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+        if (state.IsName("Rolling"))
+        {
+            if (isDoorOpen)
+            {
+                // Nếu đang mở và chạm đến điểm dừng ở giữa clip
+                if (state.normalizedTime >= openNormalizedTime && animator.GetFloat("Speed") > 0)
+                {
+                    animator.SetFloat("Speed", 0f);
+                    animator.Play("Rolling", 0, openNormalizedTime);
+                }
+            }
+            else
+            {
+                // Nếu đang đóng và đã lùi về 0
+                if (state.normalizedTime <= 0f && animator.GetFloat("Speed") < 0)
+                {
+                    animator.SetFloat("Speed", 0f);
+                    animator.Play("Rolling", 0, 0f);
+                }
+            }
         }
     }
 
@@ -35,13 +68,12 @@ public class RollingDoorController : MonoBehaviour, IInteractable
             AudioManager.Instance.PlaySFX(isDoorOpen ? "open iron door" : "closing iron door");
         }
 
-        // Tắt va chạm của khung cửa để người chơi đi qua khi cửa mở
-        if (doorCollider != null) doorCollider.enabled = !isDoorOpen;
+        if (doorCollider != null) doorCollider.isTrigger = isDoorOpen;
 
-        // Bật animation: speed = 1 để cuộn lên (mở), speed = -1 để cuộn xuống (đóng)
         if (animator != null)
         {
-            animator.SetFloat("Speed", isDoorOpen ? 1f : -1f);
+            // Mở: chạy xuôi, Đóng: chạy ngược
+            animator.SetFloat("Speed", isDoorOpen ? animationSpeed : -animationSpeed);
         }
     }
 }

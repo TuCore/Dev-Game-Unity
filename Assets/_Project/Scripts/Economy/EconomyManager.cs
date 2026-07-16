@@ -65,6 +65,11 @@ public class EconomyManager : MonoBehaviour
         
         Instance = this;
         DontDestroyOnLoad(this.gameObject);
+        
+        if (gameObject.GetComponent<GameOverUI>() == null)
+        {
+            gameObject.AddComponent<GameOverUI>();
+        }
 
         _currentCash = startingCash;
         _dailyIncome = 0f;

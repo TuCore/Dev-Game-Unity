@@ -25,6 +25,7 @@ public class LoadingScreenManager : MonoBehaviour
     private TextMeshProUGUI _progressText;
     private RectTransform _runnerIconRect;
     private RectTransform _barFillRect;
+    private TextMeshProUGUI _messageText;
     
     // Tạo giao diện loading
     private void CreateLoadingUI()
@@ -87,6 +88,20 @@ public class LoadingScreenManager : MonoBehaviour
         textRect.offsetMin = Vector2.zero;
         textRect.offsetMax = Vector2.zero;
 
+        // Message Text
+        GameObject msgObj = new GameObject("MessageText");
+        msgObj.transform.SetParent(canvasObj.transform, false);
+        _messageText = msgObj.AddComponent<TextMeshProUGUI>();
+        _messageText.text = "Đang tải...";
+        _messageText.fontSize = 40;
+        _messageText.alignment = TextAlignmentOptions.Center;
+        _messageText.color = Color.white;
+        RectTransform msgRect = msgObj.GetComponent<RectTransform>();
+        msgRect.anchorMin = new Vector2(0, 0.6f);
+        msgRect.anchorMax = new Vector2(1, 0.8f);
+        msgRect.offsetMin = Vector2.zero;
+        msgRect.offsetMax = Vector2.zero;
+
         // Runner Icon
         GameObject runnerObj = new GameObject("RunnerIcon");
         runnerObj.transform.SetParent(barBgObj.transform, false);
@@ -106,18 +121,19 @@ public class LoadingScreenManager : MonoBehaviour
         _loadingCanvas.SetActive(false);
     }
 
-    public static void LoadScene(string sceneName)
+    public static void LoadScene(string sceneName, string message = "Đang di chuyển...")
     {
-        Instance.StartCoroutine(Instance.LoadSceneAsyncRoutine(sceneName));
+        Instance.StartCoroutine(Instance.LoadSceneAsyncRoutine(sceneName, message));
     }
 
-    private IEnumerator LoadSceneAsyncRoutine(string sceneName)
+    private IEnumerator LoadSceneAsyncRoutine(string sceneName, string message)
     {
         CreateLoadingUI();
         _loadingCanvas.SetActive(true);
 
         Time.timeScale = 1f; // Đảm bảo không bị pause
         _progressText.text = "0%";
+        if (_messageText != null) _messageText.text = message;
         
         _barFillRect.anchorMax = new Vector2(0f, 1f);
         _runnerIconRect.anchorMin = new Vector2(0f, 1f);

@@ -13,7 +13,7 @@ namespace AnhThoDien.UI.Menu
         [SerializeField] private Slider sliderSensitivity;
 
         [Header("Close Button")]
-        [SerializeField] private Button btnClose;
+        public Button btnClose;
 
         [Header("Keybinds Scroll View")]
         [SerializeField] private Transform keybindsContainer;

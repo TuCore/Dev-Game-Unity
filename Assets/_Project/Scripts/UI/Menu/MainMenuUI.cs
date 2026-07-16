@@ -80,6 +80,8 @@ namespace AnhThoDien.UI.Menu
             // Đánh dấu là đã bắt đầu chơi để lần sau có thể Bấm Tiếp Tục
             PlayerPrefs.SetInt("HasSaveGame", 1);
             PlayerPrefs.Save();
+            
+            PlayerController.ResetLoadState();
 
             LoadingScreenManager.LoadScene("IntroScene");
         }
@@ -95,6 +97,8 @@ namespace AnhThoDien.UI.Menu
             // Báo cho game biết đây là lượt chơi tiếp tục
             PlayerPrefs.SetInt("IsNewGame", 0);
             PlayerPrefs.Save();
+            
+            PlayerController.ResetLoadState();
 
             // Khi Load Scene, các script trong game sẽ tự động đọc PlayerPrefs (nếu có) để phục hồi
             LoadingScreenManager.LoadScene("VietnamStreet");

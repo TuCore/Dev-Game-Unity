@@ -11,7 +11,8 @@ namespace Minigames.Diagnosis
             Button btn = GetComponent<Button>();
             btn.onClick.AddListener(() =>
             {
-                DiagnosisMinigame minigame = Object.FindObjectOfType<DiagnosisMinigame>();
+                DiagnosisMinigame minigame = GetComponentInParent<DiagnosisMinigame>(true);
+                if (minigame == null) minigame = Object.FindObjectOfType<DiagnosisMinigame>();
                 if (minigame != null)
                 {
                     minigame.FinishDiagnosis();

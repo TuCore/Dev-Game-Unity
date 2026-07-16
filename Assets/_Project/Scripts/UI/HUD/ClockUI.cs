@@ -16,6 +16,10 @@ public class ClockUI : MonoBehaviour
         {
             DayClock.Instance.OnTimeChanged += UpdateTimeDisplay;
         }
+
+        MinigameManager.OnMinigameStartedGlobal += HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal += HandleMinigameCompleted;
+        SubscribeToMinigameManagerInstance();
     }
 
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
@@ -23,12 +27,13 @@ public class ClockUI : MonoBehaviour
         if (scene.name == "VietnamStreet")
         {
             if (_timeText == null) CreateClockUI();
-            if (_timeText != null) _timeText.gameObject.SetActive(true);
+            if (_timeText != null && !IsMinigameCurrentlyActive()) _timeText.gameObject.SetActive(true);
         }
         else
         {
             if (_timeText != null) _timeText.gameObject.SetActive(false);
         }
+        SubscribeToMinigameManagerInstance();
     }
 
     private void CreateClockUI()
@@ -64,6 +69,11 @@ public class ClockUI : MonoBehaviour
         {
             UpdateTimeDisplay(DayClock.Instance.CurrentHour);
         }
+
+        if (IsMinigameCurrentlyActive())
+        {
+            _timeText.gameObject.SetActive(false);
+        }
     }
 
     private void UpdateTimeDisplay(float currentHour)
@@ -91,6 +101,54 @@ public class ClockUI : MonoBehaviour
         }
     }
 
+    private void HandleMinigameStarted(IMinigame minigame)
+    {
+        if (_timeText != null)
+        {
+            _timeText.gameObject.SetActive(false);
+        }
+    }
+
+    private void HandleMinigameCompleted(RepairQuality quality)
+    {
+        if (_timeText != null && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            _timeText.gameObject.SetActive(true);
+        }
+    }
+
+    private bool IsMinigameCurrentlyActive()
+    {
+        if (MinigameManager.Instance != null && MinigameManager.Instance.IsMinigameActive)
+        {
+            return true;
+        }
+        MinigameManager mm = FindFirstObjectByType<MinigameManager>();
+        return mm != null && mm.IsMinigameActive;
+    }
+
+    private void SubscribeToMinigameManagerInstance()
+    {
+        MinigameManager mm = MinigameManager.Instance != null ? MinigameManager.Instance : FindFirstObjectByType<MinigameManager>();
+        if (mm != null)
+        {
+            mm.OnMinigameStarted -= HandleMinigameStarted;
+            mm.OnMinigameStarted += HandleMinigameStarted;
+            mm.OnMinigameCompleted -= HandleMinigameCompleted;
+            mm.OnMinigameCompleted += HandleMinigameCompleted;
+        }
+    }
+
+    private void UnsubscribeFromMinigameManagerInstance()
+    {
+        MinigameManager mm = MinigameManager.Instance != null ? MinigameManager.Instance : FindFirstObjectByType<MinigameManager>();
+        if (mm != null)
+        {
+            mm.OnMinigameStarted -= HandleMinigameStarted;
+            mm.OnMinigameCompleted -= HandleMinigameCompleted;
+        }
+    }
+
     private void OnDestroy()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
@@ -98,5 +156,10 @@ public class ClockUI : MonoBehaviour
         {
             DayClock.Instance.OnTimeChanged -= UpdateTimeDisplay;
         }
+
+        MinigameManager.OnMinigameStartedGlobal -= HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal -= HandleMinigameCompleted;
+        UnsubscribeFromMinigameManagerInstance();
     }
 }
+

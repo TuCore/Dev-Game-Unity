@@ -53,6 +53,13 @@ public class RewiringDemoUI : MonoBehaviour
     private GUIStyle _guideArrowBtnStyle;
     private GUIStyle _guidePageIndicatorStyle;
 
+    private Vector3 _isolatedOffset = Vector3.zero;
+    private Vector3 _savedPlayerPosition;
+    private Quaternion _savedPlayerRotation;
+    private Quaternion _savedCameraLocalRotation;
+    private bool _hasSavedPlayerPose = false;
+    private bool _isAutoCompleting = false;
+
     public class DemoTerminalElement : MonoBehaviour
     {
         public RewiringTerminal data;
@@ -90,15 +97,33 @@ public class RewiringDemoUI : MonoBehaviour
         public DemoTerminalElement endElem;
     }
 
-    private void Start()
+    private void Awake()
     {
-        SetupCamera();
         SetupController();
+        SetupCamera();
         SetupPreviewLine();
         PreloadAudioClips();
-        if (Application.isPlaying || transform.childCount < 5)
+    }
+
+    private void Start()
+    {
+        if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
         {
-            InitializeDemoBoard(3);
+            if (transform.childCount < 5)
+            {
+                InitializeDemoBoard(RewiringController.GetRandomDifficulty());
+            }
+        }
+        else if (Application.isPlaying)
+        {
+            if (_controller != null && _controller.IsActive)
+            {
+                ShowUI(true);
+            }
+            else
+            {
+                ShowUI(false);
+            }
         }
     }
 
@@ -110,18 +135,140 @@ public class RewiringDemoUI : MonoBehaviour
 
     private void SetupCamera()
     {
-        _mainCamera = Camera.main;
-        if (_mainCamera == null)
+        UpdateIsolatedOffset();
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
         {
-            GameObject camObj = new GameObject("Demo_MainCamera");
-            _mainCamera = camObj.AddComponent<Camera>();
-            camObj.tag = "MainCamera";
+            _mainCamera = Camera.main;
+            if (_mainCamera == null)
+            {
+                GameObject camObj = new GameObject("Demo_MainCamera");
+                _mainCamera = camObj.AddComponent<Camera>();
+                camObj.tag = "MainCamera";
+            }
         }
-        _mainCamera.clearFlags = CameraClearFlags.SolidColor;
-        _mainCamera.orthographic = true;
-        _mainCamera.orthographicSize = 4.8f;
-        _mainCamera.transform.position = new Vector3(0, 0, -10f);
-        _mainCamera.backgroundColor = new Color(0.12f, 0.13f, 0.15f, 1f); // Nền xám kim loại cơ khí
+        else
+        {
+            Transform existingCam = transform.Find("RewiringMinigameCamera");
+            if (existingCam != null)
+            {
+                _mainCamera = existingCam.GetComponent<Camera>();
+            }
+            if (_mainCamera == null)
+            {
+                GameObject camObj = new GameObject("RewiringMinigameCamera");
+                camObj.transform.SetParent(this.transform);
+                _mainCamera = camObj.AddComponent<Camera>();
+            }
+            _mainCamera.depth = 15; // Render phía trên camera của người chơi
+        }
+
+        if (_mainCamera != null)
+        {
+            _mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            _mainCamera.orthographic = true;
+            _mainCamera.orthographicSize = 4.8f;
+            _mainCamera.transform.position = _isolatedOffset + new Vector3(0, 0, -10f);
+            _mainCamera.backgroundColor = new Color(0.12f, 0.13f, 0.15f, 1f); // Nền xám kim loại cơ khí
+            if (Application.isPlaying && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+            {
+                if (_controller == null || !_controller.IsActive)
+                {
+                    _mainCamera.gameObject.SetActive(false);
+                }
+            }
+        }
+    }
+
+    private void UpdateIsolatedOffset()
+    {
+        if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            _isolatedOffset = Vector3.zero;
+        }
+        else
+        {
+            _isolatedOffset = new Vector3(0f, -5000f, 0f);
+            transform.position = _isolatedOffset;
+        }
+    }
+
+    public void InitializeForGameplay(RewiringController controller, int difficulty)
+    {
+        UpdateIsolatedOffset();
+        _controller = controller;
+        int targetDifficulty = difficulty >= 0 ? difficulty : RewiringController.GetRandomDifficulty();
+        InitializeDemoBoard(targetDifficulty);
+    }
+
+    public void ShowUI(bool show)
+    {
+        UpdateIsolatedOffset();
+        if (show) _isAutoCompleting = false;
+        if (Application.isPlaying && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            if (show)
+            {
+                SavePlayerPose();
+            }
+            else if (_hasSavedPlayerPose)
+            {
+                RestorePlayerPose();
+            }
+        }
+
+        if (_mainCamera != null && !UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            _mainCamera.transform.position = _isolatedOffset + new Vector3(0, 0, -10f);
+            _mainCamera.gameObject.SetActive(show);
+        }
+        if (Application.isPlaying)
+        {
+            Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = show;
+        }
+        gameObject.SetActive(show);
+    }
+
+    private void SavePlayerPose()
+    {
+        if (_hasSavedPlayerPose) return;
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            _savedPlayerPosition = player.transform.position;
+            _savedPlayerRotation = player.transform.rotation;
+            _hasSavedPlayerPose = true;
+
+            PlayerCamera playerCam = player.GetComponentInChildren<PlayerCamera>(true);
+            if (playerCam != null)
+            {
+                _savedCameraLocalRotation = playerCam.transform.localRotation;
+            }
+        }
+    }
+
+    private void RestorePlayerPose()
+    {
+        if (!_hasSavedPlayerPose) return;
+        _hasSavedPlayerPose = false;
+
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            CharacterController cc = player.GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+
+            player.transform.position = _savedPlayerPosition;
+            player.transform.rotation = _savedPlayerRotation;
+
+            if (cc != null) cc.enabled = true;
+
+            PlayerCamera playerCam = player.GetComponentInChildren<PlayerCamera>(true);
+            if (playerCam != null)
+            {
+                playerCam.SyncRotation(_savedCameraLocalRotation);
+            }
+        }
     }
 
     private void SetupController()
@@ -137,8 +284,11 @@ public class RewiringDemoUI : MonoBehaviour
         GameObject controllerObj = new GameObject("RewiringLogic_Controller");
         controllerObj.transform.SetParent(this.transform);
         _controller = controllerObj.AddComponent<RewiringController>();
-        _controller.Initialize(null, 1);
-        _controller.StartMinigame();
+        if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Demo"))
+        {
+            _controller.Initialize(null, RewiringController.GetRandomDifficulty());
+            _controller.StartMinigame();
+        }
     }
 
     private void SetupPreviewLine()
@@ -239,15 +389,15 @@ public class RewiringDemoUI : MonoBehaviour
 
     private Vector2 GetCellWorldPosition(int r, int c)
     {
-        float startX = -(_gridCols - 1) * _cellWidth * 0.5f;
-        float startY = (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
+        float startX = _isolatedOffset.x - (_gridCols - 1) * _cellWidth * 0.5f;
+        float startY = _isolatedOffset.y + (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
         return new Vector2(startX + c * _cellWidth, startY - r * _cellHeight);
     }
 
     private Vector2Int GetCellFromWorldPosition(Vector3 worldPos)
     {
-        float startX = -(_gridCols - 1) * _cellWidth * 0.5f;
-        float startY = (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
+        float startX = _isolatedOffset.x - (_gridCols - 1) * _cellWidth * 0.5f;
+        float startY = _isolatedOffset.y + (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
 
         int col = Mathf.RoundToInt((worldPos.x - startX) / _cellWidth);
         int row = Mathf.RoundToInt((startY - worldPos.y) / _cellHeight);
@@ -383,8 +533,8 @@ public class RewiringDemoUI : MonoBehaviour
         _gridVisualHolder = new GameObject("Grid_Visual_Board");
         _gridVisualHolder.transform.SetParent(this.transform);
 
-        float startX = -(_gridCols - 1) * _cellWidth * 0.5f;
-        float startY = (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
+        float startX = _isolatedOffset.x - (_gridCols - 1) * _cellWidth * 0.5f;
+        float startY = _isolatedOffset.y + (_gridRows - 1) * _cellHeight * 0.5f + 0.5f;
         float halfW = _cellWidth * 0.5f;
         float halfH = _cellHeight * 0.5f;
 
@@ -393,11 +543,11 @@ public class RewiringDemoUI : MonoBehaviour
         float maxY = startY + halfH;
         float minY = startY - (_gridRows - 1) * _cellHeight - halfH;
 
-        // 1. Tạo nền kim loại (Metallic background plate) bên dưới lưới (z = 0.8f)
+        // 1. Tạo nền kim loại (Metallic background plate) bên dưới lưới (z = _isolatedOffset.z + 0.8f)
         GameObject bgObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
         bgObj.name = "MetallicBackground";
         bgObj.transform.SetParent(_gridVisualHolder.transform);
-        bgObj.transform.position = new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, 0.8f);
+        bgObj.transform.position = new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, _isolatedOffset.z + 0.8f);
         bgObj.transform.localScale = new Vector3(maxX - minX, maxY - minY, 1f);
 
         Collider bgCol = bgObj.GetComponent<Collider>();
@@ -421,23 +571,23 @@ public class RewiringDemoUI : MonoBehaviour
         bgMr.material.color = new Color(0.28f, 0.3f, 0.34f, 1f);
 #endif
 
-        // 2. Kẻ đường rãnh chia ô kim loại (Dark Metallic Grooves z = 0.5f)
+        // 2. Kẻ đường rãnh chia ô kim loại (Dark Metallic Grooves z = _isolatedOffset.z + 0.5f)
         for (int r = 0; r <= _gridRows; r++)
         {
             float y = maxY - r * _cellHeight;
-            CreateGridLine(new Vector3(minX, y, 0.5f), new Vector3(maxX, y, 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
+            CreateGridLine(new Vector3(minX, y, _isolatedOffset.z + 0.5f), new Vector3(maxX, y, _isolatedOffset.z + 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
         }
         for (int c = 0; c <= _gridCols; c++)
         {
             float x = minX + c * _cellWidth;
-            CreateGridLine(new Vector3(x, maxY, 0.5f), new Vector3(x, minY, 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
+            CreateGridLine(new Vector3(x, maxY, _isolatedOffset.z + 0.5f), new Vector3(x, minY, _isolatedOffset.z + 0.5f), 0.045f, new Color(0.08f, 0.1f, 0.12f, 0.95f));
         }
 
-        // 3. Khung viền kim loại ngoài cùng (Gunmetal Frame z = 0.4f)
-        CreateGridLine(new Vector3(minX, maxY, 0.4f), new Vector3(maxX, maxY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
-        CreateGridLine(new Vector3(maxX, maxY, 0.4f), new Vector3(maxX, minY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
-        CreateGridLine(new Vector3(maxX, minY, 0.4f), new Vector3(minX, minY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
-        CreateGridLine(new Vector3(minX, minY, 0.4f), new Vector3(minX, maxY, 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        // 3. Khung viền kim loại ngoài cùng (Gunmetal Frame z = _isolatedOffset.z + 0.4f)
+        CreateGridLine(new Vector3(minX, maxY, _isolatedOffset.z + 0.4f), new Vector3(maxX, maxY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        CreateGridLine(new Vector3(maxX, maxY, _isolatedOffset.z + 0.4f), new Vector3(maxX, minY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        CreateGridLine(new Vector3(maxX, minY, _isolatedOffset.z + 0.4f), new Vector3(minX, minY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
+        CreateGridLine(new Vector3(minX, minY, _isolatedOffset.z + 0.4f), new Vector3(minX, maxY, _isolatedOffset.z + 0.4f), 0.18f, new Color(0.22f, 0.25f, 0.3f, 1f));
     }
 
     private void CreateGridLine(Vector3 start, Vector3 end, float width, Color color)
@@ -476,7 +626,7 @@ public class RewiringDemoUI : MonoBehaviour
         if (_dragStartTerminal != null && _previewLine != null && _previewLine.enabled)
         {
             Vector3 mousePos = _mainCamera.ScreenToWorldPoint(Input.mousePosition);
-            mousePos.z = 0f;
+            mousePos.z = _isolatedOffset.z;
 
             Vector2Int mouseCell = GetCellFromWorldPosition(mousePos);
             if (_currentCellPath.Count == 0)
@@ -623,8 +773,8 @@ public class RewiringDemoUI : MonoBehaviour
             if (_previewCoreStart != null)
             {
                 _previewCoreStart.enabled = true;
-                _previewCoreStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, -0.22f));
-                _previewCoreStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.22f));
+                _previewCoreStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, _isolatedOffset.z - 0.22f));
+                _previewCoreStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.22f));
             }
 
             if (_previewBootStart != null)
@@ -632,15 +782,15 @@ public class RewiringDemoUI : MonoBehaviour
                 _previewBootStart.enabled = true;
                 Vector3 pBoot0 = pCoreStart1 - dirStart * (minDim * 0.05f);
                 Vector3 pBoot1 = pCoreStart1 + dirStart * (minDim * 0.05f);
-                _previewBootStart.SetPosition(0, new Vector3(pBoot0.x, pBoot0.y, -0.19f));
-                _previewBootStart.SetPosition(1, new Vector3(pBoot1.x, pBoot1.y, -0.19f));
+                _previewBootStart.SetPosition(0, new Vector3(pBoot0.x, pBoot0.y, _isolatedOffset.z - 0.19f));
+                _previewBootStart.SetPosition(1, new Vector3(pBoot1.x, pBoot1.y, _isolatedOffset.z - 0.19f));
             }
 
             _previewLine.positionCount = _currentDrawPoints.Count;
-            _previewLine.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.16f));
+            _previewLine.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.16f));
             for (int i = 1; i < _currentDrawPoints.Count; i++)
             {
-                _previewLine.SetPosition(i, new Vector3(_currentDrawPoints[i].x, _currentDrawPoints[i].y, -0.16f));
+                _previewLine.SetPosition(i, new Vector3(_currentDrawPoints[i].x, _currentDrawPoints[i].y, _isolatedOffset.z - 0.16f));
             }
         }
         else if (_currentDrawPoints.Count == 1)
@@ -648,7 +798,7 @@ public class RewiringDemoUI : MonoBehaviour
             if (_previewCoreStart != null) _previewCoreStart.enabled = false;
             if (_previewBootStart != null) _previewBootStart.enabled = false;
             _previewLine.positionCount = 1;
-            _previewLine.SetPosition(0, new Vector3(_currentDrawPoints[0].x, _currentDrawPoints[0].y, -0.16f));
+            _previewLine.SetPosition(0, new Vector3(_currentDrawPoints[0].x, _currentDrawPoints[0].y, _isolatedOffset.z - 0.16f));
         }
     }
 
@@ -874,6 +1024,12 @@ public class RewiringDemoUI : MonoBehaviour
         {
             SubtitleManager.Instance.ShowSubtitle("Minigame Nối Dây", $"Đã kết nối dây màu [{startElem.data.Color}]!", 1.5f);
         }
+
+        if (_controller != null && _controller.IsActive && _controller.AreAllTerminalsConnected() && !_isAutoCompleting)
+        {
+            _isAutoCompleting = true;
+            StartCoroutine(AutoCheckQualityAndComplete(1.2f));
+        }
     }
 
     private void BuildWireHolder(DemoWireElement wireElem, List<Vector2Int> cellPath, List<Vector2> worldPoints)
@@ -926,8 +1082,8 @@ public class RewiringDemoUI : MonoBehaviour
             coreStartObj.transform.SetParent(holderObj.transform);
             LineRenderer lrStart = coreStartObj.AddComponent<LineRenderer>();
             lrStart.positionCount = 2;
-            lrStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, -0.22f));
-            lrStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.22f));
+            lrStart.SetPosition(0, new Vector3(pCoreStart0.x, pCoreStart0.y, _isolatedOffset.z - 0.22f));
+            lrStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.22f));
             lrStart.startWidth = minDim * 0.17f;
             lrStart.endWidth = lrStart.startWidth;
             lrStart.numCapVertices = 12;
@@ -942,8 +1098,8 @@ public class RewiringDemoUI : MonoBehaviour
             coreEndObj.transform.SetParent(holderObj.transform);
             LineRenderer lrEnd = coreEndObj.AddComponent<LineRenderer>();
             lrEnd.positionCount = 2;
-            lrEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.22f));
-            lrEnd.SetPosition(1, new Vector3(pCoreEnd0.x, pCoreEnd0.y, -0.22f));
+            lrEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.22f));
+            lrEnd.SetPosition(1, new Vector3(pCoreEnd0.x, pCoreEnd0.y, _isolatedOffset.z - 0.22f));
             lrEnd.startWidth = minDim * 0.17f;
             lrEnd.endWidth = lrEnd.startWidth;
             lrEnd.numCapVertices = 12;
@@ -959,8 +1115,8 @@ public class RewiringDemoUI : MonoBehaviour
             bootStartObj.transform.SetParent(holderObj.transform);
             LineRenderer lrBootStart = bootStartObj.AddComponent<LineRenderer>();
             lrBootStart.positionCount = 2;
-            lrBootStart.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.19f) - dirStart * (minDim * 0.05f));
-            lrBootStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.19f) + dirStart * (minDim * 0.05f));
+            lrBootStart.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.19f) - dirStart * (minDim * 0.05f));
+            lrBootStart.SetPosition(1, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.19f) + dirStart * (minDim * 0.05f));
             lrBootStart.startWidth = minDim * 0.38f;
             lrBootStart.endWidth = lrBootStart.startWidth;
             lrBootStart.numCapVertices = 12;
@@ -974,8 +1130,8 @@ public class RewiringDemoUI : MonoBehaviour
                 bootEndObj.transform.SetParent(holderObj.transform);
                 LineRenderer lrBootEnd = bootEndObj.AddComponent<LineRenderer>();
                 lrBootEnd.positionCount = 2;
-                lrBootEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.19f) - dirEnd * (minDim * 0.05f));
-                lrBootEnd.SetPosition(1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.19f) + dirEnd * (minDim * 0.05f));
+                lrBootEnd.SetPosition(0, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.19f) - dirEnd * (minDim * 0.05f));
+                lrBootEnd.SetPosition(1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.19f) + dirEnd * (minDim * 0.05f));
                 lrBootEnd.startWidth = minDim * 0.38f;
                 lrBootEnd.endWidth = lrBootEnd.startWidth;
                 lrBootEnd.numCapVertices = 12;
@@ -1009,16 +1165,16 @@ public class RewiringDemoUI : MonoBehaviour
 
         if (worldPoints.Count >= 2)
         {
-            lr.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, -0.16f));
+            lr.SetPosition(0, new Vector3(pCoreStart1.x, pCoreStart1.y, _isolatedOffset.z - 0.16f));
             for (int i = 1; i < worldPoints.Count - 1; i++)
             {
-                lr.SetPosition(i, new Vector3(worldPoints[i].x, worldPoints[i].y, -0.16f));
+                lr.SetPosition(i, new Vector3(worldPoints[i].x, worldPoints[i].y, _isolatedOffset.z - 0.16f));
             }
-            lr.SetPosition(worldPoints.Count - 1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, -0.16f));
+            lr.SetPosition(worldPoints.Count - 1, new Vector3(pCoreEnd1.x, pCoreEnd1.y, _isolatedOffset.z - 0.16f));
         }
         else
         {
-            lr.SetPosition(0, new Vector3(worldPoints[0].x, worldPoints[0].y, -0.16f));
+            lr.SetPosition(0, new Vector3(worldPoints[0].x, worldPoints[0].y, _isolatedOffset.z - 0.16f));
         }
 
         wireElem.line = lr;
@@ -1167,6 +1323,7 @@ public class RewiringDemoUI : MonoBehaviour
         }
         _terminals.Clear();
         _resultText = "";
+        _isAutoCompleting = false;
 
         SetupGridBoardParameters(difficulty);
         SetupGridVisuals();
@@ -1190,7 +1347,8 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 GameObject bridgeObj = new GameObject($"Bridge_{bCell.x}_{bCell.y}");
                 bridgeObj.transform.SetParent(this.transform);
-                bridgeObj.transform.position = GetCellWorldPosition(bCell.x, bCell.y);
+                Vector2 bPos = GetCellWorldPosition(bCell.x, bCell.y);
+                bridgeObj.transform.position = new Vector3(bPos.x, bPos.y, _isolatedOffset.z);
                 RewiringBridge bridgeComp = bridgeObj.AddComponent<RewiringBridge>();
                 bridgeComp.Initialize(bCell);
                 bridgeComp.CreateVisualModel(_cellWidth, _cellHeight);
@@ -1204,7 +1362,8 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 GameObject obsObj = new GameObject($"Obstacle_{oCell.x}_{oCell.y}");
                 obsObj.transform.SetParent(this.transform);
-                obsObj.transform.position = GetCellWorldPosition(oCell.x, oCell.y);
+                Vector2 oPos = GetCellWorldPosition(oCell.x, oCell.y);
+                obsObj.transform.position = new Vector3(oPos.x, oPos.y, _isolatedOffset.z);
                 RewiringObstacle obsComp = obsObj.AddComponent<RewiringObstacle>();
                 obsComp.Initialize(oCell, RewiringObstacle.ObstacleType.BurntCapacitor);
                 obsComp.CreateVisualModel(_cellWidth, _cellHeight);
@@ -1234,9 +1393,9 @@ public class RewiringDemoUI : MonoBehaviour
         Vector2 worldPos = GetCellWorldPosition(gridCell.x, gridCell.y);
         GameObject obj = new GameObject(name);
         obj.transform.SetParent(this.transform);
-        obj.transform.position = worldPos;
+        obj.transform.position = new Vector3(worldPos.x, worldPos.y, _isolatedOffset.z);
 
-        float cylScale = Mathf.Min(_cellWidth, _cellHeight) * 0.62f;
+        float cylScale = Mathf.Min(_cellWidth, _cellHeight) * 0.48f;
 
         CircleCollider2D col = obj.AddComponent<CircleCollider2D>();
         col.radius = cylScale * 0.55f;
@@ -1306,70 +1465,57 @@ public class RewiringDemoUI : MonoBehaviour
     {
         InitGUIStyles();
 
+        // Tự động co giãn theo tỷ lệ màn hình (chuẩn 1080p)
+        float scale = Mathf.Clamp(Screen.height / 1080f, 0.5f, 1.5f);
+        Matrix4x4 oldMatrix = GUI.matrix;
+        GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1f));
+
+        float vWidth = Screen.width / scale;
+        float vHeight = Screen.height / scale;
+
         // Top Banner (Ngắn gọn và súc tích)
-        GUI.Box(new Rect(0, 0, Screen.width, 56), "", _titleStyle);
-        GUI.Label(new Rect(0, 8, Screen.width, 40), "Minigame nối dây", _titleStyle);
+        GUI.Box(new Rect(0, 0, vWidth, 40), "", _titleStyle);
+        GUI.Label(new Rect(0, 6, vWidth, 28), "Minigame nối dây", _titleStyle);
 
         // Nút Hướng dẫn chơi ở góc phải Top Banner
-        if (GUI.Button(new Rect(Screen.width - 235, 8, 220, 40), "❓ HƯỚNG DẪN CHƠI", _buttonStyle))
+        if (GUI.Button(new Rect(vWidth - 190, 6, 175, 28), "❓ HƯỚNG DẪN CHƠI", _buttonStyle))
         {
             _showGuide = !_showGuide;
         }
 
         // Bottom Buttons
-        float btnWidth = 270;
-        float btnHeight = 54;
-        float bottomY = Screen.height - 72f;
-        float centerX = Screen.width / 2f;
+        float btnHeight = 38;
+        float bottomY = vHeight - 52f;
+        float centerX = vWidth / 2f;
 
-        if (GUI.Button(new Rect(centerX - 350, bottomY - 68, 180, btnHeight), "↩ UNDO (Lùi)", _buttonStyle))
+        if (GUI.Button(new Rect(centerX - 275, bottomY, 135, btnHeight), "↩ UNDO (Lùi)", _buttonStyle))
         {
             OnUndoClicked();
         }
 
-        if (GUI.Button(new Rect(centerX - 155, bottomY - 68, 310, btnHeight), "★ KIỂM TRA CHẤT LƯỢNG ★", _buttonStyle))
+        if (GUI.Button(new Rect(centerX - 125, bottomY, 250, btnHeight), "★ KIỂM TRA CHẤT LƯỢNG ★", _buttonStyle))
         {
             OnCheckQualityClicked();
         }
 
-        if (GUI.Button(new Rect(centerX + 170, bottomY - 68, 180, btnHeight), "🗑 RESET (Xóa)", _buttonStyle))
+        if (GUI.Button(new Rect(centerX + 140, bottomY, 135, btnHeight), "🗑 RESET (Xóa)", _buttonStyle))
         {
             OnResetClicked();
         }
 
-        float w4 = Mathf.Min(220f, (Screen.width - 60f) / 4f);
-        float startX = centerX - w4 * 2f - 15f;
-        if (GUI.Button(new Rect(startX, bottomY, w4, 48), "1. Dễ (30 Ô - 3 Cặp)", _buttonStyle))
-        {
-            InitializeDemoBoard(0);
-        }
-
-        if (GUI.Button(new Rect(startX + w4 + 10f, bottomY, w4, 48), "2. Vừa (48 Ô - 4 Cặp)", _buttonStyle))
-        {
-            InitializeDemoBoard(1);
-        }
-
-        if (GUI.Button(new Rect(startX + (w4 + 10f) * 2f, bottomY, w4, 48), "3. Khó (70 Ô - 6 Cặp)", _buttonStyle))
-        {
-            InitializeDemoBoard(2);
-        }
-
-        if (GUI.Button(new Rect(startX + (w4 + 10f) * 3f, bottomY, w4, 48), "4. Khổ Hạnh (Extreme)", _buttonStyle))
-        {
-            InitializeDemoBoard(3);
-        }
-
-        // Result Popup (đặt phía trên cụm nút bấm bottomY - 68, nằm giữa bảng mạch và 3 nút action)
+        // Result Popup (đặt phía trên cụm nút action bottomY)
         if (!string.IsNullOrEmpty(_resultText))
         {
-            GUI.Box(new Rect(Screen.width * 0.12f, bottomY - 144, Screen.width * 0.76f, 66), _resultText, _resultStyle);
+            GUI.Box(new Rect(vWidth * 0.15f, bottomY - 76, vWidth * 0.70f, 66), _resultText, _resultStyle);
         }
 
         // Hiển thị Cửa sổ Hướng dẫn chơi (Tutorial Modal) trên cùng nếu đang bật
         if (_showGuide)
         {
-            DrawGuideModal();
+            DrawGuideModal(vWidth, vHeight);
         }
+
+        GUI.matrix = oldMatrix;
     }
 
     private void OnUndoClicked()
@@ -1443,6 +1589,10 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Á đù, nối thế này bị đè chéo mạch rồi! Khách lấy về dùng được nhưng dễ bị phàn nàn và mất uy tín.", 4f);
             }
+            if (_controller != null && _controller.IsActive && Application.isPlaying)
+            {
+                StartCoroutine(CompleteGameplayAfterDelay(quality, 2.0f));
+            }
         }
         else if (quality == RepairQuality.Perfect)
         {
@@ -1454,6 +1604,36 @@ public class RewiringDemoUI : MonoBehaviour
             {
                 SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện", "Ngon lành! Mạch hàn chắc nịch, dây đi gọn gàng chuẩn thợ có tâm Sài Gòn!", 4f, "Tiếng báo hiệu-chính xác");
             }
+            if (_controller != null && _controller.IsActive && Application.isPlaying)
+            {
+                StartCoroutine(CompleteGameplayAfterDelay(quality, 1.8f));
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator AutoCheckQualityAndComplete(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (_controller != null && _controller.IsActive)
+        {
+            RepairQuality quality = _controller.EvaluateRewiringQuality();
+            if (quality != RepairQuality.Broken)
+            {
+                if (SubtitleManager.Instance != null)
+                {
+                    SubtitleManager.Instance.ShowSubtitle("Anh Thợ Điện (Hoàn thành)", $"Hoàn tất nối dây! Đánh giá: {quality}", 2.0f);
+                }
+                StartCoroutine(CompleteGameplayAfterDelay(quality, 1.2f));
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator CompleteGameplayAfterDelay(RepairQuality quality, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (_controller != null && _controller.IsActive)
+        {
+            _controller.EndMinigame();
         }
     }
 
@@ -1573,7 +1753,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _titleStyle = new GUIStyle(GUI.skin.box)
         {
-            fontSize = 28,
+            fontSize = 18,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1581,7 +1761,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 22,
+            fontSize = 16,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1589,14 +1769,14 @@ public class RewiringDemoUI : MonoBehaviour
 
         _buttonStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 18,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
 
         _labelStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 16,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true
@@ -1604,7 +1784,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _resultStyle = new GUIStyle(GUI.skin.box)
         {
-            fontSize = 22,
+            fontSize = 15,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true,
@@ -1617,7 +1797,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideTitleStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 35,
+            fontSize = 18,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true,
@@ -1627,7 +1807,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideBodyStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 30,
+            fontSize = 14,
             fontStyle = FontStyle.Normal,
             alignment = TextAnchor.UpperLeft,
             richText = true,
@@ -1637,7 +1817,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideCloseBtnStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 32,
+            fontSize = 15,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1649,7 +1829,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guideArrowBtnStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 46,
+            fontSize = 22,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
@@ -1657,7 +1837,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         _guidePageIndicatorStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 32,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             richText = true
@@ -1674,28 +1854,28 @@ public class RewiringDemoUI : MonoBehaviour
         return result;
     }
 
-    private void DrawGuideModal()
+    private void DrawGuideModal(float vWidth, float vHeight)
     {
         // Nền tối mờ bao phủ toàn màn hình
         GUI.color = new Color(0, 0, 0, 0.85f);
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(0, 0, vWidth, vHeight), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float popupW = Mathf.Min(1650f, Screen.width * 0.90f);
-        float popupH = Mathf.Min(980f, Screen.height * 0.92f);
-        float popupX = (Screen.width - popupW) / 2f;
-        float popupY = (Screen.height - popupH) / 2f;
+        float popupW = Mathf.Min(980f, vWidth * 0.86f);
+        float popupH = Mathf.Min(620f, vHeight * 0.88f);
+        float popupX = (vWidth - popupW) / 2f;
+        float popupY = (vHeight - popupH) / 2f;
 
         GUI.Box(new Rect(popupX, popupY, popupW, popupH), "", _popupWindowStyle);
 
         // Nút mũi tên chuyển trang (Side Arrow navigation like sketch)
-        float arrowW = 90f;
-        float arrowH = 180f;
-        float arrowY = popupY + (popupH - arrowH) / 2f - 40f;
+        float arrowW = 55f;
+        float arrowH = 110f;
+        float arrowY = popupY + (popupH - arrowH) / 2f - 20f;
 
         if (_guidePageIndex > 0)
         {
-            if (GUI.Button(new Rect(popupX - arrowW - 15f, arrowY, arrowW, arrowH), "◀", _guideArrowBtnStyle))
+            if (GUI.Button(new Rect(popupX - arrowW - 10f, arrowY, arrowW, arrowH), "◀", _guideArrowBtnStyle))
             {
                 _guidePageIndex--;
             }
@@ -1703,7 +1883,7 @@ public class RewiringDemoUI : MonoBehaviour
 
         if (_guidePageIndex < 3)
         {
-            if (GUI.Button(new Rect(popupX + popupW + 15f, arrowY, arrowW, arrowH), "▶", _guideArrowBtnStyle))
+            if (GUI.Button(new Rect(popupX + popupW + 10f, arrowY, arrowW, arrowH), "▶", _guideArrowBtnStyle))
             {
                 _guidePageIndex++;
             }
@@ -1716,18 +1896,18 @@ public class RewiringDemoUI : MonoBehaviour
         else if (_guidePageIndex == 2) pageTitle = "BƯỚC 3/4 : CẦU VƯỢT GỐM (BRIDGE) - KHUNG CHỮ THẬP";
         else if (_guidePageIndex == 3) pageTitle = "BƯỚC 4/4 : CHƯỚNG NGẠI VẬT & CÔNG CỤ HỖ TRỢ";
 
-        GUI.Label(new Rect(popupX + 25f, popupY + 18f, popupW - 50f, 95f), $"📖 HƯỚNG DẪN CHƠI - {pageTitle}", _guideTitleStyle);
+        GUI.Label(new Rect(popupX + 25f, popupY + 12f, popupW - 50f, 38f), $"📖 HƯỚNG DẪN CHƠI - {pageTitle}", _guideTitleStyle);
 
         // Khung "Ảnh minh họa" (Top Illustration Box like sketch)
-        float illusX = popupX + 50f;
-        float illusY = popupY + 118f;
-        float illusW = popupW - 100f;
-        float illusH = popupH * 0.42f;
+        float illusX = popupX + 35f;
+        float illusY = popupY + 52f;
+        float illusW = popupW - 70f;
+        float illusH = popupH * 0.45f;
         DrawSlideIllustration(_guidePageIndex, new Rect(illusX, illusY, illusW, illusH));
 
         // Nội dung mô tả ngắn gọn bên dưới ảnh minh họa (Bottom Text lines)
-        float descY = illusY + illusH + 20f;
-        float descH = popupH - (descY - popupY) - 150f;
+        float descY = illusY + illusH + 14f;
+        float descH = popupH - (descY - popupY) - 105f;
         
         string descText = "";
         if (_guidePageIndex == 0)
@@ -1762,13 +1942,13 @@ public class RewiringDemoUI : MonoBehaviour
             if (i == _guidePageIndex) dots += " <color=#00FF88><b>[ ● Trang " + (i + 1) + " ]</b></color> ";
             else dots += " <color=#888888>○ Trang " + (i + 1) + "</color> ";
         }
-        GUI.Label(new Rect(popupX, popupY + popupH - 152f, popupW, 48f), dots, _guidePageIndicatorStyle);
+        GUI.Label(new Rect(popupX, popupY + popupH - 92f, popupW, 30f), dots, _guidePageIndicatorStyle);
 
         // Nút THOÁT / XÁC NHẬN siêu rộng bên dưới cùng (Bottom Exit Button like sketch)
-        float btnW = Mathf.Min(680f, popupW - 140f);
-        float btnH = 68f;
+        float btnW = Mathf.Min(460f, popupW - 120f);
+        float btnH = 42f;
         float btnX = popupX + (popupW - btnW) / 2f;
-        float btnY = popupY + popupH - 94f;
+        float btnY = popupY + popupH - 56f;
 
         string btnText = _guidePageIndex < 3 ? "✔ ĐÃ HIỂU (THOÁT)" : "✔ ĐÃ HIỂU & BẮT ĐẦU CHƠI";
         if (GUI.Button(new Rect(btnX, btnY, btnW, btnH), btnText, _guideCloseBtnStyle))
@@ -1831,8 +2011,8 @@ public class RewiringDemoUI : MonoBehaviour
                                "<b>[■]</b> ━━━<color=#FF5555><b>[ X ]</b></color>━━━ <b>[■]</b> (Đè chéo!)\n\n\n" +
                                "<color=#FFC800>⚠ Dây Đỏ & Xanh cắt ngang ô thường\n⚠ Bị trừ điểm & tiền thưởng</color>";
 
-            GUI.Label(new Rect(rect.x, rect.y + 20f, halfW, rect.height - 25f), leftText, _guideBodyStyle);
-            GUI.Label(new Rect(rect.x + halfW, rect.y + 20f, halfW, rect.height - 25f), rightText, _guideBodyStyle);
+            GUI.Label(new Rect(rect.x + 15f, rect.y + 15f, halfW - 25f, rect.height - 25f), leftText, _guideBodyStyle);
+            GUI.Label(new Rect(rect.x + halfW + 15f, rect.y + 15f, halfW - 25f, rect.height - 25f), rightText, _guideBodyStyle);
         }
         else if (pageIndex == 2)
         {

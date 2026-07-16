@@ -105,6 +105,7 @@ public class GameOverUI : MonoBehaviour
 
     private void ShowGameOver()
     {
+        if (_panel == null) CreateUI();
         if (_panel == null) return;
         
         // Hide DaySummary if it's open
@@ -123,7 +124,26 @@ public class GameOverUI : MonoBehaviour
     private void OnRestartClicked()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
+        // Xóa lưu trữ để bắt đầu lại từ ngày 1
+        PlayerPrefs.DeleteKey("Money");
+        PlayerPrefs.DeleteKey("CurrentDay");
+        PlayerPrefs.DeleteKey("TutorialShown");
+        PlayerPrefs.SetInt("IsNewGame", 1);
+        PlayerPrefs.SetInt("HasSaveGame", 1);
+        PlayerPrefs.Save();
+
+        // Xoá các Singleton đang giữ trạng thái cũ
+        if (EconomyManager.Instance != null) Destroy(EconomyManager.Instance.gameObject);
+        if (DayClock.Instance != null) Destroy(DayClock.Instance.gameObject);
+        if (CustomerQueue.Instance != null) Destroy(CustomerQueue.Instance.gameObject);
+        if (ToastNotificationManager.Instance != null) Destroy(ToastNotificationManager.Instance.gameObject);
+
+        // Reset cờ kiểm tra lần đầu ra phố
+        BedInteraction.hasVisitedStreetFirstTime = false;
+
+        // Về phòng ngủ (Shop_Main)
+        LoadingScreenManager.LoadScene("Shop_Main");
     }
 
     private void OnDestroy()
