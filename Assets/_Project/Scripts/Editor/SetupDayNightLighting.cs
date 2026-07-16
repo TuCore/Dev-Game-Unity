@@ -21,10 +21,10 @@ public static class SetupDayNightLighting
 
         if (sunLight == null)
         {
-            // Tìm Directional Light nào đó khác
+            // Tìm Directional Light nào đó khác an toàn hơn (không gắn vào Camera hay Player)
             foreach (var l in lights)
             {
-                if (l.type == LightType.Directional)
+                if (l.type == LightType.Directional && l.GetComponent<Camera>() == null && l.GetComponentInParent<Camera>() == null)
                 {
                     sunLight = l;
                     sunLight.name = "Sun_DirectionalLight";
