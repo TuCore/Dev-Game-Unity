@@ -16,6 +16,8 @@ namespace AnhThoDien.UI.Menu
 
         [Header("Panels")]
         public GameObject settingsPanel;
+        public GameObject collectionPanel;
+        public GameObject infoPanel;
 
         [Header("Intro Sequence")]
         public GameObject introPanel;
@@ -40,6 +42,8 @@ namespace AnhThoDien.UI.Menu
             // Ensure settings panel is hidden at start
             if (settingsPanel != null) settingsPanel.SetActive(false);
             if (introPanel != null) introPanel.SetActive(false);
+            if (collectionPanel != null) collectionPanel.SetActive(false);
+            if (infoPanel != null) infoPanel.SetActive(false);
 
             // Kiểm tra xem đã có dữ liệu lưu chưa để bật/tắt nút Tiếp tục
             if (btnContinue != null)
@@ -58,17 +62,12 @@ namespace AnhThoDien.UI.Menu
             }
         }
 
-        private void Update()
-        {
-            if (isPlayingIntro && Input.anyKeyDown)
-            {
-                SkipIntro();
-            }
-        }
 
         private void OnNewGameClicked()
         {
             Debug.Log("Starting New Game...");
+            
+            if (AudioManager.Instance != null) AudioManager.Instance.StopMusic();
             
             // Xóa các dữ liệu cũ (reset quá trình chơi)
             PlayerPrefs.DeleteKey("Money");
@@ -84,93 +83,16 @@ namespace AnhThoDien.UI.Menu
             
             PlayerController.ResetLoadState();
 
-            if (introPanel == null || introText == null)
-            {
-                CreateIntroUI();
-            }
-
-            if (introPanel != null && introText != null)
-            {
-                introCoroutine = StartCoroutine(PlayIntroRoutine());
-            }
-            else
-            {
-                LoadingScreenManager.LoadScene("Shop_Main");
-            }
+            LoadingScreenManager.LoadScene("IntroScene");
         }
 
-        private void CreateIntroUI()
-        {
-            Canvas canvas = FindAnyObjectByType<Canvas>();
-            if (canvas == null) return;
 
-            introPanel = new GameObject("IntroPanel");
-            introPanel.transform.SetParent(canvas.transform, false);
-            introPanel.transform.SetAsLastSibling();
-            Image bg = introPanel.AddComponent<Image>();
-            bg.color = Color.black;
-            RectTransform bgRect = introPanel.GetComponent<RectTransform>();
-            bgRect.anchorMin = Vector2.zero;
-            bgRect.anchorMax = Vector2.one;
-            bgRect.sizeDelta = Vector2.zero;
-
-            GameObject textObj = new GameObject("IntroText");
-            textObj.transform.SetParent(introPanel.transform, false);
-            introText = textObj.AddComponent<Text>();
-            introText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            introText.fontSize = 32;
-            introText.color = Color.white;
-            introText.alignment = TextAnchor.MiddleCenter;
-            
-            RectTransform textRect = textObj.GetComponent<RectTransform>();
-            textRect.anchorMin = new Vector2(0.1f, 0.1f);
-            textRect.anchorMax = new Vector2(0.9f, 0.9f);
-            textRect.sizeDelta = Vector2.zero;
-
-            introPanel.SetActive(false);
-        }
-
-        private IEnumerator PlayIntroRoutine()
-        {
-            isPlayingIntro = true;
-            introPanel.SetActive(true);
-            introText.text = "";
-
-            // Typewriter effect
-            foreach (char c in introMessage.ToCharArray())
-            {
-                introText.text += c;
-                yield return new WaitForSeconds(typingSpeed);
-            }
-
-            // Wait a few seconds after finishing
-            yield return new WaitForSeconds(2.5f);
-            
-            LoadGameplayScene();
-        }
-
-        private void SkipIntro()
-        {
-            if (introCoroutine != null)
-            {
-                StopCoroutine(introCoroutine);
-            }
-            LoadGameplayScene();
-        }
-
-        private void LoadGameplayScene()
-        {
-            isPlayingIntro = false;
-            if (introPanel != null)
-            {
-                Destroy(introPanel);
-            }
-            LoadingScreenManager.LoadScene("Shop_Main");
-        }
 
         private void OnContinueClicked()
         {
             Debug.Log("Continuing Game...");
+            
+            if (AudioManager.Instance != null) AudioManager.Instance.StopMusic();
             
             // Báo cho game biết đây là lượt chơi tiếp tục
             PlayerPrefs.SetInt("IsNewGame", 0);
@@ -194,11 +116,19 @@ namespace AnhThoDien.UI.Menu
         private void OnCollectionClicked()
         {
             Debug.Log("Opening Collection...");
+            if (collectionPanel != null)
+            {
+                collectionPanel.SetActive(true);
+            }
         }
 
         private void OnInfoClicked()
         {
             Debug.Log("Opening Info...");
+            if (infoPanel != null)
+            {
+                infoPanel.SetActive(true);
+            }
         }
 
         private void OnQuitClicked()

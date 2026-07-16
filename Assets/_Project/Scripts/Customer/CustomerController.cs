@@ -81,7 +81,6 @@ public class CustomerController : MonoBehaviour, IInteractable
             agent.acceleration = Mathf.Max(agent.acceleration, 12f);
             agent.angularSpeed = Mathf.Max(agent.angularSpeed, 360f);
             agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
-            agent.isStopped = false;
         }
 
         // TẮT CHẶN: Đảm bảo Rigidbody không đánh lộn với NavMeshAgent gây văng tung tóe (teleport)
