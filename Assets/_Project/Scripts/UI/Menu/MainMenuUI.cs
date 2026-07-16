@@ -16,6 +16,8 @@ namespace AnhThoDien.UI.Menu
 
         [Header("Panels")]
         public GameObject settingsPanel;
+        public GameObject collectionPanel;
+        public GameObject infoPanel;
 
         [Header("Intro Sequence")]
         public GameObject introPanel;
@@ -40,6 +42,8 @@ namespace AnhThoDien.UI.Menu
             // Ensure settings panel is hidden at start
             if (settingsPanel != null) settingsPanel.SetActive(false);
             if (introPanel != null) introPanel.SetActive(false);
+            if (collectionPanel != null) collectionPanel.SetActive(false);
+            if (infoPanel != null) infoPanel.SetActive(false);
 
             // Kiểm tra xem đã có dữ liệu lưu chưa để bật/tắt nút Tiếp tục
             if (btnContinue != null)
@@ -108,11 +112,19 @@ namespace AnhThoDien.UI.Menu
         private void OnCollectionClicked()
         {
             Debug.Log("Opening Collection...");
+            if (collectionPanel != null)
+            {
+                collectionPanel.SetActive(true);
+            }
         }
 
         private void OnInfoClicked()
         {
             Debug.Log("Opening Info...");
+            if (infoPanel != null)
+            {
+                infoPanel.SetActive(true);
+            }
         }
 
         private void OnQuitClicked()
