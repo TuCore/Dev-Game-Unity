@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
@@ -35,6 +36,33 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         public TextMeshProUGUI Label;
     }
 
+    private sealed class ToolDragHandle : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    {
+        private ComponentReplacementMinigame _owner;
+        private Tool _tool;
+
+        public void Configure(ComponentReplacementMinigame owner, Tool tool)
+        {
+            _owner = owner;
+            _tool = tool;
+        }
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            _owner?.BeginToolDrag(_tool, eventData);
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            _owner?.DragTool(_tool, eventData);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            _owner?.EndToolDrag(_tool, eventData);
+        }
+    }
+
     private sealed class ComponentTask
     {
         public string Id;
@@ -53,7 +81,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         public TextMeshProUGUI StatusText;
     }
 
-    public string MinigameName => "Thay linh kien chay";
+    public string MinigameName => "Thay linh kiện cháy";
     public bool IsActive { get; private set; }
     public event Action<RepairQuality> OnMinigameCompleted;
 
@@ -65,6 +93,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
     private readonly List<ComponentTask> _tasks = new List<ComponentTask>();
     private readonly Dictionary<Tool, Button> _toolButtons = new Dictionary<Tool, Button>();
 
+    private RectTransform _boardRect;
     private GameObject _uiRoot;
     private Transform _boardLayer;
     private Transform _traceLayer;
@@ -75,6 +104,9 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
     private TextMeshProUGUI _toolHintText;
     private TextMeshProUGUI _orientationText;
     private TextMeshProUGUI _selectedToolText;
+    private Image _toolDragGhost;
+    private Tool _draggingTool;
+    private bool _isToolDragging;
     private Image _heatBar;
     private Button _rotateButton;
     private Button _finishButton;
@@ -114,8 +146,14 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
     {
         if (!IsActive || _isFinishing)
         {
+            if (_toolDragGhost != null && !_isToolDragging)
+            {
+                _toolDragGhost.gameObject.SetActive(false);
+            }
             return;
         }
+
+        HandleToolShortcuts();
 
         _timeRemaining -= Time.deltaTime;
         UpdateStatusText();
@@ -125,6 +163,16 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
             Complete(RepairQuality.Broken, true, "Hết giờ. Linh kiện chưa được thay xong.");
         }
     }
+
+    private void HandleToolShortcuts()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SelectTool(Tool.Iron);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SelectTool(Tool.Pump);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SelectTool(Tool.Tweezers);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SelectTool(Tool.Replacement);
+        if (Input.GetKeyDown(KeyCode.R)) RotateReplacement();
+    }
+
 
     public void Initialize(List<string> faults, int difficultyLevel)
     {
@@ -142,7 +190,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         BuildTasks();
         RebuildBoard();
         SelectTool(_selectedTool);
-        ShowFeedback("Chọn mỏ hàn, bấm từng chân để làm chảy thiếc. Làm theo đúng thứ tự trên bảng hướng dẫn.", new Color(0.78f, 0.9f, 1f, 1f));
+        ShowFeedback("Kéo công cụ từ panel sang board: mỏ hàn/hút thiếc thả lên chân, nhíp/linh kiện mới thả lên thân linh kiện.", new Color(0.78f, 0.9f, 1f, 1f));
         UpdateStatusText();
     }
 
@@ -198,6 +246,8 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
 
         EnsureSprites();
         _uiRoot = MinigameUiKit.CreateCanvasRoot("ComponentReplacementUI", transform, 520);
+        MinigameWorkbenchVisuals.Install(_uiRoot, MinigameWorkbenchStyle.Replacement, new Color(1f, 0.45f, 0.18f, 1f));
+
 
         Image overlay = MinigameUiKit.CreateImage(_uiRoot.transform, "BackgroundOverlay", _solidSprite, new Color(0.006f, 0.008f, 0.012f, 0.93f), false);
         MinigameUiKit.Stretch(overlay.rectTransform);
@@ -215,6 +265,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-32f, 0f), new Vector2(620f, 48f));
 
         Image boardPanel = MinigameUiKit.CreatePanel(_uiRoot.transform, "BoardPanel", _panelSprite, new Color(0.018f, 0.024f, 0.027f, 0.98f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(640f, -18f), new Vector2(1210f, 820f));
+        _boardRect = boardPanel.rectTransform;
         MinigameUiKit.AddChrome(boardPanel.transform, _solidSprite, new Color(1f, 0.45f, 0.18f, 0.5f));
         Image board = MinigameUiKit.CreateImage(boardPanel.transform, "BoardArt", _boardSprite, Color.white, false);
         MinigameUiKit.SetAnchored(board.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -34f), new Vector2(1040f, 620f));
@@ -262,7 +313,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         _toolHintText = MinigameUiKit.CreateText(parent, "ToolHint", "", 18, FontStyles.Normal, TextAlignmentOptions.TopLeft, new Color(0.8f, 0.9f, 0.92f, 1f));
         MinigameUiKit.SetAnchored(_toolHintText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -560f), new Vector2(430f, 110f));
 
-        TextMeshProUGUI heatLabel = MinigameUiKit.CreateText(parent, "HeatLabel", "Nhiet/hu hong board", 18, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.92f, 0.96f, 1f, 1f));
+        TextMeshProUGUI heatLabel = MinigameUiKit.CreateText(parent, "HeatLabel", "Nhiệt / hư hỏng board", 18, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.92f, 0.96f, 1f, 1f));
         MinigameUiKit.SetAnchored(heatLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -690f), new Vector2(430f, 30f));
         Image heatBg = MinigameUiKit.CreatePanel(parent, "HeatBarBg", _panelSprite, new Color(0.06f, 0.07f, 0.08f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -735f), new Vector2(430f, 34f));
         _heatBar = MinigameUiKit.CreateImage(heatBg.transform, "Fill", _solidSprite, new Color(1f, 0.44f, 0.2f, 1f), false);
@@ -273,6 +324,9 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
     private void AddToolButton(Transform parent, Tool tool, string label, Sprite icon, Vector2 position, Color color)
     {
         Button button = MinigameUiKit.CreateButton(parent, "Tool_" + tool, label, _panelSprite, color, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), position, new Vector2(440f, 56f), () => SelectTool(tool));
+
+        ToolDragHandle dragHandle = button.gameObject.AddComponent<ToolDragHandle>();
+        dragHandle.Configure(this, tool);
         Image iconImage = MinigameUiKit.CreateImage(button.transform, "Icon", icon, Color.white, false);
         MinigameUiKit.SetAnchored(iconImage.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(42f, 0f), new Vector2(44f, 44f));
 
@@ -497,6 +551,185 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         UpdateStatusText();
     }
 
+    private void BeginToolDrag(Tool tool, PointerEventData eventData)
+    {
+        if (!IsActive || _isFinishing)
+        {
+            return;
+        }
+
+        _isToolDragging = true;
+        _draggingTool = tool;
+        SelectTool(tool);
+        EnsureToolDragGhost();
+        SetToolDragGhostVisible(true);
+
+        if (TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+        {
+            UpdateToolDragGhost(tool, localPoint);
+        }
+
+        ShowFeedback(GetToolDragHint(tool), new Color(0.72f, 0.9f, 1f, 1f));
+    }
+
+    private void DragTool(Tool tool, PointerEventData eventData)
+    {
+        if (!_isToolDragging || tool != _draggingTool)
+        {
+            return;
+        }
+
+        if (TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+        {
+            UpdateToolDragGhost(tool, localPoint);
+        }
+    }
+
+    private void EndToolDrag(Tool tool, PointerEventData eventData)
+    {
+        if (!_isToolDragging || tool != _draggingTool)
+        {
+            return;
+        }
+
+        _isToolDragging = false;
+        SetToolDragGhostVisible(false);
+
+        if (!TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+        {
+            ShowFeedback("Thả công cụ lên vùng board để thao tác.", new Color(1f, 0.82f, 0.34f, 1f));
+            return;
+        }
+
+        if (tool == Tool.Iron || tool == Tool.Pump)
+        {
+            if (FindNearestPin(localPoint, out ComponentTask pinTask, out PinData pin))
+            {
+                HandlePinClicked(pinTask, pin);
+                return;
+            }
+
+            ShowFeedback("Mũi công cụ chưa chạm chân hàn. Thả gần vòng thiếc hơn.", new Color(1f, 0.82f, 0.34f, 1f));
+            return;
+        }
+
+        ComponentTask bodyTask = FindBodyAt(localPoint);
+        if (bodyTask != null)
+        {
+            HandleBodyClicked(bodyTask);
+            return;
+        }
+
+        ShowFeedback(tool == Tool.Tweezers ? "Thả nhíp lên thân linh kiện cần gắp." : "Thả linh kiện mới lên vị trí đã tháo.", new Color(1f, 0.82f, 0.34f, 1f));
+    }
+
+    private void EnsureToolDragGhost()
+    {
+        if (_toolDragGhost != null)
+        {
+            return;
+        }
+
+        Transform parent = _boardRect != null ? _boardRect : _uiRoot.transform;
+        _toolDragGhost = MinigameUiKit.CreateImage(parent, "ToolDragGhost", GetToolSprite(_selectedTool), Color.white, false);
+        MinigameUiKit.SetAnchored(_toolDragGhost.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(82f, 82f));
+        _toolDragGhost.raycastTarget = false;
+        _toolDragGhost.gameObject.SetActive(false);
+    }
+
+    private void SetToolDragGhostVisible(bool visible)
+    {
+        if (_toolDragGhost != null)
+        {
+            _toolDragGhost.gameObject.SetActive(visible);
+        }
+    }
+
+    private void UpdateToolDragGhost(Tool tool, Vector2 localPoint)
+    {
+        EnsureToolDragGhost();
+        _toolDragGhost.sprite = GetToolSprite(tool);
+        _toolDragGhost.rectTransform.anchoredPosition = localPoint + new Vector2(22f, -22f);
+        _toolDragGhost.rectTransform.localRotation = Quaternion.identity;
+        _toolDragGhost.rectTransform.localScale = Vector3.one;
+        _toolDragGhost.transform.SetAsLastSibling();
+    }
+
+    private bool TryGetBoardLocalPoint(PointerEventData eventData, out Vector2 localPoint)
+    {
+        localPoint = Vector2.zero;
+        if (_boardRect == null || eventData == null)
+        {
+            return false;
+        }
+
+        Camera eventCamera = eventData.pressEventCamera != null ? eventData.pressEventCamera : eventData.enterEventCamera;
+        return RectTransformUtility.ScreenPointToLocalPointInRectangle(_boardRect, eventData.position, eventCamera, out localPoint);
+    }
+
+    private bool FindNearestPin(Vector2 localPoint, out ComponentTask task, out PinData pin)
+    {
+        task = null;
+        pin = null;
+        float bestDistance = 58f;
+
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            ComponentTask candidateTask = _tasks[i];
+            for (int j = 0; j < candidateTask.Pins.Count; j++)
+            {
+                PinData candidatePin = candidateTask.Pins[j];
+                float distance = Vector2.Distance(localPoint, candidateTask.Position + candidatePin.Offset);
+                if (distance <= bestDistance)
+                {
+                    task = candidateTask;
+                    pin = candidatePin;
+                    bestDistance = distance;
+                }
+            }
+        }
+
+        return task != null && pin != null;
+    }
+
+    private ComponentTask FindBodyAt(Vector2 localPoint)
+    {
+        ComponentTask best = null;
+        float bestDistance = float.MaxValue;
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            ComponentTask task = _tasks[i];
+            Vector2 half = (task.Size * 0.5f) + new Vector2(44f, 44f);
+            bool inside = Mathf.Abs(localPoint.x - task.Position.x) <= half.x && Mathf.Abs(localPoint.y - task.Position.y) <= half.y;
+            if (!inside)
+            {
+                continue;
+            }
+
+            float distance = Vector2.Distance(localPoint, task.Position);
+            if (distance < bestDistance)
+            {
+                best = task;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
+    }
+
+    private string GetToolDragHint(Tool tool)
+    {
+        switch (tool)
+        {
+            case Tool.Iron: return "Kéo mỏ hàn lên từng chân để làm chảy thiếc hoặc hàn lại sau khi đặt linh kiện.";
+            case Tool.Pump: return "Kéo hút thiếc lên chân đã nóng để dọn sạch lỗ chân.";
+            case Tool.Tweezers: return "Kéo nhíp lên thân linh kiện sau khi đã hút sạch thiếc.";
+            case Tool.Replacement: return "Kéo linh kiện mới vào vị trí trống. Nhấn R để xoay trước khi thả nếu cần.";
+            default: return "Kéo công cụ lên board.";
+        }
+    }
+
+
     private void HeatPin(ComponentTask task, PinData pin)
     {
         if (pin.Cleaned)
@@ -626,7 +859,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         if (AllPinsSoldered(task))
         {
             task.Complete = true;
-            ShowFeedback(task.Label + " da thay xong.", new Color(0.42f, 1f, 0.7f, 1f));
+            ShowFeedback(task.Label + " đã thay xong.", new Color(0.42f, 1f, 0.7f, 1f));
             if (AllTasksComplete())
             {
                 Complete(EvaluateQuality(), true, GetResultText(EvaluateQuality()));
@@ -660,6 +893,11 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
             _selectedToolText.text = "Đang chọn: " + GetToolName(tool);
         }
 
+
+        if (_toolDragGhost != null)
+        {
+            _toolDragGhost.sprite = GetToolSprite(tool);
+        }
         if (_toolHintText != null)
         {
             _toolHintText.text = GetToolHint(tool);
@@ -673,7 +911,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         _replacementRotation = NormalizeAngle(_replacementRotation + 90);
         MinigameSfxKit.Play(MinigameSfxCue.Rotate, 0.5f);
         UpdateOrientationText();
-        ShowFeedback("Huong linh kien moi: " + _replacementRotation + " do.", new Color(0.82f, 0.88f, 1f, 1f));
+        ShowFeedback("Hướng linh kiện mới: " + _replacementRotation + " độ.", new Color(0.82f, 0.88f, 1f, 1f));
     }
 
     private void TryFinish()
@@ -694,7 +932,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         ShowFeedback(message, new Color(1f, 0.48f, 0.28f, 1f));
         if (_mistakes >= _mistakeLimit)
         {
-            Complete(RepairQuality.Broken, true, "Sai thao tac qua nhieu, board bi hu.");
+            Complete(RepairQuality.Broken, true, "Sai thao tác quá nhiều, board bị hư.");
         }
     }
 
@@ -810,7 +1048,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
     {
         if (_orientationText != null)
         {
-            _orientationText.text = "Huong: " + _replacementRotation + " do";
+            _orientationText.text = "Hướng: " + _replacementRotation + " độ";
         }
 
         if (_rotateButton != null)
@@ -999,6 +1237,19 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
             default: return Color.gray;
         }
     }
+
+    private Sprite GetToolSprite(Tool tool)
+    {
+        switch (tool)
+        {
+            case Tool.Iron: return _ironSprite;
+            case Tool.Pump: return _pumpSprite;
+            case Tool.Tweezers: return _tweezersSprite;
+            case Tool.Replacement: return _partSprite;
+            default: return _partSprite;
+        }
+    }
+
 
     private void ShowFeedback(string message, Color color)
     {

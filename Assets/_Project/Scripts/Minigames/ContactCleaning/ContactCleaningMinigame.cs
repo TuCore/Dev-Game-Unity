@@ -135,6 +135,7 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
     private TextMeshProUGUI _boardLabelText;
     private TextMeshProUGUI _guideText;
     private Image _cleanBar;
+    private Image _toolCursor;
     private Image _scratchBar;
     private Button _finishButton;
 
@@ -167,17 +168,70 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
     {
         if (!IsActive || _isFinishing)
         {
+            if (_toolCursor != null)
+            {
+                _toolCursor.gameObject.SetActive(false);
+            }
             return;
         }
+
+        HandleToolShortcuts();
+        UpdateToolCursor();
 
         _timeRemaining -= Time.deltaTime;
         UpdateStatusText();
 
         if (_timeRemaining <= 0f)
         {
-            Complete(RepairQuality.Broken, true, "H\u1ebft gi\u1edd, ti\u1ebfp \u0111i\u1ec3m v\u1eabn c\u00f2n oxy h\u00f3a.");
+            Complete(RepairQuality.Broken, true, "Hết giờ, tiếp điểm vẫn còn oxy hóa.");
         }
     }
+
+    private void HandleToolShortcuts()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SelectTool(CleaningTool.Ipa);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SelectTool(CleaningTool.Eraser);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SelectTool(CleaningTool.BrassBrush);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SelectTool(CleaningTool.Sandpaper);
+
+        if (Input.GetKeyDown(KeyCode.Q)) CycleTool(-1);
+        if (Input.GetKeyDown(KeyCode.E)) CycleTool(1);
+
+        float scroll = Input.mouseScrollDelta.y;
+        if (scroll > 0.2f) CycleTool(-1);
+        if (scroll < -0.2f) CycleTool(1);
+    }
+
+    private void CycleTool(int direction)
+    {
+        int toolCount = Enum.GetValues(typeof(CleaningTool)).Length;
+        int next = ((int)_selectedTool + direction + toolCount) % toolCount;
+        SelectTool((CleaningTool)next);
+        ShowFeedback("Đổi sang " + GetToolDisplayName(_selectedTool) + ".", new Color(0.72f, 0.9f, 1f, 1f));
+    }
+
+    private void UpdateToolCursor()
+    {
+        if (_toolCursor == null || _uiRoot == null || _contactRect == null)
+        {
+            return;
+        }
+
+        bool pointerOverContact = RectTransformUtility.RectangleContainsScreenPoint(_contactRect, Input.mousePosition, null);
+        _toolCursor.gameObject.SetActive(pointerOverContact);
+        if (!pointerOverContact)
+        {
+            return;
+        }
+
+        RectTransform rootRect = _uiRoot.GetComponent<RectTransform>();
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(rootRect, Input.mousePosition, null, out Vector2 localPoint))
+        {
+            _toolCursor.rectTransform.anchoredPosition = localPoint + new Vector2(30f, -30f);
+            _toolCursor.transform.SetAsLastSibling();
+        }
+    }
+
 
     public void Initialize(List<string> faults, int difficultyLevel)
     {
@@ -324,6 +378,8 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
         _patchSprite = CreateOxidationSprite(_profile);
 
         _uiRoot = MinigameUiKit.CreateCanvasRoot("ContactCleaningUI", transform, 515);
+        MinigameWorkbenchVisuals.Install(_uiRoot, MinigameWorkbenchStyle.Cleaning, new Color(0.92f, 0.68f, 0.22f, 1f));
+
 
         Image overlay = MinigameUiKit.CreateImage(_uiRoot.transform, "BackgroundOverlay", _solidSprite, new Color(0.006f, 0.008f, 0.012f, 0.92f), false);
         MinigameUiKit.Stretch(overlay.rectTransform);
@@ -357,6 +413,11 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
 
         Image toolPanel = MinigameUiKit.CreatePanel(_uiRoot.transform, "ToolPanel", _panelSprite, new Color(0.025f, 0.029f, 0.036f, 0.98f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-295f, -18f), new Vector2(500f, 820f));
         MinigameUiKit.AddChrome(toolPanel.transform, _solidSprite, new Color(0.92f, 0.68f, 0.22f, 0.5f));
+
+        _toolCursor = MinigameUiKit.CreateImage(_uiRoot.transform, "CleaningToolCursor", CreateToolIconSprite(_selectedTool), Color.white, false);
+        MinigameUiKit.SetAnchored(_toolCursor.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(70f, 70f));
+        _toolCursor.raycastTarget = false;
+        _toolCursor.gameObject.SetActive(false);
         BuildToolPanel(toolPanel.transform);
 
         _feedbackText = MinigameUiKit.CreateText(_uiRoot.transform, "Feedback", "", 25, FontStyles.Bold, TextAlignmentOptions.Center, Color.white);
@@ -629,6 +690,12 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
             }
         }
 
+
+        if (_toolCursor != null)
+        {
+            _toolCursor.sprite = CreateToolIconSprite(tool);
+            _toolCursor.color = Color.white;
+        }
         if (_toolHintText != null)
         {
             _toolHintText.text = GetToolHint(tool);
@@ -1201,6 +1268,19 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
             default: return Color.gray;
         }
     }
+
+    private string GetToolDisplayName(CleaningTool tool)
+    {
+        switch (tool)
+        {
+            case CleaningTool.Ipa: return "cồn IPA";
+            case CleaningTool.Eraser: return "gôm tiếp điểm";
+            case CleaningTool.BrassBrush: return "bàn chải đồng";
+            case CleaningTool.Sandpaper: return "giấy nhám";
+            default: return "dụng cụ";
+        }
+    }
+
 
     private string GetToolHint(CleaningTool tool)
     {

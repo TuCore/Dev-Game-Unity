@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+
 
 public class PolarityWiringMinigame : MonoBehaviour, IMinigame
 {
@@ -22,6 +24,34 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         public TextMeshProUGUI StatusText;
         public bool Connected;
     }
+
+    private sealed class WireDragHandle : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    {
+        private PolarityWiringMinigame owner;
+        private WireTask task;
+
+        public void Configure(PolarityWiringMinigame newOwner, WireTask newTask)
+        {
+            owner = newOwner;
+            task = newTask;
+        }
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            owner?.BeginWireDrag(task, eventData);
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            owner?.DragWire(task, eventData);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            owner?.EndWireDrag(task, eventData);
+        }
+    }
+
 
     public string MinigameName => "\u0110\u1ea5u d\u00e2y \u0111\u00fang c\u1ef1c";
     public bool IsActive { get; private set; }
@@ -51,6 +81,12 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
     private Sprite _wireSprite;
 
     private WireTask _selectedTask;
+    private WireTask _draggingTask;
+    private Image _dragShadow;
+    private Image _dragLine;
+    private Image _dragShine;
+    private Image _dragPlugGhost;
+
     private int _difficultyLevel = 1;
     private int _mistakes;
     private int _maxMistakes;
@@ -59,6 +95,9 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
     private bool _isFinishing;
     private CursorLockMode _previousLockMode;
     private bool _previousCursorVisible;
+
+    private const float TerminalSnapRadius = 88f;
+
 
     private void Awake()
     {
@@ -96,7 +135,7 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         BuildTasks(faults);
         RebuildBoard();
         UpdateStatusText();
-        ShowFeedback("\u0110\u1ea7u ti\u00ean ch\u1ecdn d\u00e2y, sau \u0111\u00f3 b\u1ea5m \u0111\u00fang c\u1ecdc c\u1ea7n n\u1ed1i.", new Color(0.78f, 0.9f, 1f, 1f));
+        ShowFeedback("Giữ chuột kéo đầu dây bên trái sang đúng cọc bên phải, thả gần cọc để snap vào.", new Color(0.78f, 0.9f, 1f, 1f));
     }
 
     public void StartMinigame()
@@ -155,6 +194,8 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         _wireSprite = CreateWirePlugSprite();
 
         _uiRoot = MinigameUiKit.CreateCanvasRoot("PolarityWiringUI", transform, 510);
+        MinigameWorkbenchVisuals.Install(_uiRoot, MinigameWorkbenchStyle.Wiring, new Color(0.1f, 0.72f, 1f, 1f));
+
 
         Image overlay = MinigameUiKit.CreateImage(_uiRoot.transform, "BackgroundOverlay", _solidSprite, new Color(0.006f, 0.008f, 0.012f, 0.92f), false);
         MinigameUiKit.Stretch(overlay.rectTransform);
@@ -177,7 +218,7 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
 
         Image guidePanel = MinigameUiKit.CreatePanel(boardPanel.transform, "GuidePanel", _panelSprite, new Color(0.032f, 0.045f, 0.05f, 0.94f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 52f), new Vector2(1140f, 62f));
         MinigameUiKit.AddChrome(guidePanel.transform, _solidSprite, new Color(0.1f, 0.72f, 1f, 0.5f));
-        TextMeshProUGUI guideText = MinigameUiKit.CreateText(guidePanel.transform, "GuideText", "Hướng dẫn: bấm chọn dây bên trái, rồi bấm đúng cọc bên phải. Sai cực sẽ tính lỗi, nối đủ dây rồi bấm Kiểm tra.", 18, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.84f, 0.94f, 0.92f, 1f));
+        TextMeshProUGUI guideText = MinigameUiKit.CreateText(guidePanel.transform, "GuideText", "Hướng dẫn: giữ chuột kéo đầu dây bên trái sang đúng cọc bên phải. Thả gần cọc để snap vào, sai cực sẽ tính lỗi.", 18, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.84f, 0.94f, 0.92f, 1f));
         MinigameUiKit.Stretch(guideText.rectTransform);
 
         TextMeshProUGUI leftLabel = MinigameUiKit.CreateText(boardPanel.transform, "WireLabel", "D\u00c2Y R\u1edcI", 23, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.95f, 0.96f, 0.92f, 1f));
@@ -260,6 +301,12 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         ClearChildren(_terminalLayer);
         ClearChildren(_lineLayer);
         _connectedLines.Clear();
+        _draggingTask = null;
+        _dragShadow = null;
+        _dragLine = null;
+        _dragShine = null;
+        _dragPlugGhost = null;
+
 
         BuildHarnessBackdrop();
 
@@ -274,6 +321,9 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
             wireButton.onClick.AddListener(() => SelectWire(task));
             MinigameUiKit.ConfigureButtonColors(wireButton, task.WireColor);
             wireSocket.gameObject.AddComponent<MinigameUiButtonMotion>();
+            WireDragHandle dragHandle = wireSocket.gameObject.AddComponent<WireDragHandle>();
+            dragHandle.Configure(this, task);
+
             task.WireButton = wireButton;
             task.WireImage = wireSocket;
 
@@ -299,13 +349,13 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         }
     }
 
-    private void BuildHarnessBackdrop()
+private void BuildHarnessBackdrop()
     {
-        Image leftTray = MinigameUiKit.CreatePanel(_lineLayer, "WireTray", _panelSprite, new Color(0.025f, 0.031f, 0.038f, 0.9f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-560f, 0f), new Vector2(360f, 650f));
+        Image leftTray = MinigameUiKit.CreatePanel(_lineLayer, "WireTray", _panelSprite, new Color(0.02f, 0.027f, 0.032f, 0.92f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-560f, 0f), new Vector2(380f, 650f));
         leftTray.raycastTarget = false;
         MinigameUiKit.AddChrome(leftTray.transform, _solidSprite, new Color(0.12f, 0.72f, 1f, 0.35f));
 
-        Image terminalRail = MinigameUiKit.CreatePanel(_lineLayer, "TerminalRail", _panelSprite, new Color(0.03f, 0.035f, 0.038f, 0.93f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(560f, 0f), new Vector2(340f, 650f));
+        Image terminalRail = MinigameUiKit.CreatePanel(_lineLayer, "TerminalRail", _panelSprite, new Color(0.028f, 0.033f, 0.036f, 0.94f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(560f, 0f), new Vector2(350f, 650f));
         terminalRail.raycastTarget = false;
         MinigameUiKit.AddChrome(terminalRail.transform, _solidSprite, new Color(0.95f, 0.76f, 0.28f, 0.35f));
 
@@ -316,6 +366,9 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         TextMeshProUGUI railLabel = MinigameUiKit.CreateText(_lineLayer, "RailLabel", "TERMINAL BLOCK", 16, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.95f, 0.84f, 0.42f, 0.82f));
         MinigameUiKit.SetAnchored(railLabel.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(560f, 292f), new Vector2(280f, 30f));
         railLabel.raycastTarget = false;
+
+        Image deviceFace = MinigameUiKit.CreatePanel(_lineLayer, "DeviceFace", _panelSprite, new Color(0.07f, 0.11f, 0.13f, 0.38f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(540f, 420f));
+        deviceFace.raycastTarget = false;
 
         for (int i = 0; i < _tasks.Count; i++)
         {
@@ -331,31 +384,23 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
             MinigameUiKit.CreateLine(_lineLayer, "LooseCable_" + task.Id, _solidSprite, new Color(cableColor.r, cableColor.g, cableColor.b, 0.74f), cableStart, cableEnd, 18f).raycastTarget = false;
             MinigameUiKit.CreateLine(_lineLayer, "LooseCableShine_" + task.Id, _solidSprite, cableHighlight, cableStart + new Vector2(0f, 5f), cableEnd + new Vector2(0f, 5f), 4f).raycastTarget = false;
 
-            Vector2 traceEnd = new Vector2(250f, task.TerminalPosition.y * 0.42f);
-            Color traceColor = new Color(0.14f, 0.46f, 0.58f, 0.3f);
-            MinigameUiKit.CreateLine(_lineLayer, "TerminalTrace_" + task.Id, _solidSprite, traceColor, task.TerminalPosition - new Vector2(82f, 0f), traceEnd, 6f).raycastTarget = false;
-            MinigameUiKit.CreateLine(_lineLayer, "TerminalTraceDrop_" + task.Id, _solidSprite, traceColor, traceEnd, traceEnd + new Vector2(-95f, task.TerminalPosition.y > 0f ? -42f : 42f), 5f).raycastTarget = false;
+            Vector2 terminalStemStart = task.TerminalPosition - new Vector2(150f, 0f);
+            Vector2 terminalStemEnd = task.TerminalPosition - new Vector2(78f, 0f);
+            MinigameUiKit.CreateLine(_lineLayer, "TerminalStem_" + task.Id, _solidSprite, new Color(0.18f, 0.54f, 0.66f, 0.32f), terminalStemStart, terminalStemEnd, 5f).raycastTarget = false;
         }
     }
 
     private void SelectWire(WireTask task)
     {
-        if (!IsActive || _isFinishing || task.Connected)
+        if (!IsActive || _isFinishing || task == null || task.Connected)
         {
             return;
         }
 
         _selectedTask = task;
         MinigameSfxKit.Play(MinigameSfxCue.WirePick, 0.56f);
-        for (int i = 0; i < _tasks.Count; i++)
-        {
-            WireTask item = _tasks[i];
-            Color buttonColor = item == task ? Color.Lerp(item.WireColor, Color.white, 0.35f) : item.WireColor;
-            item.WireImage.color = buttonColor;
-            MinigameUiKit.ConfigureButtonColors(item.WireButton, buttonColor);
-        }
-
-        ShowFeedback("\u0110ang c\u1ea7m " + task.WireLabel + ". B\u1ea5m c\u1ecdc " + task.TerminalLabel + ".", new Color(0.72f, 0.9f, 1f, 1f));
+        HighlightSelectedWire(task);
+        ShowFeedback("Đang cầm " + task.WireLabel + ". Kéo sang cọc " + task.TerminalLabel + " rồi thả.", new Color(0.72f, 0.9f, 1f, 1f));
     }
 
     private void TryConnectToTerminal(WireTask terminalTask)
@@ -367,21 +412,236 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
 
         if (_selectedTask == null)
         {
-            RegisterMistake("Ch\u01b0a ch\u1ecdn d\u00e2y. B\u1ea5m m\u1ed9t \u0111\u1ea7u d\u00e2y b\u00ean tr\u00e1i tr\u01b0\u1edbc.");
+            RegisterMistake("Chưa cầm dây. Kéo một đầu dây bên trái sang cọc cần nối.");
             return;
         }
 
         if (_selectedTask != terminalTask)
         {
-            RegisterMistake("Sai c\u1ef1c: " + _selectedTask.WireLabel + " kh\u00f4ng \u0111\u01b0\u1ee3c n\u1ed1i v\u00e0o " + terminalTask.TerminalLabel + ".");
-            _selectedTask.WireImage.color = _selectedTask.WireColor;
-            MinigameUiKit.ConfigureButtonColors(_selectedTask.WireButton, _selectedTask.WireColor);
+            RegisterMistake("Sai cực: " + _selectedTask.WireLabel + " không được nối vào " + terminalTask.TerminalLabel + ".");
+            ResetWireSelection(_selectedTask);
             _selectedTask = null;
             return;
         }
 
         ConnectTask(terminalTask);
     }
+
+    private void BeginWireDrag(WireTask task, PointerEventData eventData)
+    {
+        if (!IsActive || _isFinishing || task == null || task.Connected)
+        {
+            return;
+        }
+
+        _draggingTask = task;
+        _selectedTask = task;
+        MinigameSfxKit.Play(MinigameSfxCue.WirePick, 0.5f);
+        HighlightSelectedWire(task);
+        EnsureDragPreview();
+
+        if (TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+        {
+            UpdateDragPreview(task, localPoint);
+            SetDragPreviewVisible(true);
+        }
+
+        ShowFeedback("Kéo " + task.WireLabel + " tới cọc " + task.TerminalLabel + ".", new Color(0.72f, 0.9f, 1f, 1f));
+    }
+
+    private void DragWire(WireTask task, PointerEventData eventData)
+    {
+        if (_draggingTask == null || task != _draggingTask || task.Connected)
+        {
+            return;
+        }
+
+        if (TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+        {
+            UpdateDragPreview(task, localPoint);
+            WireTask hoveredTerminal = FindTerminalAt(localPoint);
+            HighlightTerminalHover(hoveredTerminal);
+        }
+    }
+
+    private void EndWireDrag(WireTask task, PointerEventData eventData)
+    {
+        if (_draggingTask == null || task != _draggingTask)
+        {
+            return;
+        }
+
+        SetDragPreviewVisible(false);
+        ClearTerminalHover();
+        _draggingTask = null;
+
+        if (!TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+        {
+            ResetWireSelection(task);
+            ShowFeedback("Thả dây vào vùng cọc để nối.", new Color(1f, 0.82f, 0.34f, 1f));
+            return;
+        }
+
+        WireTask terminalTask = FindTerminalAt(localPoint);
+        if (terminalTask == null)
+        {
+            ResetWireSelection(task);
+            ShowFeedback("Chưa chạm cọc nào. Kéo đầu dây vào đúng terminal block.", new Color(1f, 0.82f, 0.34f, 1f));
+            return;
+        }
+
+        if (terminalTask != task)
+        {
+            RegisterMistake("Sai cực: " + task.WireLabel + " không được nối vào " + terminalTask.TerminalLabel + ".");
+            ResetWireSelection(task);
+            _selectedTask = null;
+            return;
+        }
+
+        ConnectTask(task);
+    }
+
+    private void EnsureDragPreview()
+    {
+        if (_dragLine != null)
+        {
+            return;
+        }
+
+        _dragShadow = MinigameUiKit.CreateLine(_lineLayer, "DragCableShadow", _solidSprite, new Color(0f, 0f, 0f, 0.46f), Vector2.zero, Vector2.right, 24f);
+        _dragLine = MinigameUiKit.CreateLine(_lineLayer, "DragCable", _solidSprite, Color.white, Vector2.zero, Vector2.right, 16f);
+        _dragShine = MinigameUiKit.CreateLine(_lineLayer, "DragCableShine", _solidSprite, Color.white, Vector2.zero, Vector2.right, 5f);
+        _dragShadow.raycastTarget = false;
+        _dragLine.raycastTarget = false;
+        _dragShine.raycastTarget = false;
+
+        _dragPlugGhost = MinigameUiKit.CreateImage(_wireLayer, "DragPlugGhost", _wireSprite, Color.white, false);
+        MinigameUiKit.SetAnchored(_dragPlugGhost.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(170f, 58f));
+        SetDragPreviewVisible(false);
+    }
+
+    private void SetDragPreviewVisible(bool visible)
+    {
+        if (_dragShadow != null) _dragShadow.gameObject.SetActive(visible);
+        if (_dragLine != null) _dragLine.gameObject.SetActive(visible);
+        if (_dragShine != null) _dragShine.gameObject.SetActive(visible);
+        if (_dragPlugGhost != null) _dragPlugGhost.gameObject.SetActive(visible);
+    }
+
+    private void UpdateDragPreview(WireTask task, Vector2 localPoint)
+    {
+        EnsureDragPreview();
+        Vector2 start = WireLeadPoint(task);
+        Color shineColor = Color.Lerp(task.WireColor, Color.white, 0.42f);
+        MinigameUiKit.SetLine(_dragShadow.rectTransform, start + new Vector2(0f, -5f), localPoint + new Vector2(0f, -5f), 24f);
+        MinigameUiKit.SetLine(_dragLine.rectTransform, start, localPoint, 16f);
+        MinigameUiKit.SetLine(_dragShine.rectTransform, start + new Vector2(0f, 5f), localPoint + new Vector2(0f, 5f), 5f);
+        _dragLine.color = task.WireColor;
+        _dragShine.color = shineColor;
+        _dragPlugGhost.color = Color.Lerp(task.WireColor, Color.white, 0.12f);
+        _dragPlugGhost.rectTransform.anchoredPosition = localPoint;
+        _dragShadow.transform.SetAsLastSibling();
+        _dragLine.transform.SetAsLastSibling();
+        _dragShine.transform.SetAsLastSibling();
+        _dragPlugGhost.transform.SetAsLastSibling();
+    }
+
+    private bool TryGetBoardLocalPoint(PointerEventData eventData, out Vector2 localPoint)
+    {
+        localPoint = Vector2.zero;
+        if (_boardRect == null || eventData == null)
+        {
+            return false;
+        }
+
+        Camera eventCamera = eventData.pressEventCamera != null ? eventData.pressEventCamera : eventData.enterEventCamera;
+        return RectTransformUtility.ScreenPointToLocalPointInRectangle(_boardRect, eventData.position, eventCamera, out localPoint);
+    }
+
+    private WireTask FindTerminalAt(Vector2 localPoint)
+    {
+        WireTask best = null;
+        float bestDistance = TerminalSnapRadius;
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            WireTask task = _tasks[i];
+            if (task.Connected)
+            {
+                continue;
+            }
+
+            float distance = Vector2.Distance(localPoint, task.TerminalPosition);
+            if (distance <= bestDistance)
+            {
+                best = task;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
+    }
+
+    private void HighlightSelectedWire(WireTask selected)
+    {
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            WireTask item = _tasks[i];
+            if (item.WireImage == null || item.WireButton == null || item.Connected)
+            {
+                continue;
+            }
+
+            Color buttonColor = item == selected ? Color.Lerp(item.WireColor, Color.white, 0.35f) : item.WireColor;
+            item.WireImage.color = buttonColor;
+            MinigameUiKit.ConfigureButtonColors(item.WireButton, buttonColor);
+        }
+    }
+
+    private void ResetWireSelection(WireTask task)
+    {
+        if (task != null && task.WireImage != null && task.WireButton != null && !task.Connected)
+        {
+            task.WireImage.color = task.WireColor;
+            MinigameUiKit.ConfigureButtonColors(task.WireButton, task.WireColor);
+        }
+    }
+
+    private void HighlightTerminalHover(WireTask hovered)
+    {
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            WireTask task = _tasks[i];
+            if (task.TerminalImage == null || task.Connected)
+            {
+                continue;
+            }
+
+            task.TerminalImage.color = task == hovered ? Color.Lerp(task.WireColor, Color.white, 0.3f) : Color.white;
+        }
+    }
+
+    private void ClearTerminalHover()
+    {
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            WireTask task = _tasks[i];
+            if (task.TerminalImage != null && !task.Connected)
+            {
+                task.TerminalImage.color = Color.white;
+            }
+        }
+    }
+
+    private Vector2 WireLeadPoint(WireTask task)
+    {
+        return task.WirePosition + new Vector2(112f, 0f);
+    }
+
+    private Vector2 TerminalLeadPoint(WireTask task)
+    {
+        return task.TerminalPosition - new Vector2(70f, 0f);
+    }
+
 
     private void ConnectTask(WireTask task)
     {
@@ -396,8 +656,8 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         task.StatusText.text = "\u0110\u00e3 n\u1ed1i";
         task.StatusText.color = new Color(0.36f, 1f, 0.58f, 1f);
 
-        Vector2 start = task.WirePosition + new Vector2(112f, 0f);
-        Vector2 end = task.TerminalPosition - new Vector2(70f, 0f);
+        Vector2 start = WireLeadPoint(task);
+        Vector2 end = TerminalLeadPoint(task);
         Image shadow = MinigameUiKit.CreateLine(_lineLayer, "ConnectedShadow_" + task.Id, _solidSprite, new Color(0f, 0f, 0f, 0.42f), start + new Vector2(0f, -5f), end + new Vector2(0f, -5f), 24f);
         Image line = MinigameUiKit.CreateLine(_lineLayer, "ConnectedLine_" + task.Id, _solidSprite, task.WireColor, start, end, 16f);
         Image shine = MinigameUiKit.CreateLine(_lineLayer, "ConnectedShine_" + task.Id, _solidSprite, Color.Lerp(task.WireColor, Color.white, 0.42f), start + new Vector2(0f, 5f), end + new Vector2(0f, 5f), 5f);

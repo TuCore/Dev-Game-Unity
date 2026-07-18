@@ -35,6 +35,33 @@ namespace Minigames.Diagnosis
             Connector
         }
 
+        private sealed class ProbeDragHandle : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+        {
+            private MultimeterDiagnosisMinigame _owner;
+            private ProbeLead _lead;
+
+            public void Configure(MultimeterDiagnosisMinigame owner, ProbeLead lead)
+            {
+                _owner = owner;
+                _lead = lead;
+            }
+
+            public void OnBeginDrag(PointerEventData eventData)
+            {
+                _owner?.BeginProbeDrag(_lead, eventData);
+            }
+
+            public void OnDrag(PointerEventData eventData)
+            {
+                _owner?.DragProbe(_lead, eventData);
+            }
+
+            public void OnEndDrag(PointerEventData eventData)
+            {
+                _owner?.EndProbeDrag(_lead, eventData);
+            }
+        }
+
         private sealed class TestPointData
         {
             public string Id;
@@ -136,6 +163,11 @@ namespace Minigames.Diagnosis
         private Button _resistanceButton;
         private Button _diodeButton;
         private Button _submitButton;
+        private ProbeLead _draggingLead;
+        private Image _probeDragShadow;
+        private Image _probeDragLine;
+        private bool _isProbeDragging;
+        private Image _probeDragGhost;
         private Image _redProbeBoardMarker;
         private Image _blackProbeBoardMarker;
 
@@ -155,6 +187,10 @@ namespace Minigames.Diagnosis
         private string _redPointId;
         private string _blackPointId;
         private string _selectedComponentId;
+        private string _lastMeterDisplay;
+        private string _lastMeterExplanation;
+        private bool _hasMeterReading;
+
         private int _difficultyLevel = 1;
         private int _requiredEvidenceCount = 2;
         private int _measurementCount;
@@ -204,6 +240,8 @@ namespace Minigames.Diagnosis
             _redPointId = null;
             _blackPointId = null;
             _selectedComponentId = null;
+            ClearMeterReading();
+
             _foundEvidenceKeys.Clear();
             _history.Clear();
             _currentMode = MeterMode.Voltage;
@@ -211,7 +249,7 @@ namespace Minigames.Diagnosis
 
             ResetBoardVisuals();
             UpdateAllTexts();
-            AddHistory("Bắt đầu kiểm tra: chọn mode đo, đặt 2 que lên test point.");
+            AddHistory("Bắt đầu kiểm tra: chọn mode đo, kéo 2 que lên test point.");
         }
 
         public void StartMinigame()
@@ -263,6 +301,8 @@ namespace Minigames.Diagnosis
             EnsureEventSystem();
 
             _uiRoot = CreateUIObject("MultimeterDiagnosisUI", transform);
+            global::MinigameWorkbenchVisuals.Install(_uiRoot, global::MinigameWorkbenchStyle.Diagnosis, new Color(0.14f, 0.76f, 1f, 1f));
+
             Canvas canvas = _uiRoot.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.overrideSorting = true;
@@ -300,7 +340,7 @@ namespace Minigames.Diagnosis
 
             GameObject guidePanel = CreatePanel("GuidePanel", boardPanel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -98f), new Vector2(1110f, 46f), new Color(0.032f, 0.045f, 0.05f, 0.94f));
             MinigameUiKit.AddChrome(guidePanel.transform, _solidSprite, new Color(0.14f, 0.76f, 1f, 0.45f));
-            TextMeshProUGUI guideText = AddText(guidePanel.transform, "Hướng dẫn: chọn mode đo, chọn que, bấm 2 test point, chọn linh kiện nghi lỗi rồi bấm Kết luận lỗi.", 17, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.84f, 0.94f, 0.92f, 1f));
+            TextMeshProUGUI guideText = AddText(guidePanel.transform, "Hướng dẫn: chọn mode rồi kéo que đỏ/đen lên test point. Có thể bấm test point nếu muốn thao tác nhanh. Đo đủ bằng chứng rồi kết luận lỗi.", 17, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.84f, 0.94f, 0.92f, 1f));
             Stretch(guideText.rectTransform);
 
             GameObject boardObject = CreateUIObject("PCB_Board", boardPanel.transform);
@@ -327,10 +367,10 @@ namespace Minigames.Diagnosis
             Image meter = CreateImage(parent, "MultimeterSprite", Color.white, _meterSprite);
             SetAnchored(meter.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -165f), new Vector2(430f, 255f));
 
-            _meterDisplayText = AddText(meter.transform, "0.00", 34, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.1f, 0.18f, 0.08f, 1f));
-            SetAnchored(_meterDisplayText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -62f), new Vector2(280f, 44f));
-            _meterSubText = AddText(meter.transform, "Chọn mode và đặt que đo", 16, FontStyles.Normal, TextAlignmentOptions.Center, new Color(0.78f, 0.88f, 0.76f, 1f));
-            SetAnchored(_meterSubText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -105f), new Vector2(310f, 30f));
+            _meterDisplayText = AddText(meter.transform, "0.00", 32, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.06f, 0.16f, 0.05f, 1f));
+            SetAnchored(_meterDisplayText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -52f), new Vector2(285f, 36f));
+            _meterSubText = AddText(meter.transform, "Chọn mode và đặt que đo", 13, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.08f, 0.18f, 0.07f, 1f));
+            SetAnchored(_meterSubText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -78f), new Vector2(310f, 22f));
 
             _voltageButton = CreateTextButton(parent, "VOLT", new Vector2(-195f, -318f), new Vector2(92f, 44f), () => SetMode(MeterMode.Voltage));
             _continuityButton = CreateTextButton(parent, "BEEP", new Vector2(-65f, -318f), new Vector2(92f, 44f), () => SetMode(MeterMode.Continuity));
@@ -341,6 +381,13 @@ namespace Minigames.Diagnosis
             SetAnchored(redProbe.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-130f, -405f), new Vector2(135f, 82f));
             Image blackProbe = CreateImage(parent, "BlackProbeSprite", Color.white, _blackProbeSprite);
             SetAnchored(blackProbe.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(130f, -405f), new Vector2(135f, 82f));
+
+            redProbe.raycastTarget = true;
+            blackProbe.raycastTarget = true;
+            ProbeDragHandle redDrag = redProbe.gameObject.AddComponent<ProbeDragHandle>();
+            redDrag.Configure(this, ProbeLead.Red);
+            ProbeDragHandle blackDrag = blackProbe.gameObject.AddComponent<ProbeDragHandle>();
+            blackDrag.Configure(this, ProbeLead.Black);
 
             _redProbeButton = CreateTextButton(parent, "QUE ĐỎ", new Vector2(-130f, -470f), new Vector2(170f, 44f), () => SelectProbe(ProbeLead.Red));
             _blackProbeButton = CreateTextButton(parent, "QUE ĐEN", new Vector2(130f, -470f), new Vector2(170f, 44f), () => SelectProbe(ProbeLead.Black));
@@ -404,7 +451,7 @@ namespace Minigames.Diagnosis
         {
             GameObject obj = CreateUIObject("TP_" + id, _boardRect);
             RectTransform rt = obj.GetComponent<RectTransform>();
-            SetAnchored(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), position, new Vector2(34f, 34f));
+            SetAnchored(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), position, new Vector2(44f, 44f));
             Image image = obj.AddComponent<Image>();
             image.sprite = _testPointSprite;
             image.color = Color.white;
@@ -455,7 +502,10 @@ namespace Minigames.Diagnosis
         {
             GameObject obj = CreateUIObject(name, _boardRect);
             RectTransform rt = obj.GetComponent<RectTransform>();
-            SetAnchored(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 0f), new Vector2(96f, 58f));
+            SetAnchored(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(96f, 58f));
+            rt.localScale = Vector3.one;
+            rt.localRotation = Quaternion.identity;
+
             Image image = obj.AddComponent<Image>();
             image.sprite = sprite;
             image.color = color;
@@ -495,30 +545,224 @@ namespace Minigames.Diagnosis
                 return;
             }
 
-            if (_selectedLead == ProbeLead.Red)
+            TryPlaceProbe(_selectedLead, pointId, true);
+        }
+
+        private bool TryPlaceProbe(ProbeLead lead, string pointId, bool advanceLead)
+        {
+            if (!IsActive || _isFinishing || !_testPoints.ContainsKey(pointId))
+            {
+                return false;
+            }
+
+            string otherPointId = lead == ProbeLead.Red ? _blackPointId : _redPointId;
+            if (!string.IsNullOrEmpty(otherPointId) && otherPointId == pointId)
+            {
+                MinigameSfxKit.Play(MinigameSfxCue.Error, 0.46f);
+                ShowFeedback((lead == ProbeLead.Red ? "Que đỏ" : "Que đen") + " không thể đặt cùng " + PointLabel(pointId) + ". Tách hai que ra hai test point khác nhau.", new Color(1f, 0.58f, 0.28f, 1f));
+                UpdateProbeVisuals();
+                return false;
+            }
+
+            if (lead == ProbeLead.Red)
             {
                 _redPointId = pointId;
-                _selectedLead = ProbeLead.Black;
             }
             else
             {
                 _blackPointId = pointId;
-                _selectedLead = ProbeLead.Red;
             }
 
+            _selectedLead = advanceLead ? (lead == ProbeLead.Red ? ProbeLead.Black : ProbeLead.Red) : lead;
+            ClearMeterReading();
             MinigameSfxKit.Play(MinigameSfxCue.Probe, 0.48f);
-            UpdateProbeVisuals();
 
-            if (!string.IsNullOrEmpty(_redPointId) && !string.IsNullOrEmpty(_blackPointId))
+            bool hasRed = !string.IsNullOrEmpty(_redPointId);
+            bool hasBlack = !string.IsNullOrEmpty(_blackPointId);
+            if (!hasRed || !hasBlack)
             {
-                MeasureCurrentPair();
+                ShowFeedback((lead == ProbeLead.Red ? "Đã đặt que đỏ tại " : "Đã đặt que đen tại ") + PointLabel(pointId) + ". Đặt tiếp " + (_selectedLead == ProbeLead.Red ? "que đỏ." : "que đen."), new Color(0.78f, 0.92f, 1f, 1f));
+                UpdateProbeVisuals();
+                UpdateMeterDisplay();
+                return true;
             }
+
+            UpdateProbeVisuals();
+            MeasureCurrentPair();
+            return true;
+        }
+
+
+        private void BeginProbeDrag(ProbeLead lead, PointerEventData eventData)
+        {
+            if (!IsActive || _isFinishing)
+            {
+                return;
+            }
+
+            _isProbeDragging = true;
+            _draggingLead = lead;
+            _selectedLead = lead;
+            MinigameSfxKit.Play(MinigameSfxCue.Select, 0.36f);
+            EnsureProbeDragPreview();
+            SetProbeDragPreviewVisible(true);
+
+            if (TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+            {
+                UpdateProbeDragPreview(lead, localPoint);
+                HighlightProbeHover(FindNearestTestPoint(localPoint));
+            }
+
+            ShowFeedback((lead == ProbeLead.Red ? "Đang cầm que đỏ" : "Đang cầm que đen") + ". Kéo đầu que lên vòng test point rồi thả.", new Color(0.72f, 0.9f, 1f, 1f));
+            UpdateProbeVisuals();
+        }
+
+        private void DragProbe(ProbeLead lead, PointerEventData eventData)
+        {
+            if (!_isProbeDragging || lead != _draggingLead)
+            {
+                return;
+            }
+
+            if (TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+            {
+                UpdateProbeDragPreview(lead, localPoint);
+                HighlightProbeHover(FindNearestTestPoint(localPoint));
+            }
+        }
+
+        private void EndProbeDrag(ProbeLead lead, PointerEventData eventData)
+        {
+            if (!_isProbeDragging || lead != _draggingLead)
+            {
+                return;
+            }
+
+            _isProbeDragging = false;
+            SetProbeDragPreviewVisible(false);
+            ClearProbeHover();
+
+            if (!TryGetBoardLocalPoint(eventData, out Vector2 localPoint))
+            {
+                ShowFeedback("Thả que lên vùng bo mạch để đo.", new Color(1f, 0.82f, 0.34f, 1f));
+                UpdateProbeVisuals();
+                return;
+            }
+
+            string nearestPoint = FindNearestTestPoint(localPoint);
+            if (string.IsNullOrEmpty(nearestPoint))
+            {
+                ShowFeedback("Chưa chạm test point nào. Kéo đầu que vào vòng đồng rồi thả.", new Color(1f, 0.82f, 0.34f, 1f));
+                UpdateProbeVisuals();
+                return;
+            }
+
+            TryPlaceProbe(lead, nearestPoint, true);
+        }
+
+        private void EnsureProbeDragPreview()
+        {
+            if (_probeDragLine != null)
+            {
+                return;
+            }
+
+            _probeDragShadow = MinigameUiKit.CreateLine(_boardRect, "ProbeDragShadow", _solidSprite, new Color(0f, 0f, 0f, 0.42f), Vector2.zero, Vector2.right, 11f);
+            _probeDragLine = MinigameUiKit.CreateLine(_boardRect, "ProbeDragLine", _solidSprite, Color.white, Vector2.zero, Vector2.right, 6f);
+            _probeDragShadow.raycastTarget = false;
+            _probeDragLine.raycastTarget = false;
+
+            _probeDragGhost = CreateImage(_boardRect, "ProbeDragGhost", Color.white, _redProbeSprite);
+            SetAnchored(_probeDragGhost.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(112f, 64f));
+            _probeDragGhost.raycastTarget = false;
+            SetProbeDragPreviewVisible(false);
+        }
+
+        private void SetProbeDragPreviewVisible(bool visible)
+        {
+            if (_probeDragShadow != null) _probeDragShadow.gameObject.SetActive(visible);
+            if (_probeDragLine != null) _probeDragLine.gameObject.SetActive(visible);
+            if (_probeDragGhost != null) _probeDragGhost.gameObject.SetActive(visible);
+        }
+
+        private void UpdateProbeDragPreview(ProbeLead lead, Vector2 localPoint)
+        {
+            EnsureProbeDragPreview();
+            Color lineColor = lead == ProbeLead.Red ? new Color(1f, 0.12f, 0.1f, 1f) : new Color(0.02f, 0.025f, 0.03f, 1f);
+            Vector2 start = GetProbeAnchorPoint(lead, localPoint);
+            MinigameUiKit.SetLine(_probeDragShadow.rectTransform, start + new Vector2(0f, -4f), localPoint + new Vector2(0f, -4f), 11f);
+            MinigameUiKit.SetLine(_probeDragLine.rectTransform, start, localPoint, 6f);
+            _probeDragLine.color = lineColor;
+            _probeDragGhost.sprite = lead == ProbeLead.Red ? _redProbeSprite : _blackProbeSprite;
+            _probeDragGhost.rectTransform.anchoredPosition = localPoint;
+            _probeDragGhost.rectTransform.localScale = Vector3.one;
+            _probeDragGhost.rectTransform.localRotation = Quaternion.identity;
+            _probeDragGhost.transform.SetAsLastSibling();
+        }
+
+        private Vector2 GetProbeAnchorPoint(ProbeLead lead, Vector2 fallback)
+        {
+            string pointId = lead == ProbeLead.Red ? _redPointId : _blackPointId;
+            Vector2 offset = lead == ProbeLead.Red ? new Vector2(-16f, 22f) : new Vector2(18f, 22f);
+            if (!string.IsNullOrEmpty(pointId) && _testPoints.TryGetValue(pointId, out TestPointData point))
+            {
+                return point.Position + offset;
+            }
+
+            return fallback;
+        }
+
+        private bool TryGetBoardLocalPoint(PointerEventData eventData, out Vector2 localPoint)
+        {
+            localPoint = Vector2.zero;
+            if (_boardRect == null || eventData == null)
+            {
+                return false;
+            }
+
+            Camera eventCamera = eventData.pressEventCamera != null ? eventData.pressEventCamera : eventData.enterEventCamera;
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(_boardRect, eventData.position, eventCamera, out localPoint);
+        }
+
+        private string FindNearestTestPoint(Vector2 localPoint)
+        {
+            string bestId = null;
+            float bestDistance = 58f;
+            foreach (KeyValuePair<string, TestPointData> pair in _testPoints)
+            {
+                float distance = Vector2.Distance(localPoint, pair.Value.Position);
+                if (distance <= bestDistance)
+                {
+                    bestId = pair.Key;
+                    bestDistance = distance;
+                }
+            }
+
+            return bestId;
+        }
+
+        private void HighlightProbeHover(string pointId)
+        {
+            foreach (KeyValuePair<string, TestPointData> pair in _testPoints)
+            {
+                bool placed = pair.Key == _redPointId || pair.Key == _blackPointId;
+                bool hovered = pair.Key == pointId;
+                pair.Value.Image.sprite = placed || hovered ? _testPointActiveSprite : _testPointSprite;
+                pair.Value.Image.color = hovered ? new Color(0.72f, 1f, 1f, 1f) : Color.white;
+                pair.Value.LabelText.color = placed || hovered ? new Color(0.45f, 0.95f, 1f, 1f) : new Color(0.9f, 1f, 0.86f, 1f);
+            }
+        }
+
+        private void ClearProbeHover()
+        {
+            UpdateProbeVisuals();
         }
 
         private void MeasureCurrentPair()
         {
             if (_redPointId == _blackPointId)
             {
+                ClearMeterReading();
                 _mistakes++;
                 MinigameSfxKit.Play(MinigameSfxCue.Error, 0.62f);
                 ShowFeedback("Hai que đang chạm cùng một điểm. Kết quả không có giá trị.", new Color(1f, 0.42f, 0.3f, 1f));
@@ -528,13 +772,15 @@ namespace Minigames.Diagnosis
 
             _measurementCount++;
             Reading reading = CalculateReading(_currentMode, _redPointId, _blackPointId);
+            _lastMeterDisplay = reading.Display;
+            _lastMeterExplanation = reading.Explanation;
+            _hasMeterReading = true;
+            UpdateMeterDisplay();
+
             if (reading.Display == "BEEP")
             {
                 MinigameSfxKit.Play(MinigameSfxCue.Beep, 0.5f);
             }
-
-            _meterDisplayText.text = reading.Display;
-            _meterSubText.text = reading.Explanation;
 
             bool gainedEvidence = TryRegisterEvidence(_currentMode, _redPointId, _blackPointId, out string evidenceSummary);
             if (gainedEvidence)
@@ -889,13 +1135,13 @@ namespace Minigames.Diagnosis
         private void SetMode(MeterMode mode)
         {
             _currentMode = mode;
+            ClearMeterReading();
             if (IsActive)
             {
                 MinigameSfxKit.Play(MinigameSfxCue.Select, 0.36f);
             }
 
-            _meterDisplayText.text = ModeDisplay(mode);
-            _meterSubText.text = ModeHint(mode);
+            UpdateMeterDisplay();
             UpdateButtonStates();
         }
 
@@ -903,7 +1149,7 @@ namespace Minigames.Diagnosis
         {
             _selectedLead = lead;
             MinigameSfxKit.Play(MinigameSfxCue.Select, 0.36f);
-            UpdateButtonStates();
+            UpdateProbeVisuals();
             ShowFeedback(lead == ProbeLead.Red ? "Đang đặt que đỏ." : "Đang đặt que đen.", Color.white);
         }
 
@@ -937,14 +1183,55 @@ namespace Minigames.Diagnosis
         {
             _titleText.text = "DÒ LỖI BẰNG ĐỒNG HỒ ĐO";
             _symptomText.text = _activeCase == null ? "" : $"Triệu chứng: {_activeCase.Symptom}";
-            _meterDisplayText.text = ModeDisplay(_currentMode);
-            _meterSubText.text = ModeHint(_currentMode);
-            _selectedComponentText.text = "Linh kiện nghi lỗi: chưa chọn";
+            UpdateMeterDisplay();
+            UpdateSelectedComponentText();
             UpdateProbeVisuals();
             UpdateStatusText();
             UpdateButtonStates();
             RefreshHistoryText();
         }
+
+        private void UpdateMeterDisplay()
+        {
+            if (_meterDisplayText == null || _meterSubText == null)
+            {
+                return;
+            }
+
+            if (_hasMeterReading && !string.IsNullOrEmpty(_lastMeterDisplay))
+            {
+                _meterDisplayText.text = _lastMeterDisplay;
+                _meterSubText.text = _lastMeterExplanation;
+                return;
+            }
+
+            _meterDisplayText.text = ModeDisplay(_currentMode);
+            _meterSubText.text = ModeHint(_currentMode);
+        }
+
+        private void ClearMeterReading()
+        {
+            _hasMeterReading = false;
+            _lastMeterDisplay = "";
+            _lastMeterExplanation = "";
+        }
+
+        private void UpdateSelectedComponentText()
+        {
+            if (_selectedComponentText == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(_selectedComponentId) && _components.TryGetValue(_selectedComponentId, out BoardComponentData component))
+            {
+                _selectedComponentText.text = $"Linh kiện nghi lỗi: {component.Label} - {component.Description}";
+                return;
+            }
+
+            _selectedComponentText.text = "Linh kiện nghi lỗi: chưa chọn";
+        }
+
 
         private void UpdateStatusText()
         {
@@ -984,14 +1271,29 @@ namespace Minigames.Diagnosis
                 return;
             }
 
-            if (string.IsNullOrEmpty(pointId) || !_testPoints.ContainsKey(pointId))
+            if (string.IsNullOrEmpty(pointId) || !_testPoints.TryGetValue(pointId, out TestPointData point))
             {
                 marker.gameObject.SetActive(false);
                 return;
             }
 
+            RectTransform markerRect = marker.rectTransform;
+            marker.gameObject.SetActive(false);
+
+            if (markerRect.parent != _boardRect)
+            {
+                markerRect.SetParent(_boardRect, false);
+            }
+
+            markerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            markerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            markerRect.pivot = new Vector2(0.5f, 0.5f);
+            markerRect.sizeDelta = new Vector2(96f, 58f);
+            markerRect.localScale = Vector3.one;
+            markerRect.localRotation = Quaternion.identity;
+            markerRect.anchoredPosition = point.Position + offset;
+            marker.transform.SetAsLastSibling();
             marker.gameObject.SetActive(true);
-            marker.rectTransform.anchoredPosition = _testPoints[pointId].Position + offset;
         }
 
         private void UpdateButtonStates()
@@ -1467,6 +1769,7 @@ namespace Minigames.Diagnosis
             tmp.alignment = alignment;
             tmp.color = color;
             tmp.textWrappingMode = TextWrappingModes.Normal;
+            tmp.raycastTarget = false;
             return tmp;
         }
 

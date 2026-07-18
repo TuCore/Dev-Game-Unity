@@ -149,21 +149,33 @@ public class NeedsHUDUI : MonoBehaviour
         _panelRect.anchorMin = new Vector2(0f, 1f);
         _panelRect.anchorMax = new Vector2(0f, 1f);
         _panelRect.pivot = new Vector2(0f, 1f);
-        _panelRect.anchoredPosition = new Vector2(22f, -112f);
-        _panelRect.sizeDelta = new Vector2(386f, 142f);
+        _panelRect.anchoredPosition = new Vector2(18f, -108f);
+        _panelRect.sizeDelta = new Vector2(360f, 124f);
         _panelRect.localScale = Vector3.one;
 
         _panelImage = GetOrAdd<Image>(panelObject);
         _panelImage.sprite = _panelSprite;
         _panelImage.type = Image.Type.Sliced;
-        _panelImage.color = new Color(0.045f, 0.054f, 0.066f, 0.62f);
+        _panelImage.color = new Color(0.018f, 0.026f, 0.036f, 0.72f);
         _panelImage.raycastTarget = false;
 
         DisableGraphicEffects(panelObject);
 
-        _fatigueRow = BuildRow(panelObject.transform, "Fatigue", "Năng lượng", "NL", new Vector2(18f, -18f), new Color(0.42f, 0.78f, 1f, 1f));
-        _hungerRow = BuildRow(panelObject.transform, "Hunger", "Đói", "ĐÓI", new Vector2(18f, -60f), new Color(1f, 0.72f, 0.3f, 1f));
-        _thirstRow = BuildRow(panelObject.transform, "Thirst", "Khát", "KHÁT", new Vector2(18f, -102f), new Color(0.35f, 0.96f, 1f, 1f));
+        Image accent = FindOrCreateImage("NeedsHUD_Accent", panelObject.transform);
+        RectTransform accentRect = accent.rectTransform;
+        accentRect.anchorMin = new Vector2(0f, 1f);
+        accentRect.anchorMax = new Vector2(1f, 1f);
+        accentRect.pivot = new Vector2(0.5f, 1f);
+        accentRect.offsetMin = new Vector2(18f, -5f);
+        accentRect.offsetMax = new Vector2(-18f, -2f);
+        accent.sprite = _barSprite;
+        accent.type = Image.Type.Sliced;
+        accent.color = new Color(0.42f, 0.86f, 1f, 0.26f);
+        accent.raycastTarget = false;
+
+        _fatigueRow = BuildRow(panelObject.transform, "Fatigue", "Năng lượng", "NL", new Vector2(16f, -16f), new Color(0.36f, 0.76f, 1f, 1f));
+        _hungerRow = BuildRow(panelObject.transform, "Hunger", "Đói", "ĐÓI", new Vector2(16f, -52f), new Color(1f, 0.64f, 0.24f, 1f));
+        _thirstRow = BuildRow(panelObject.transform, "Thirst", "Khát", "KHÁT", new Vector2(16f, -88f), new Color(0.28f, 0.94f, 1f, 1f));
 
         panelObject.SetActive(true);
     }
@@ -179,18 +191,30 @@ public class NeedsHUDUI : MonoBehaviour
         rowRect.anchorMax = new Vector2(1f, 1f);
         rowRect.pivot = new Vector2(0f, 1f);
         rowRect.anchoredPosition = position;
-        rowRect.sizeDelta = new Vector2(-36f, 32f);
+        rowRect.sizeDelta = new Vector2(-32f, 30f);
+
+        Image rowBg = FindOrCreateImage(id + "_RowBg", rowObject.transform);
+        RectTransform rowBgRect = rowBg.rectTransform;
+        rowBgRect.anchorMin = Vector2.zero;
+        rowBgRect.anchorMax = Vector2.one;
+        rowBgRect.offsetMin = Vector2.zero;
+        rowBgRect.offsetMax = Vector2.zero;
+        rowBg.sprite = _panelSprite;
+        rowBg.type = Image.Type.Sliced;
+        rowBg.color = new Color(fillColor.r, fillColor.g, fillColor.b, 0.055f);
+        rowBg.raycastTarget = false;
+        rowBg.transform.SetAsFirstSibling();
 
         Image chipBg = FindOrCreateImage(id + "_Chip", rowObject.transform);
         RectTransform chipRect = chipBg.rectTransform;
         chipRect.anchorMin = new Vector2(0f, 0.5f);
         chipRect.anchorMax = new Vector2(0f, 0.5f);
         chipRect.pivot = new Vector2(0f, 0.5f);
-        chipRect.anchoredPosition = new Vector2(0f, 0f);
-        chipRect.sizeDelta = new Vector2(48f, 24f);
+        chipRect.anchoredPosition = new Vector2(8f, 0f);
+        chipRect.sizeDelta = new Vector2(44f, 22f);
         chipBg.sprite = _barSprite;
         chipBg.type = Image.Type.Sliced;
-        chipBg.color = new Color(fillColor.r, fillColor.g, fillColor.b, 0.24f);
+        chipBg.color = new Color(fillColor.r, fillColor.g, fillColor.b, 0.26f);
         chipBg.raycastTarget = false;
 
         TextMeshProUGUI chipText = FindOrCreateText(id + "_ChipText", chipBg.transform);
@@ -200,10 +224,11 @@ public class NeedsHUDUI : MonoBehaviour
         chipTextRect.offsetMin = Vector2.zero;
         chipTextRect.offsetMax = Vector2.zero;
         chipText.text = chip;
-        chipText.fontSize = 12.5f;
+        chipText.fontSize = 11.5f;
         chipText.fontStyle = FontStyles.Bold;
         chipText.alignment = TextAlignmentOptions.Center;
-        chipText.color = Color.Lerp(fillColor, Color.white, 0.18f);
+        chipText.textWrappingMode = TextWrappingModes.NoWrap;
+        chipText.color = Color.Lerp(fillColor, Color.white, 0.28f);
         chipText.raycastTarget = false;
 
         TextMeshProUGUI labelText = FindOrCreateText(id + "_Label", rowObject.transform);
@@ -211,13 +236,15 @@ public class NeedsHUDUI : MonoBehaviour
         labelRect.anchorMin = new Vector2(0f, 0.5f);
         labelRect.anchorMax = new Vector2(0f, 0.5f);
         labelRect.pivot = new Vector2(0f, 0.5f);
-        labelRect.anchoredPosition = new Vector2(58f, 0f);
-        labelRect.sizeDelta = new Vector2(86f, 28f);
+        labelRect.anchoredPosition = new Vector2(62f, 0f);
+        labelRect.sizeDelta = new Vector2(92f, 24f);
         labelText.text = label;
-        labelText.fontSize = 15.5f;
+        labelText.fontSize = 13.2f;
         labelText.fontStyle = FontStyles.Bold;
         labelText.alignment = TextAlignmentOptions.Left;
-        labelText.color = new Color(0.9f, 0.94f, 0.98f, 0.96f);
+        labelText.textWrappingMode = TextWrappingModes.NoWrap;
+        labelText.overflowMode = TextOverflowModes.Ellipsis;
+        labelText.color = new Color(0.88f, 0.93f, 0.98f, 0.96f);
         labelText.raycastTarget = false;
 
         Image barBg = FindOrCreateImage(id + "_BarBg", rowObject.transform);
@@ -225,11 +252,11 @@ public class NeedsHUDUI : MonoBehaviour
         bgRect.anchorMin = new Vector2(0f, 0.5f);
         bgRect.anchorMax = new Vector2(1f, 0.5f);
         bgRect.pivot = new Vector2(0f, 0.5f);
-        bgRect.offsetMin = new Vector2(148f, -9f);
-        bgRect.offsetMax = new Vector2(-52f, 9f);
+        bgRect.offsetMin = new Vector2(156f, -7f);
+        bgRect.offsetMax = new Vector2(-54f, 7f);
         barBg.sprite = _barSprite;
         barBg.type = Image.Type.Sliced;
-        barBg.color = new Color(0.13f, 0.15f, 0.17f, 0.58f);
+        barBg.color = new Color(0.055f, 0.065f, 0.078f, 0.72f);
         barBg.raycastTarget = false;
 
         Image fill = FindOrCreateImage(id + "_Fill", barBg.transform);
@@ -240,20 +267,32 @@ public class NeedsHUDUI : MonoBehaviour
         fillRect.offsetMax = Vector2.zero;
         fill.sprite = _barSprite;
         fill.type = Image.Type.Sliced;
-        fill.color = fillColor;
+        fill.color = Color.Lerp(fillColor, Color.white, 0.06f);
         fill.raycastTarget = false;
+
+        Image sheen = FindOrCreateImage(id + "_FillSheen", fill.transform);
+        RectTransform sheenRect = sheen.rectTransform;
+        sheenRect.anchorMin = new Vector2(0f, 0.52f);
+        sheenRect.anchorMax = Vector2.one;
+        sheenRect.offsetMin = Vector2.zero;
+        sheenRect.offsetMax = Vector2.zero;
+        sheen.sprite = _barSprite;
+        sheen.type = Image.Type.Sliced;
+        sheen.color = new Color(1f, 1f, 1f, 0.16f);
+        sheen.raycastTarget = false;
 
         TextMeshProUGUI valueText = FindOrCreateText(id + "_Value", rowObject.transform);
         RectTransform valueRect = valueText.rectTransform;
         valueRect.anchorMin = new Vector2(1f, 0.5f);
         valueRect.anchorMax = new Vector2(1f, 0.5f);
         valueRect.pivot = new Vector2(1f, 0.5f);
-        valueRect.anchoredPosition = new Vector2(0f, 0f);
-        valueRect.sizeDelta = new Vector2(46f, 28f);
-        valueText.fontSize = 14f;
+        valueRect.anchoredPosition = new Vector2(-8f, 0f);
+        valueRect.sizeDelta = new Vector2(44f, 24f);
+        valueText.fontSize = 12.8f;
         valueText.fontStyle = FontStyles.Bold;
         valueText.alignment = TextAlignmentOptions.Right;
-        valueText.color = new Color(0.94f, 0.96f, 1f, 0.94f);
+        valueText.textWrappingMode = TextWrappingModes.NoWrap;
+        valueText.color = new Color(0.92f, 0.95f, 1f, 0.94f);
         valueText.raycastTarget = false;
 
         return new NeedRow
@@ -296,26 +335,29 @@ public class NeedsHUDUI : MonoBehaviour
             return;
         }
 
+        float clampedPercent = Mathf.Clamp01(percent);
         RectTransform fillRect = row.Fill.rectTransform;
         fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(Mathf.Clamp01(percent), 1f);
+        fillRect.anchorMax = new Vector2(clampedPercent, 1f);
         fillRect.offsetMin = Vector2.zero;
         fillRect.offsetMax = Vector2.zero;
 
-        Color targetColor = percent < 0.24f ? new Color(1f, 0.34f, 0.28f, 1f) : row.BaseColor;
+        Color healthyColor = Color.Lerp(row.BaseColor, Color.white, 0.08f);
+        Color warningColor = new Color(1f, 0.38f, 0.28f, 1f);
+        Color targetColor = clampedPercent < 0.24f ? warningColor : healthyColor;
         row.Fill.color = Color.Lerp(row.Fill.color, targetColor, 0.35f);
 
         if (row.Track != null)
         {
-            row.Track.color = percent < 0.24f
-                ? new Color(0.24f, 0.11f, 0.1f, 0.64f)
-                : new Color(0.13f, 0.15f, 0.17f, 0.58f);
+            row.Track.color = clampedPercent < 0.24f
+                ? new Color(0.22f, 0.08f, 0.07f, 0.72f)
+                : new Color(0.055f, 0.065f, 0.078f, 0.72f);
         }
 
         if (row.Value != null)
         {
-            row.Value.text = Mathf.RoundToInt(percent * 100f) + "%";
-            row.Value.color = percent < 0.24f ? new Color(1f, 0.72f, 0.58f, 1f) : new Color(0.94f, 0.96f, 1f, 0.94f);
+            row.Value.text = Mathf.RoundToInt(clampedPercent * 100f) + "%";
+            row.Value.color = clampedPercent < 0.24f ? new Color(1f, 0.7f, 0.58f, 1f) : new Color(0.92f, 0.95f, 1f, 0.94f);
         }
     }
 
