@@ -38,7 +38,7 @@ public static class SetupDayNightLighting
             GameObject sunObj = new GameObject("Sun_DirectionalLight");
             sunLight = sunObj.AddComponent<Light>();
             sunLight.type = LightType.Directional;
-            sunLight.shadows = LightShadows.Soft;
+            sunLight.shadows = LightShadows.Hard;
             // Xoay 50 độ trên trục Y để có bóng đẹp, X sẽ do script lo
             sunObj.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
         }
@@ -75,9 +75,16 @@ public static class SetupDayNightLighting
         dayNight.lightIntensity = intensityCurve;
         dayNight.minRotation = 10f;
         dayNight.maxRotation = 90f;
+        dayNight.lightingUpdateInterval = 0.2f;
+        dayNight.maxStableNoonRotation = 82f;
+        dayNight.yawSweep = 70f;
+        dayNight.preferHardShadowsForPerformance = true;
+        dayNight.normalShadowStrength = 0.55f;
+        dayNight.noonShadowStrength = 0.35f;
 
-        // Bật Shadows cho Light nếu chưa có
-        sunLight.shadows = LightShadows.Soft;
+        // Hard shadows are much cheaper and avoid the noon soft-shadow jitter in this scene.
+        sunLight.shadows = LightShadows.Hard;
+        sunLight.shadowStrength = dayNight.normalShadowStrength;
         
         // Đánh dấu Scene đã thay đổi để có thể Save
         EditorSceneManager.MarkSceneDirty(sunLight.gameObject.scene);

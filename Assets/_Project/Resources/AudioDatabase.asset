@@ -25,6 +25,12 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: bfddf0f481d5e9e43afe556b6fa5d9aa, type: 3}
   - key: open iron door
     clip: {fileID: 8300000, guid: aec2038fc9894864ba9a7d1e0b9ab17a, type: 3}
+  - key: tieng_ho
+    clip: {fileID: 8300000, guid: 9a7d04ea7cf04517b1b22df75558939e, type: 3}
+  - key: tieng_hut_thuoc_lao
+    clip: {fileID: 8300000, guid: 2ec8178b1c334dd491cce607ab7c27a8, type: 3}
+  - key: tieng_uong_tra
+    clip: {fileID: 8300000, guid: 6042398ca0fb48df8d68bc686488f5bc, type: 3}
   - key: "Ti\u1EBFng b\xE1o hi\u1EC7u-ch\xEDnh x\xE1c"
     clip: {fileID: 8300000, guid: 23016ba7106d5b84ca51aef34a85eb73, type: 3}
   - key: "Ti\u1EBFng b\u01B0\u1EDBc ch\xE2n"

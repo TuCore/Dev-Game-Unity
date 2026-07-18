@@ -508,7 +508,7 @@ public class CleaningMinigameTester : MonoBehaviour
             alignment = TextAnchor.MiddleCenter,
             fontSize = 12
         };
-        GUI.Label(hintRect, "Nhan R de xem huong dan", hintStyle);
+        GUI.Label(hintRect, "Nhấn R để xem hướng dẫn", hintStyle);
     }
 
     private void DrawGuideMenu()
@@ -518,15 +518,15 @@ public class CleaningMinigameTester : MonoBehaviour
 
         GUILayout.BeginArea(new Rect(menuRect.x + 16f, menuRect.y + 34f, menuRect.width - 32f, menuRect.height - 48f));
         GUI.skin.label.fontSize = 13;
-        GUILayout.Label("1. Chon icon vat pham can ve sinh.");
-        GUILayout.Label("2. Click icon khan lau, roi re chuot tren tung vet bui.");
-        GUILayout.Label("3. Moi vet bui can 5 luot lau hop le de hoan thanh.");
-        GUILayout.Label("4. Sau khi lau xong, chon icon oc vit va click tung oc vit.");
+        GUILayout.Label("1. Chọn icon vật phẩm cần vệ sinh.");
+        GUILayout.Label("2. Click icon khăn lau, rồi rê chuột trên từng vết bụi.");
+        GUILayout.Label("3. Mỗi vết bụi cần 5 lượt lau hợp lệ để hoàn thành.");
+        GUILayout.Label("4. Sau khi lau xong, chọn icon ốc vít và click từng ốc vít.");
         GUILayout.Label("5. Dung phim mui ten de xoay camera quanh vat pham.");
         GUILayout.Label("6. Lan chuot len/xuong de zoom in/zoom out.");
-        GUILayout.Label("7. Ve sinh xong vat pham se quay lai menu chon vat pham con lai.");
+        GUILayout.Label("7. Vệ sinh xong vật phẩm sẽ quay lại menu chọn vật phẩm còn lại.");
         GUILayout.Space(8f);
-        GUILayout.Label("Nhan R lan nua de dong huong dan.");
+        GUILayout.Label("Nhấn R lần nữa để đóng hướng dẫn.");
         GUILayout.EndArea();
     }
 

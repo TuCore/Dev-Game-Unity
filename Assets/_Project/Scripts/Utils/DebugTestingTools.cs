@@ -49,7 +49,6 @@ public class DebugTestingTools : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha2) && _space != null && _economy != null) _space.BuyAirConditioner(_economy, 2000f);
         if (Input.GetKeyDown(KeyCode.Alpha3) && _space != null && _economy != null) _space.BuySpeaker(_economy, 1500f);
         if (Input.GetKeyDown(KeyCode.Alpha4) && _reputation != null) _reputation.ChangeReputation(100);
-        if (Input.GetKeyDown(KeyCode.Alpha5) && _tools != null && _economy != null) _tools.UpgradeSolderingIron(_economy, 500f);
         if (Input.GetKeyDown(KeyCode.Alpha6) && _tools != null && _economy != null) _tools.UpgradeMagnifier(_economy, 500f);
         if (Input.GetKeyDown(KeyCode.Alpha7) && _stamina != null) _stamina.DrainStamina(50f);
         if (Input.GetKeyDown(KeyCode.Alpha8) && _stamina != null) _stamina.RestOvernight();
@@ -90,12 +89,6 @@ public class DebugTestingTools : MonoBehaviour
         if (GUILayout.Button("[Phím 4] Tăng 100 Danh tiếng"))
         {
             if (_reputation != null) _reputation.ChangeReputation(100);
-        }
-
-        // Nút nâng cấp mỏ hàn
-        if (GUILayout.Button("[Phím 5] Nâng cấp Mỏ Hàn (500$)"))
-        {
-            if (_tools != null && _economy != null) _tools.UpgradeSolderingIron(_economy, 500f);
         }
 
         // Nút nâng cấp kính lúp

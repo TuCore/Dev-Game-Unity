@@ -29,7 +29,9 @@ public class CustomerQueue : MonoBehaviour
     }
 
     [Header("Cấu hình hàng đợi")]
-    [SerializeField] private int maxSimultaneousCustomers = 3;
+    [Tooltip("Số đơn/món đồ sửa chữa có thể tồn tại cùng lúc. Giới hạn NPC ngoài scene nằm ở CustomerSpawner.")]
+    [SerializeField] private int maxSimultaneousCustomers = 8;
+    private const int MinimumRepairOrderCapacity = 8;
 
     [Header("Reputation System")]
     public int currentReputation = 50;
@@ -38,6 +40,7 @@ public class CustomerQueue : MonoBehaviour
 
     public int ActiveOrderCount => _activeOrders.Count;
     public int MaxCustomers => maxSimultaneousCustomers;
+    public bool CanAcceptMoreOrders => _activeOrders.Count < maxSimultaneousCustomers;
     public List<CustomerOrder> ActiveOrders => new List<CustomerOrder>(_activeOrders);
 
     // Events
@@ -54,6 +57,7 @@ public class CustomerQueue : MonoBehaviour
         else 
         {
             _instance = this;
+            maxSimultaneousCustomers = Mathf.Max(MinimumRepairOrderCapacity, maxSimultaneousCustomers);
             // Di chuyển component này ra khỏi CustomerManager nếu nó đang nằm trên đó
             if (gameObject.name != "CustomerQueue_Singleton" && transform.parent == null)
             {
@@ -62,9 +66,14 @@ public class CustomerQueue : MonoBehaviour
         }
     }
 
+    private void OnValidate()
+    {
+        maxSimultaneousCustomers = Mathf.Max(MinimumRepairOrderCapacity, maxSimultaneousCustomers);
+    }
+
     public void SetMaxCustomers(int max)
     {
-        maxSimultaneousCustomers = Mathf.Max(1, max);
+        maxSimultaneousCustomers = Mathf.Max(MinimumRepairOrderCapacity, max);
     }
 
     public bool AddCustomer(CustomerOrder order)

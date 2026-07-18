@@ -331,6 +331,17 @@ public class CustomerController : MonoBehaviour, IInteractable
         if (!storeLine.Contains(this)) storeLine.Add(this);
     }
 
+    public bool IsHandlingReturningOrder(CustomerOrder order)
+    {
+        if (order == null || currentOrder != order)
+        {
+            return false;
+        }
+
+        return currentState == CustomerState.ReturningForPickup
+            || currentState == CustomerState.WaitingForPickup;
+    }
+
     public void SetAmbientWalker(Transform pointA, Transform pointB, bool startAtA)
     {
         this.currentState = CustomerState.AmbientWalking;
@@ -560,11 +571,6 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
     }
 
-    private void OnDestroy()
-    {
-        if (storeLine.Contains(this)) storeLine.Remove(this);
-    }
-
     private string CustomerDisplayName
     {
         get
@@ -634,19 +640,23 @@ public class CustomerController : MonoBehaviour, IInteractable
             _selectedItemPrefab = itemPrefabToDrop;
         }
 
-        // 2. Randomize properties - Tỷ lệ: Nối dây 50%, Khám bệnh/Dò mạch 30%, Hàn mạch 20%
+        // 2. Randomize properties across repair minigames.
         float roll = Random.value;
-        if (roll < 0.5f)
+        if (roll < 0.28f)
         {
-            _selectedMinigame = MinigameType.Rewiring; // 50% (0.0 đến < 0.5)
+            _selectedMinigame = MinigameType.PolarityWiring;
         }
-        else if (roll < 0.8f)
+        else if (roll < 0.52f)
         {
-            _selectedMinigame = MinigameType.Diagnosis; // 30% (0.5 đến < 0.8)
+            _selectedMinigame = MinigameType.ContactCleaning;
+        }
+        else if (roll < 0.78f)
+        {
+            _selectedMinigame = MinigameType.Diagnosis;
         }
         else
         {
-            _selectedMinigame = MinigameType.Soldering; // 20% (0.8 đến 1.0)
+            _selectedMinigame = MinigameType.ComponentReplacement;
         }
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
@@ -683,6 +693,12 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void AcceptOrder(string itemName, int apptDay, float apptHour)
     {
+        if (CustomerQueue.Instance != null && !CustomerQueue.Instance.CanAcceptMoreOrders)
+        {
+            ShowCustomerDialogue(CustomerDisplayName, "Hôm nay tiệm đang nhiều đồ quá, bác quay lại sau giúp em nha.", LeaveStore, null, "Đóng");
+            return;
+        }
+
         currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, _selectedDifficulty, _selectedBasePay, apptDay, apptHour);
         
         if (_selectedItemPrefab != null && itemDropPoint != null)
@@ -692,6 +708,7 @@ public class CustomerController : MonoBehaviour, IInteractable
             if (repairable != null)
             {
                 repairable.linkedOrder = currentOrder;
+                _selectedMinigame = repairable.PickRandomMinigame(_selectedMinigame);
                 repairable.SetRandomizedProperties(_selectedMinigame, _selectedDifficulty, _selectedBasePay);
                 Debug.Log($"[CustomerController] Repair profile: minigame={_selectedMinigame}, difficulty={_selectedDifficulty}, requiredParts={repairable.GetRequiredPartsText()}, reward={_selectedBasePay}");
                 Debug.Log($"[CustomerController] Đã tạo món đồ. Minigame: {_selectedMinigame}, Độ khó: {_selectedDifficulty}, Giá: {_selectedBasePay}");
@@ -753,6 +770,7 @@ public class CustomerController : MonoBehaviour, IInteractable
             {
                 // Dễ tính: cho thêm thời gian
                 currentOrder.appointmentDay += 1;
+                currentOrder.hasSpawnedReturning = false;
                 ShowCustomerDialogue(CustomerDisplayName, "Chưa xong à? Thôi cứ làm đi, mai tôi quay lại lấy.", LeaveStore);
                 hasInteracted = false; // Reset for next time
             }
@@ -797,6 +815,19 @@ public class CustomerController : MonoBehaviour, IInteractable
         if (exitTarget != null)
         {
             TrySetDestination(exitTarget.position, 12f);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (storeLine.Contains(this)) storeLine.Remove(this);
+
+        if (currentOrder != null
+            && !currentOrder.isPickedUp
+            && !currentOrder.isFailed
+            && (currentState == CustomerState.ReturningForPickup || currentState == CustomerState.WaitingForPickup || currentState == CustomerState.Leaving))
+        {
+            currentOrder.hasSpawnedReturning = false;
         }
     }
 }

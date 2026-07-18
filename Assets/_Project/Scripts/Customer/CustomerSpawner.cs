@@ -20,6 +20,8 @@ public class CustomerSpawner : MonoBehaviour
 
     private float nextSpawnTime;
 
+    private bool HasAnySpawnPoint => spawnPoint != null || (leftSpawnPoint != null && rightSpawnPoint != null);
+
     private void Start()
     {
         // Khởi tạo khách đầu tiên xuất hiện NGAY LẬP TỨC khi load Scene
@@ -46,10 +48,22 @@ public class CustomerSpawner : MonoBehaviour
 
             foreach (var order in CustomerQueue.Instance.ActiveOrders)
             {
-                if (order.IsAppointmentDue(day, hour) && !order.hasSpawnedReturning)
+                if (order == null || !order.IsAppointmentDue(day, hour))
                 {
-                    // Check limit before spawning returning customers
-                    if (FindObjectsOfType<CustomerController>().Length < maxSimultaneousNPCs)
+                    continue;
+                }
+
+                if (order.hasSpawnedReturning && !IsReturningCustomerAlive(order))
+                {
+                    order.hasSpawnedReturning = false;
+                }
+
+                if (!order.hasSpawnedReturning)
+                {
+                    // Check limit before spawning returning customers.
+                    // Ambient street walkers also use CustomerController, but should not block real customers.
+                    int activeCustomerLimit = order.isCompleted ? maxSimultaneousNPCs + 2 : maxSimultaneousNPCs;
+                    if (CountActiveShopCustomers() < activeCustomerLimit)
                     {
                         SpawnReturningCustomer(order);
                     }
@@ -61,7 +75,10 @@ public class CustomerSpawner : MonoBehaviour
         if (Time.time >= nextSpawnTime)
         {
             Debug.Log($"[DEBUG] Timer reached! Attempting to spawn at {Time.time}");
-            SpawnWanderingCustomer();
+            if (!HasDueReturningOrder())
+            {
+                SpawnWanderingCustomer();
+            }
             ScheduleNextSpawn();
         }
     }
@@ -83,17 +100,18 @@ public class CustomerSpawner : MonoBehaviour
     private void SpawnWanderingCustomer()
     {
         Debug.Log("[DEBUG] SpawnWanderingCustomer called!");
-        if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null) return;
+        if (customerPrefabs.Count == 0 || !HasAnySpawnPoint || counterTarget == null || exitTarget == null) return;
 
-        CustomerController[] currentControllers = FindObjectsOfType<CustomerController>();
+        CustomerController[] currentControllers = FindCurrentCustomerControllers();
 
-        // Kiểm tra giới hạn số lượng NPC vật lý trên Scene
-        if (currentControllers.Length >= maxSimultaneousNPCs)
+        // Kiểm tra giới hạn khách thật. Không tính NPC nền đi ngoài phố.
+        if (CountActiveShopCustomers(currentControllers) >= maxSimultaneousNPCs)
         {
             return;
         }
 
-        if (CustomerQueue.Instance != null && CustomerQueue.Instance.ActiveOrderCount >= CustomerQueue.Instance.MaxCustomers)
+        // Disabled: pending repair orders should not stop new visitors from entering the street.
+        if (ShouldBlockNewVisitorsForPendingOrders())
         {
             return; // Đã kín chỗ
         }
@@ -102,7 +120,7 @@ public class CustomerSpawner : MonoBehaviour
         HashSet<string> activeArchetypes = new HashSet<string>();
         foreach (var ctrl in currentControllers)
         {
-            if (ctrl != null && ctrl.currentState != CustomerState.AmbientWalking)
+            if (ctrl != null && IsSpawnBlockingCustomer(ctrl))
             {
                 string id = (ctrl.archetype != null && !string.IsNullOrEmpty(ctrl.archetype.archetypeName)) 
                     ? ctrl.archetype.archetypeName 
@@ -146,10 +164,6 @@ public class CustomerSpawner : MonoBehaviour
         {
             chosenSpawn = Random.value > 0.5f ? leftSpawnPoint : rightSpawnPoint;
         }
-        else if (spawnPoint == null)
-        {
-            return;
-        }
 
         Vector3 finalSpawnPos = chosenSpawn.position;
         UnityEngine.AI.NavMeshHit hit;
@@ -161,7 +175,7 @@ public class CustomerSpawner : MonoBehaviour
             finalSpawnPos = hit.position;
         }
 
-        GameObject spawned = Instantiate(selectedPrefab, finalSpawnPos, spawnPoint.rotation);
+        GameObject spawned = Instantiate(selectedPrefab, finalSpawnPos, chosenSpawn.rotation);
 
         CustomerController controller = spawned.GetComponent<CustomerController>();
         if (controller != null)
@@ -175,17 +189,12 @@ public class CustomerSpawner : MonoBehaviour
 
     private void SpawnReturningCustomer(CustomerOrder order)
     {
-        if (customerPrefabs.Count == 0 || spawnPoint == null || counterTarget == null || exitTarget == null) return;
+        if (customerPrefabs == null || customerPrefabs.Count == 0 || !HasAnySpawnPoint || counterTarget == null || exitTarget == null) return;
 
-        // Find matching prefab (simplified: just random for now if archetype name matching is too complex)
-        GameObject prefab = customerPrefabs[Random.Range(0, customerPrefabs.Count)];
-        foreach (var p in customerPrefabs)
+        GameObject prefab = FindReturningCustomerPrefab(order);
+        if (prefab == null)
         {
-            if (p.GetComponent<CustomerController>()?.archetype.archetypeName == order.customerName)
-            {
-                prefab = p;
-                break;
-            }
+            return;
         }
 
         Transform chosenSpawn = spawnPoint;
@@ -193,7 +202,6 @@ public class CustomerSpawner : MonoBehaviour
         {
             chosenSpawn = Random.value > 0.5f ? leftSpawnPoint : rightSpawnPoint;
         }
-        else if (spawnPoint == null) return;
 
         Vector3 finalSpawnPos = chosenSpawn.position;
         UnityEngine.AI.NavMeshHit hit;
@@ -213,6 +221,113 @@ public class CustomerSpawner : MonoBehaviour
             controller.SetReturningOrder(order);
             order.hasSpawnedReturning = true; // Mark as spawned so it doesn't spawn again next frame!
         }
+    }
+
+    private GameObject FindReturningCustomerPrefab(CustomerOrder order)
+    {
+        List<GameObject> validPrefabs = new List<GameObject>();
+        for (int i = 0; i < customerPrefabs.Count; i++)
+        {
+            GameObject prefab = customerPrefabs[i];
+            if (prefab == null)
+            {
+                continue;
+            }
+
+            CustomerController controller = prefab.GetComponent<CustomerController>();
+            if (controller == null)
+            {
+                continue;
+            }
+
+            validPrefabs.Add(prefab);
+            string archetypeName = controller.archetype != null ? controller.archetype.archetypeName : "";
+            if (!string.IsNullOrWhiteSpace(archetypeName) && order != null && archetypeName == order.customerName)
+            {
+                return prefab;
+            }
+        }
+
+        return validPrefabs.Count > 0 ? validPrefabs[Random.Range(0, validPrefabs.Count)] : null;
+    }
+
+    private bool HasDueReturningOrder()
+    {
+        if (DayClock.Instance == null || CustomerQueue.Instance == null)
+        {
+            return false;
+        }
+
+        int day = DayClock.Instance.CurrentDay;
+        float hour = DayClock.Instance.CurrentHour;
+        List<CustomerOrder> orders = CustomerQueue.Instance.ActiveOrders;
+        for (int i = 0; i < orders.Count; i++)
+        {
+            CustomerOrder order = orders[i];
+            if (order != null && order.IsAppointmentDue(day, hour) && !order.isPickedUp && !order.isFailed)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsReturningCustomerAlive(CustomerOrder order)
+    {
+        if (order == null)
+        {
+            return false;
+        }
+
+        CustomerController[] controllers = FindCurrentCustomerControllers();
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            CustomerController controller = controllers[i];
+            if (controller != null && controller.IsHandlingReturningOrder(order))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int CountActiveShopCustomers(CustomerController[] controllers = null)
+    {
+        if (controllers == null)
+        {
+            controllers = FindCurrentCustomerControllers();
+        }
+
+        int count = 0;
+        foreach (var controller in controllers)
+        {
+            if (controller == null || !IsSpawnBlockingCustomer(controller))
+            {
+                continue;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private bool IsSpawnBlockingCustomer(CustomerController controller)
+    {
+        return controller.currentState != CustomerState.AmbientWalking
+            && controller.currentState != CustomerState.Leaving;
+    }
+
+    private bool ShouldBlockNewVisitorsForPendingOrders()
+    {
+        return false;
+    }
+
+    private CustomerController[] FindCurrentCustomerControllers()
+    {
+        return FindObjectsByType<CustomerController>(FindObjectsSortMode.None);
     }
 }
 

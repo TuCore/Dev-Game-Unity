@@ -28,7 +28,6 @@ public class ToolUpgradeSystem : MonoBehaviour
     }
 
     [Header("Cấp độ đồ nghề hiện tại")]
-    [SerializeField] private int solderingIronLevel = 1;  // Mỏ hàn
     [SerializeField] private int multimeterLevel = 1;     // Đồng hồ vạn năng
     [SerializeField] private int magnifierLevel = 1;      // Kính lúp
 
@@ -38,24 +37,11 @@ public class ToolUpgradeSystem : MonoBehaviour
         return (magnifierLevel - 1) * 60f;
     }
 
-    public int SolderingIronLevel => solderingIronLevel;
     public int MultimeterLevel => multimeterLevel;
     public int MagnifierLevel => magnifierLevel;
 
     // Events
     public System.Action<string, int> OnToolUpgraded; // (tên tool, level mới)
-
-    /// <summary>
-    /// Nâng cấp mỏ hàn — mở rộng vùng xanh trong minigame Soldering.
-    /// </summary>
-    public bool UpgradeSolderingIron(EconomyManager economy, float cost)
-    {
-        if (!economy.CanAfford(cost)) return false;
-        economy.SpendCash(cost);
-        solderingIronLevel++;
-        OnToolUpgraded?.Invoke("SolderingIron", solderingIronLevel);
-        return true;
-    }
 
     /// <summary>
     /// Nâng cấp đồng hồ vạn năng — dò mạch nhanh hơn trong minigame Diagnosis.
@@ -88,7 +74,6 @@ public class ToolUpgradeSystem : MonoBehaviour
     {
         return toolType switch
         {
-            "SolderingIron" => 0.05f * (solderingIronLevel - 1), // +5% mỗi level
             "Multimeter"    => 0.05f * (multimeterLevel - 1),
             "Magnifier"     => 0.05f * (magnifierLevel - 1),
             _ => 0f
