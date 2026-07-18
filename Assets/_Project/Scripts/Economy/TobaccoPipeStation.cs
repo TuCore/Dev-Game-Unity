@@ -47,10 +47,10 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
     [Header("Vùng tương tác")]
     [SerializeField] private Vector3 interactionAreaSize = new Vector3(3.2f, 1.7f, 2.6f);
     [SerializeField] private Vector3 interactionAreaCenter = new Vector3(0f, 0.9f, 0f);
-    [SerializeField] private float aimAssistRadius = 1.35f;
+    [SerializeField] private float aimAssistRadius = 1.8f;
     [SerializeField] private bool enableDirectInteractFallback = true;
-    [SerializeField] private float directInteractRange = 5f;
-    [SerializeField] [Range(0.08f, 0.5f)] private float directInteractViewportRadius = 0.34f;
+    [SerializeField] private float directInteractRange = 6.5f;
+    [SerializeField] [Range(0.08f, 0.5f)] private float directInteractViewportRadius = 0.46f;
     [SerializeField] private bool showTransparentInteractionArea = true;
     [SerializeField] private bool showInteractionAreaWhilePlaying = false;
     [SerializeField] [Range(0f, 0.35f)] private float interactionAreaAlpha = 0.11f;
@@ -87,11 +87,38 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
         s_playSessionVersion++;
     }
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void PrepareLoadedSceneStations()
+    {
+        TobaccoPipeStation[] stations = Resources.FindObjectsOfTypeAll<TobaccoPipeStation>();
+        for (int i = 0; i < stations.Length; i++)
+        {
+            TobaccoPipeStation station = stations[i];
+            if (station == null || !station.gameObject.scene.IsValid() || !station.gameObject.scene.isLoaded)
+            {
+                continue;
+            }
+
+            station.enabled = true;
+            station.ForceInteractionReady();
+        }
+    }
+
     public void ConfigureStation(string newStationName, float newPrice, float newCooldownSeconds)
     {
         stationName = string.IsNullOrWhiteSpace(newStationName) ? stationName : newStationName;
         price = Mathf.Max(0f, newPrice);
         cooldownSeconds = Mathf.Max(0f, newCooldownSeconds);
+    }
+
+    public void ForceInteractionReady()
+    {
+        useCooldown = false;
+        enableDirectInteractFallback = true;
+        aimAssistRadius = Mathf.Max(aimAssistRadius, 1.8f);
+        directInteractRange = Mathf.Max(directInteractRange, 6.5f);
+        directInteractViewportRadius = Mathf.Max(directInteractViewportRadius, 0.46f);
+        EnsureInteractionArea();
     }
 
     public void ConfigureInteractionArea(Vector3 areaSize, Vector3 areaCenter, Color areaColor, float alpha)
@@ -148,12 +175,6 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
             return;
         }
 
-        if (MinigameManager.Instance != null && MinigameManager.Instance.IsMinigameActive)
-        {
-            ShowToast("Đang có minigame sửa đồ, xong đã rồi nghỉ sau.");
-            return;
-        }
-
         if (IsCoolingDown(out float remaining))
         {
             ShowToast($"Đợi thêm {Mathf.CeilToInt(remaining)} giây nữa rồi làm tiếp.");
@@ -187,12 +208,14 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
 
     private void Awake()
     {
+        ForceInteractionReady();
         EnsureInteractionArea();
         EnsureVisual();
     }
 
     private void OnEnable()
     {
+        ForceInteractionReady();
         EnsureFreshPlaySession();
     }
 
@@ -230,6 +253,7 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
         targetCenterMax = Mathf.Clamp(targetCenterMax, targetCenterMin, 1f);
         aimAssistRadius = Mathf.Max(0.25f, aimAssistRadius);
         directInteractRange = Mathf.Max(0.5f, directInteractRange);
+        enableDirectInteractFallback = true;
     }
 
     private void Update()
@@ -295,12 +319,7 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
 
     private void HandleDirectInteractFallback()
     {
-        if (!enableDirectInteractFallback)
-        {
-            return;
-        }
-
-        if (!Input.GetKeyDown(KeyCode.E) && !CustomInputManager.GetKeyDown("Interact"))
+        if (!enableDirectInteractFallback || (!Input.GetKeyDown(KeyCode.E) && !CustomInputManager.GetKeyDown("Interact")))
         {
             return;
         }
@@ -331,6 +350,11 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
         if (distance <= 0.01f || distance > range)
         {
             return false;
+        }
+
+        if (distance <= Mathf.Max(2.2f, AimAssistRadius))
+        {
+            return true;
         }
 
         float forwardDistance = Vector3.Dot(fromCamera, camera.transform.forward);

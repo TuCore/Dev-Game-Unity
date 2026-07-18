@@ -11,8 +11,8 @@ public class RaycastInteract : MonoBehaviour
     [SerializeField] private float customerCacheRefreshInterval = 0.2f;
 
     [Header("Station Aim Assist")]
-    [SerializeField] private float stationAimAssistRadius = 2.1f;
-    [SerializeField] private float stationAimViewportRadius = 0.34f;
+    [SerializeField] private float stationAimAssistRadius = 2.8f;
+    [SerializeField] private float stationAimViewportRadius = 0.46f;
     [SerializeField] private float stationCacheRefreshInterval = 0.25f;
 
     [Header("Cấu hình tương tác")]
@@ -46,6 +46,8 @@ public class RaycastInteract : MonoBehaviour
         
         _minigameManager = FindObjectOfType<MinigameManager>();
         _crosshairUI = FindFirstObjectByType<AnhThoDien.UI.HUD.CrosshairUI>();
+        stationAimAssistRadius = Mathf.Max(stationAimAssistRadius, 2.8f);
+        stationAimViewportRadius = Mathf.Max(stationAimViewportRadius, 0.46f);
 
         // Tự tạo một HoldPosition nếu chưa gán trong Editor
         if (holdPosition == null && _cam != null)
@@ -228,7 +230,7 @@ public class RaycastInteract : MonoBehaviour
             }
             // ================================
 
-            if (CustomInputManager.GetKeyDown("Interact"))
+            if (WasInteractPressed())
             {
                 // Nếu tia nhìn trúng mặt bàn/đất thì đặt tại hit.point, nếu không thì đặt lơ lửng ở vị trí tay cầm
                 Vector3 placePos = isHit ? hit.point : holdPosition.position;
@@ -250,7 +252,7 @@ public class RaycastInteract : MonoBehaviour
         {
             promptText += customerTarget.GetInteractionPrompt();
 
-            if (CustomInputManager.GetKeyDown("Interact"))
+            if (WasInteractPressed())
             {
                 customerTarget.Interact();
             }
@@ -259,7 +261,7 @@ public class RaycastInteract : MonoBehaviour
         {
             promptText += tobaccoPipeTarget.GetInteractionPrompt();
 
-            if (CustomInputManager.GetKeyDown("Interact"))
+            if (WasInteractPressed())
             {
                 tobaccoPipeTarget.Interact();
             }
@@ -275,7 +277,7 @@ public class RaycastInteract : MonoBehaviour
                 promptText += interactable.GetInteractionPrompt();
                 
                 // Nhấn phím E để tương tác
-                if (CustomInputManager.GetKeyDown("Interact"))
+                if (WasInteractPressed())
                 {
                     PickupItem pickup = hit.collider.GetComponentInParent<PickupItem>();
                     if (pickup != null)
@@ -319,6 +321,12 @@ public class RaycastInteract : MonoBehaviour
         }
 
         // Luôn cập nhật (hoặc xóa) chữ hiển thị trên màn hình
+        if (string.IsNullOrEmpty(promptText) && WasInteractPressed() && TryInteractNearestTobaccoPipe(ray))
+        {
+            SetCrosshairTargeting(false);
+            return;
+        }
+
         SetCrosshairTargeting(customerTarget != null || tobaccoPipeTarget != null);
 
         if (_promptText != null)
@@ -596,11 +604,86 @@ public class RaycastInteract : MonoBehaviour
     {
         if (_cachedTobaccoPipeStations == null || Time.time >= _nextStationCacheRefreshTime)
         {
-            _cachedTobaccoPipeStations = FindObjectsByType<TobaccoPipeStation>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            _cachedTobaccoPipeStations = FindObjectsByType<TobaccoPipeStation>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             _nextStationCacheRefreshTime = Time.time + stationCacheRefreshInterval;
         }
 
         return _cachedTobaccoPipeStations ?? Array.Empty<TobaccoPipeStation>();
+    }
+
+    private bool TryInteractNearestTobaccoPipe(Ray ray)
+    {
+        TobaccoPipeStation[] stations = GetCachedTobaccoPipeStations();
+        TobaccoPipeStation bestStation = null;
+        float bestScore = float.MaxValue;
+
+        for (int i = 0; i < stations.Length; i++)
+        {
+            TobaccoPipeStation station = stations[i];
+            if (TryGetTobaccoPipeFallbackScore(station, ray, out float score) && score < bestScore)
+            {
+                bestScore = score;
+                bestStation = station;
+            }
+        }
+
+        if (bestStation == null)
+        {
+            return false;
+        }
+
+        bestStation.ForceInteractionReady();
+        bestStation.Interact();
+        return true;
+    }
+
+    private bool TryGetTobaccoPipeFallbackScore(TobaccoPipeStation station, Ray ray, out float score)
+    {
+        score = 0f;
+        if (station == null || !station.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        Vector3 aimPoint = station.GetAimAssistPoint();
+        Vector3 fromCamera = aimPoint - _cam.transform.position;
+        float distance = fromCamera.magnitude;
+        float radius = Mathf.Max(Mathf.Max(stationAimAssistRadius, station.AimAssistRadius), 2.8f);
+        float range = Mathf.Max(interactRange + radius, 7.2f);
+        if (distance <= 0.01f || distance > range)
+        {
+            return false;
+        }
+
+        float forwardDistance = Vector3.Dot(fromCamera, ray.direction);
+        if (forwardDistance <= 0f)
+        {
+            return false;
+        }
+
+        float distanceFromAimRay = (fromCamera - ray.direction * forwardDistance).magnitude;
+        Vector3 viewportPoint = _cam.WorldToViewportPoint(aimPoint);
+        if (viewportPoint.z <= 0f)
+        {
+            return false;
+        }
+
+        Vector2 viewportOffset = new Vector2(viewportPoint.x - 0.5f, viewportPoint.y - 0.5f);
+        float viewportRadius = Mathf.Max(stationAimViewportRadius, 0.46f);
+        bool closeEnough = distance <= Mathf.Max(2.6f, radius);
+        bool aimedEnough = distanceFromAimRay <= radius * 1.25f || viewportOffset.magnitude <= viewportRadius;
+        if (!closeEnough && !aimedEnough)
+        {
+            return false;
+        }
+
+        score = viewportOffset.sqrMagnitude * 100f + distanceFromAimRay + distance * 0.01f;
+        return true;
+    }
+
+    private bool WasInteractPressed()
+    {
+        return Input.GetKeyDown(KeyCode.E) || CustomInputManager.GetKeyDown("Interact");
     }
 
     private void SetCrosshairTargeting(bool isTargeting)
