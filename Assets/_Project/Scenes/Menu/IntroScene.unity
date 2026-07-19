@@ -259,6 +259,9 @@ MonoBehaviour:
   promptText: {fileID: 1544887543}
   typeSpeed: 0.03
   nextSceneName: Shop_Main
+  syncTextToVoice: 1
+  autoAdvance: 0
+  delayBetweenLines: 0.35
   lines:
   - characterName: 
     text: "(Kh\xF4ng gian ph\xF2ng kh\xE1ch ng\u1ED9t ng\u1EA1t. B\u1EEFa c\u01A1m
@@ -268,21 +271,21 @@ MonoBehaviour:
       lo\u1EA1i C\u1EADn B\xECnh (Y\u1EBFu). \xD4ng Minh n\xE9m c\u1EA1ch chi\u1EBFc
       k\xEDnh vi\u1EC5n th\u1ECB xu\u1ED1ng b\xE0n, l\u1ED3ng ng\u1EF1c ph\u1EADp
       ph\u1ED3ng v\xEC gi\u1EADn d\u1EEF.)"
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: 108549a57eb2ae246a8f682909783ac3, type: 3}
   - characterName: "\xD4ng Minh"
     text: "\"B\u1ED1n n\u0103m tr\u1EDDi... Tao v\u1EAFt ki\u1EC7t m\u1ED3 h\xF4i
       h\u1ED9t, c\u1EAFn r\u0103ng vay m\u01B0\u1EE3n cho m\xE0y l\xEAn th\xE0nh
       ph\u1ED1 h\u1ECDc c\xE1i b\u1EB1ng K\u1EF9 s\u01B0 \u0110i\u1EC7n l\u1EF1c.
       \u0110\u1EC3 r\u1ED3i h\xF4m nay m\xE0y v\xE1c c\xE1i m\u1EDB gi\u1EA5y l\u1ED9n
       n\xE0y v\u1EC1 n\xE9m v\xE0o m\u1EB7t tao th\u1EBF n\xE0y \xE0?\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: f558fd89310184748b26b1fd3e8133a2, type: 3}
   - characterName: "Tu\u1EA5n"
     text: "\"Con... con xin l\u1ED7i. Nh\u01B0ng con \u0111\xE3 n\xF3i ngay t\u1EEB
-      \u0111\u1EA7u n\u0103m hai l\xE0 con h\u1ECDc kh\xF4ng v\xE0o m\u1EA5y c\xE1i
-      l\xFD thuy\u1EBFt vi m\xF4, v\u0129 m\xF4, r\u1ED3i v\u1EBD s\u01A1 \u0111\u1ED3
-      l\u01B0\u1EDBi \u0111i\u1EC7n qu\u1ED1c gia \u0111\xF3... Con ch\u1EC9 th\xEDch
-      t\u1EF1 m\xE0y m\xF2 s\u1EEDa ch\u1EEFa m\xE1y m\xF3c th\u1EF1c t\u1EBF th\xF4i.\""
-    voiceClip: {fileID: 0}
+      \u0111\u1EA7u n\u0103m hai r\u1ED3i m\xE0! Con kh\xF4ng h\u1ECDc n\u1ED5i nh\u1EEFng
+      th\u1EE9 \u0111\xF3! Con \u0111\xE3 c\u1ED1 r\u1ED3i... nh\u01B0ng con th\u1EADt
+      s\u1EF1 kh\xF4ng h\u1EE3p v\u1EDBi n\xF3! Con ch\u1EC9 th\xEDch t\u1EF1 m\xE0y
+      m\xF2 s\u1EEDa ch\u1EEFa m\xE1y m\xF3c th\u1EF1c t\u1EBF th\xF4i.\""
+    voiceClip: {fileID: 8300000, guid: efd6f34d5b55f2f41958a5000755290c, type: 3}
   - characterName: "Suy ngh\u0129 c\u1EE7a Tu\u1EA5n"
     text: "\"Ba ch\u1EB3ng bao gi\u1EDD hi\u1EC3u. B\u1EAFt m\xECnh nh\xE9t v\xE0o
       \u0111\u1EA7u \u0111\u1ED1ng l\xFD thuy\u1EBFt h\xE0n l\xE2m trong khi m\xECnh
@@ -290,56 +293,56 @@ MonoBehaviour:
       d\u1EE5ng. C\u1ED1 l\u1EBFt cho xong c\xE1i b\u1EB1ng n\xE0y \u0111\xE3 l\xE0
       gi\u1EDBi h\u1EA1n ch\u1ECBu \u0111\u1EF1ng cu\u1ED1i c\xF9ng c\u1EE7a m\xECnh
       r\u1ED3i.\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: f6ee4e0f3c252da4988dc94e319b9eaa, type: 3}
   - characterName: "\xD4ng Minh"
     text: "\"M\xE0y im ngay! \u0110\u1EEBng c\xF3 l\xF4i c\xE1i l\xFD do m\u1EA1t
       r\u1EC7p \u1EA5y ra bao bi\u1EC7n cho s\u1EF1 l\u01B0\u1EDDi bi\u1EBFng, ngu
       d\u1ED1t c\u1EE7a m\xE0y! Th\xEDch m\xE0y m\xF2 h\u1EA3? Th\xEDch \u0111i l\xE0m
       ba c\xE1i \u0111\u1ED3 l\u1EB7t v\u1EB7t nh\u01B0 th\u1EB1ng th\u1EE3 v\u01B0\u1EDDn
       h\u1EA3?\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: fdb05504bb021514d9dae0da7cf819c6, type: 3}
   - characterName: "B\xE0 Lan"
     text: "\"\xD4ng \u01A1i, t\xF4i l\u1EA1y \xF4ng, b\u1EDBt n\xF3ng \u0111i \xF4ng.
       Con n\xF3 m\u1EDBi ra tr\u01B0\u1EDDng, \u0111i\u1EC3m th\u1EA5p th\xEC t\u1EEB
       t\u1EEB xin vi\u1EC7c nh\u1ECF r\u1ED3i l\xEAn cao... Ch\u1EEDi m\u1EAFng n\xF3
       th\xEC \u0111\u01B0\u1EE3c c\xE1i g\xEC n\u1EEFa.\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: 0f4b4409f6258f84783e6ab161f1e392, type: 3}
   - characterName: "\xD4ng Minh"
     text: "\"Xin vi\u1EC7c? C\xE1i b\u1EB1ng r\u1EBB r\xE1ch n\xE0y c\xF4ng ty n\xE0o
       n\xF3 nh\u1EADn? \u0110\xE3 th\u1EBF, tao kh\xF4ng nu\xF4i b\xE1o c\xF4 m\u1ED9t
       th\u1EB1ng v\xF4 t\xEDch s\u1EF1 trong c\xE1i nh\xE0 n\xE0y n\u1EEFa. M\xE0y
       th\xEDch \u0111i s\u1EEDa \u0111i\u1EC7n d\u1EA1o ch\u1EE9 g\xEC? \u0110i!
       \u0110i ngay!\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: 9779584a6e522ac458e88918b5619ca5, type: 3}
   - characterName: "Tu\u1EA5n"
     text: "\"Ba \u0111u\u1ED5i con? \u0110\u01B0\u1EE3c! Con \u0111i! Con s\u1EBD
       ch\u1EE9ng minh cho ba th\u1EA5y kh\xF4ng c\u1EA7n c\xE1i m\u1EDB l\xFD thuy\u1EBFt
       h\xE3o huy\u1EC1n kia con v\u1EABn s\u1ED1ng \u0111\u01B0\u1EE3c! Con kh\xF4ng
       c\u1EA7n ba ph\u1EA3i nu\xF4i!\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: be77b73d7a2ef4d47ab0bfdf61304b21, type: 3}
   - characterName: "Suy ngh\u0129 c\u1EE7a Tu\u1EA5n"
     text: "\"\u0110\u1EE7 r\u1ED3i! M\xECnh s\u1ED1ng trong c\xE1i l\u1ED3ng \xE1p
       \u0111\u1EB7t n\xE0y qu\xE1 l\xE2u r\u1ED3i. M\u1EB7c k\u1EC7 t\u1EA5t c\u1EA3,
       ra \u0111\u01B0\u1EDDng l\xE0m th\u1EE3 ph\u1EE5, th\u1EE3 d\u1EA1o c\u0169ng
       \u0111\u01B0\u1EE3c, mi\u1EC5n l\xE0 \u0111\u01B0\u1EE3c t\u1EF1 do l\xE0m
       \u0111i\u1EC1u m\xECnh th\xEDch.\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: 4996500e6d4991248808797c35e0e723, type: 3}
   - characterName: "B\xE0 Lan"
     text: "\"Tu\u1EA5n, con \u0111\u1EEBng b\u01B0\u1EDBng n\u1EEFa! Qu\u1EF3 xu\u1ED1ng
       xin l\u1ED7i ba \u0111i con! \u0110\xEAm h\xF4m th\u1EBF n\xE0y con \u0111i
       \u0111\xE2u?\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: fccd6343ea4e9bb4f9d02bffe2fc569a, type: 3}
   - characterName: "\xD4ng Minh"
     text: "\"B\xE0 bu\xF4ng n\xF3 ra! Cho n\xF3 \u0111i! M\xE0y b\u01B0\u1EDBc ra
       kh\u1ECFi c\xE1i nh\xE0 n\xE0y th\xEC t\u1EF1 \u0111i m\xE0 ki\u1EBFm c\u01A1m.
       Ch\u1EEBng n\xE0o kh\xF4ng t\u1EF1 nu\xF4i n\u1ED5i b\u1EA3n th\xE2n b\u1EB1ng
       c\xE1i ngh\u1EC1 'm\xE0y m\xF2' c\u1EE7a m\xE0y th\xEC \u0111\u1EEBng c\xF3
       l\xEA l\u1EBFt v\u1EC1 \u0111\xE2y kh\xF3c l\xF3c!\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: ed06f354489dfe24b8cfd1a448196168, type: 3}
   - characterName: "Tu\u1EA5n"
     text: "\"M\u1EB9 gi\u1EEF g\xECn s\u1EE9c kh\u1ECFe, ba b\u1EDBt h\xFAt thu\u1ED1c
       l\u1EA1i. Con \u0111i.\""
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: d54ad822b14f5d6408a44858390b4912, type: 3}
   - characterName: 
     text: "(Tu\u1EA5n kh\xF4ng l\xEAn ph\xF2ng thu d\u1ECDn qu\u1EA7n \xE1o. C\u1EADu
       \u0111i th\u1EB3ng v\u1EC1 ph\xEDa g\xF3c g\u1EA7m c\u1EA7u thang, x\xE1ch
@@ -351,7 +354,7 @@ MonoBehaviour:
       l\u1EA1i sau l\u01B0ng ti\u1EBFng kh\xF3c n\u1EA5c c\u1EE7a m\u1EB9 v\xE0 ti\u1EBFng
       th\u1EDF d\xE0i n\u1EB7ng nh\u1ECDc c\u1EE7a cha gi\u1EEFa m\xE0n \u0111\xEAm
       v\u1EAFng ng\u1EAFt.)"
-    voiceClip: {fileID: 0}
+    voiceClip: {fileID: 8300000, guid: 56c7644da53ec0046829c1ff98e97bb9, type: 3}
 --- !u!82 &390413957
 AudioSource:
   m_ObjectHideFlags: 0
@@ -961,6 +964,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1712754658}
   - component: {fileID: 1712754657}
+  - component: {fileID: 1712754659}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: Untagged
@@ -1034,6 +1038,14 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!81 &1712754659
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712754656}
+  m_Enabled: 1
 --- !u!1 &1827712499
 GameObject:
   m_ObjectHideFlags: 0

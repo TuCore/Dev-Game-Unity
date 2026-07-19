@@ -29,7 +29,9 @@ public class CustomerQueue : MonoBehaviour
     }
 
     [Header("Cấu hình hàng đợi")]
-    [SerializeField] private int maxSimultaneousCustomers = 3;
+    [Tooltip("Số đơn/món đồ sửa chữa có thể tồn tại cùng lúc. Giới hạn NPC ngoài scene nằm ở CustomerSpawner.")]
+    [SerializeField] private int maxSimultaneousCustomers = 8;
+    private const int MinimumRepairOrderCapacity = 8;
 
     [Header("Reputation System")]
     public int currentReputation = 50;
@@ -38,6 +40,7 @@ public class CustomerQueue : MonoBehaviour
 
     public int ActiveOrderCount => _activeOrders.Count;
     public int MaxCustomers => maxSimultaneousCustomers;
+    public bool CanAcceptMoreOrders => _activeOrders.Count < maxSimultaneousCustomers;
     public List<CustomerOrder> ActiveOrders => new List<CustomerOrder>(_activeOrders);
 
     // Events
@@ -54,6 +57,7 @@ public class CustomerQueue : MonoBehaviour
         else 
         {
             _instance = this;
+            maxSimultaneousCustomers = Mathf.Max(MinimumRepairOrderCapacity, maxSimultaneousCustomers);
             // Di chuyển component này ra khỏi CustomerManager nếu nó đang nằm trên đó
             if (gameObject.name != "CustomerQueue_Singleton" && transform.parent == null)
             {
@@ -62,9 +66,14 @@ public class CustomerQueue : MonoBehaviour
         }
     }
 
+    private void OnValidate()
+    {
+        maxSimultaneousCustomers = Mathf.Max(MinimumRepairOrderCapacity, maxSimultaneousCustomers);
+    }
+
     public void SetMaxCustomers(int max)
     {
-        maxSimultaneousCustomers = Mathf.Max(1, max);
+        maxSimultaneousCustomers = Mathf.Max(MinimumRepairOrderCapacity, max);
     }
 
     public bool AddCustomer(CustomerOrder order)
@@ -83,11 +92,9 @@ public class CustomerQueue : MonoBehaviour
         {
             ToastNotificationManager.Instance.ShowToast("[+] Có khách mới đem đồ tới sửa kìa!", 3f);
         }
-        if (SubtitleManager.Instance != null)
-        {
-            SubtitleManager.Instance.ShowSubtitle("Khách Hàng (Ngoài cửa)", "Anh thợ ơi có nhà không? Sửa gấp giúp tôi món đồ này với!", 4f, "Tiếng mở cửa");
-        }
-        else if (AudioManager.Instance != null)
+        // Chi hien toast lon. Phat am thanh truc tiep de khong can tao them
+        // SubtitlePanel nho o goc trai.
+        if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlaySFX("Tiếng mở cửa");
         }
@@ -102,11 +109,7 @@ public class CustomerQueue : MonoBehaviour
             CustomerMessageLog.AddOrderCompleted(order);
             OnOrderCompleted?.Invoke(order);
             TaskManager.EnsureInstance().NotifyOrderReturned(order);
-            if (SubtitleManager.Instance != null)
-            {
-                SubtitleManager.Instance.ShowSubtitle("Khách Hàng", "Sửa kỹ ghê, máy chạy êm ru! Gửi anh thêm chút tiền tip nha.", 4f, "Tiếng thanh toán");
-            }
-            else if (AudioManager.Instance != null)
+            if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlaySFX("Tiếng thanh toán");
             }
@@ -124,11 +127,7 @@ public class CustomerQueue : MonoBehaviour
             {
                 ToastNotificationManager.Instance.ShowToast("[!] Khách đợi lâu quá nên bỏ về rồi!", 4f);
             }
-            if (SubtitleManager.Instance != null)
-            {
-                SubtitleManager.Instance.ShowSubtitle("Khách Hàng (Bực bội)", "Anh thợ làm ăn lâu lắc quá, tôi mang đồ qua tiệm khác sửa đây!", 4f, "Tiếng đóng cửa");
-            }
-            else if (AudioManager.Instance != null)
+            if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlaySFX("Tiếng đóng cửa");
             }

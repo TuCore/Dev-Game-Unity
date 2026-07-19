@@ -1,50 +1,109 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
-/// <summary>
-/// Điều phối 4 loại minigame, nhận kết quả RepairQuality.
-/// Thiết kế interface chung IMinigame để 4 loại cùng tuân theo 1 chuẩn input/output.
-/// </summary>
 public class MinigameManager : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private FaultRandomizer faultRandomizer;
 
     private IMinigame _activeMinigame;
+    private static MinigameManager _instance;
+    private static int s_playSessionVersion;
+    private int _seenPlaySessionVersion = -1;
 
-    public static MinigameManager Instance { get; private set; }
-    public bool IsMinigameActive => _activeMinigame != null && _activeMinigame.IsActive;
+    public static MinigameManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindFirstObjectByType<MinigameManager>();
+            }
 
-    // Events
+            return _instance;
+        }
+        private set => _instance = value;
+    }
+
+    public bool IsMinigameActive
+    {
+        get
+        {
+            EnsureFreshPlaySession();
+            return IsActiveMinigameLive();
+        }
+    }
+
     public System.Action<IMinigame> OnMinigameStarted;
     public System.Action<RepairQuality> OnMinigameCompleted;
 
-    // Static Global Events
     public static event System.Action<IMinigame> OnMinigameStartedGlobal;
     public static event System.Action<RepairQuality> OnMinigameCompletedGlobal;
 
-    private void Awake()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void MarkNewPlaySession()
     {
-        if (Instance == null) Instance = this;
-        else if (Instance != this) Destroy(gameObject);
+        s_playSessionVersion++;
+        _instance = null;
     }
 
-    /// <summary>
-    /// Bắt đầu một minigame cụ thể với dữ liệu lỗi đã random.
-    /// </summary>
-    /// <param name="minigame">Loại minigame (Diagnosis/Soldering/Rewiring/Cleaning).</param>
-    /// <param name="faultPool">Fault pool của món đồ.</param>
-    /// <param name="difficultyLevel">Độ khó.</param>
-    public void StartMinigame(IMinigame minigame, List<string> faultPool, int difficultyLevel)
+    private void Awake()
     {
-        if (_activeMinigame != null && _activeMinigame.IsActive)
+        if (_instance == null || _instance == this)
         {
-            Debug.LogWarning("[MinigameManager] Đã có minigame đang chạy!");
+            Instance = this;
+            EnsureFreshPlaySession();
             return;
         }
 
-        // Random hóa lỗi
-        List<string> selectedFaults = faultRandomizer.RandomizeFaults(faultPool, difficultyLevel);
+        Destroy(gameObject);
+    }
+
+    private void OnEnable()
+    {
+        if (_instance == null)
+        {
+            Instance = this;
+        }
+
+        EnsureFreshPlaySession();
+    }
+
+    private void EnsureFreshPlaySession()
+    {
+        if (!Application.isPlaying || _seenPlaySessionVersion == s_playSessionVersion)
+        {
+            return;
+        }
+
+        ResetRuntimeState();
+    }
+
+    private void ResetRuntimeState()
+    {
+        _seenPlaySessionVersion = s_playSessionVersion;
+        CleanupMinigame();
+    }
+
+    public void StartMinigame(IMinigame minigame, List<string> faultPool, int difficultyLevel)
+    {
+        EnsureFreshPlaySession();
+
+        if (IsActiveMinigameLive())
+        {
+            Debug.LogWarning("[MinigameManager] Minigame is already running.");
+            return;
+        }
+
+        if (minigame == null)
+        {
+            Debug.LogWarning("[MinigameManager] Tried to start a null minigame.");
+            return;
+        }
+
+        List<string> selectedFaults = faultRandomizer != null
+            ? faultRandomizer.RandomizeFaults(faultPool, difficultyLevel)
+            : new List<string>(faultPool ?? new List<string>());
 
         _activeMinigame = minigame;
         _activeMinigame.OnMinigameCompleted += HandleMinigameCompleted;
@@ -55,12 +114,12 @@ public class MinigameManager : MonoBehaviour
         OnMinigameStartedGlobal?.Invoke(minigame);
     }
 
-    /// <summary>
-    /// Hủy minigame hiện tại (VD: cúp điện, sự kiện đặc biệt).
-    /// </summary>
     public void AbortCurrentMinigame()
     {
-        if (_activeMinigame == null) return;
+        if (!IsActiveMinigameLive())
+        {
+            return;
+        }
 
         _activeMinigame.AbortMinigame();
         OnMinigameCompleted?.Invoke(RepairQuality.Broken);
@@ -77,11 +136,32 @@ public class MinigameManager : MonoBehaviour
 
     private void CleanupMinigame()
     {
-        if (_activeMinigame != null)
+        if (_activeMinigame == null)
+        {
+            return;
+        }
+
+        if (!(_activeMinigame is UnityEngine.Object activeObject) || activeObject != null)
         {
             _activeMinigame.OnMinigameCompleted -= HandleMinigameCompleted;
-            _activeMinigame = null;
         }
+
+        _activeMinigame = null;
+    }
+
+    private bool IsActiveMinigameLive()
+    {
+        if (_activeMinigame == null)
+        {
+            return false;
+        }
+
+        if (_activeMinigame is UnityEngine.Object activeObject && activeObject == null)
+        {
+            _activeMinigame = null;
+            return false;
+        }
+
+        return _activeMinigame.IsActive;
     }
 }
-

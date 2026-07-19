@@ -26,6 +26,9 @@ public class PlayerController : MonoBehaviour
     private Vector3 _velocity;
     private bool _isGrounded;
     private float _stepTimer = 0f;
+    private Vector3 _lastSafePosition;
+    private bool _hasSafePosition;
+    private const float FallRecoveryDistance = 20f;
     private static bool _hasPlayedIntroSession = false;
     private static bool _hasLoadedSavedPosition = false;
 
@@ -56,13 +59,7 @@ public class PlayerController : MonoBehaviour
             _hasPlayedIntroSession = true;
             if (SubtitleManager.Instance != null)
             {
-                SubtitleManager.Instance.PlayIntroSequence(() =>
-                {
-                    if (ToastNotificationManager.Instance != null)
-                    {
-                        ToastNotificationManager.Instance.ShowToast("[+] Thức dậy rồi, hãy khám phá tiệm hoặc đón khách sửa chữa ngay thôi!", 4f);
-                    }
-                });
+                SubtitleManager.Instance.PlayIntroSequence();
             }
         }
 
@@ -109,13 +106,22 @@ public class PlayerController : MonoBehaviour
                 _controller.enabled = true;
             }
         }
+
+        RememberSafePosition();
     }
 
     private void Update()
     {
+        RecoverIfFallen();
+
         // Kiểm tra xem nhân vật có đang đứng trên mặt đất hay không
         // Tự động dùng isGrounded của CharacterController thay vì CheckSphere vì GroundMask bị set sai
         _isGrounded = _controller.isGrounded;
+
+        if (_isGrounded)
+        {
+            RememberSafePosition();
+        }
 
         // Nếu nhân vật đang đứng trên mặt đất và có vận tốc theo trục y âm, đặt vận tốc theo trục y về 0
         if (_isGrounded && _velocity.y < 0)
@@ -195,6 +201,26 @@ public class PlayerController : MonoBehaviour
 
         // Di chuyển nhân vật theo vận tốc
         _controller.Move(_velocity * Time.deltaTime);
+    }
+
+    private void RememberSafePosition()
+    {
+        _lastSafePosition = transform.position;
+        _hasSafePosition = true;
+    }
+
+    private void RecoverIfFallen()
+    {
+        if (!_hasSafePosition || transform.position.y >= _lastSafePosition.y - FallRecoveryDistance)
+        {
+            return;
+        }
+
+        _controller.enabled = false;
+        transform.position = _lastSafePosition + Vector3.up * 0.25f;
+        _controller.enabled = true;
+        _velocity = Vector3.zero;
+        Debug.LogWarning("[PlayerController] Player fell below the map and was returned to the last safe position.");
     }
 
     private bool _wasLocked;

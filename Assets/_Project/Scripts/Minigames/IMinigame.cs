@@ -1,5 +1,5 @@
 /// <summary>
-/// Interface chung cho 4 loại minigame (Diagnosis, Soldering, Rewiring, Cleaning).
+/// Interface chung cho các minigame sửa chữa.
 /// CẢ NHÓM phải thống nhất interface này từ Day 1 trước khi code minigame riêng.
 /// </summary>
 public interface IMinigame

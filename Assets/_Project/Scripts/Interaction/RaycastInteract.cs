@@ -10,6 +10,11 @@ public class RaycastInteract : MonoBehaviour
     [SerializeField] private float customerAimHeight = 1.35f;
     [SerializeField] private float customerCacheRefreshInterval = 0.2f;
 
+    [Header("Station Aim Assist")]
+    [SerializeField] private float stationAimAssistRadius = 0.6f; // Giảm từ 2.8m xuống 0.6m để tránh tranh chấp vùng chọn
+    [SerializeField] private float stationAimViewportRadius = 0.15f; // Giảm từ 0.46 xuống 0.15
+    [SerializeField] private float stationCacheRefreshInterval = 0.25f;
+
     [Header("Cấu hình tương tác")]
     [SerializeField] private float interactRange = 5f; // Tăng khoảng cách tương tác lên 5 mét
     [SerializeField] private LayerMask interactableMask = ~0; // Mặc định là Everything để tránh bị lỗi Nothing
@@ -28,6 +33,8 @@ public class RaycastInteract : MonoBehaviour
     private AnhThoDien.UI.HUD.CrosshairUI _crosshairUI;
     private CustomerController[] _cachedCustomers;
     private float _nextCustomerCacheRefreshTime;
+    private TobaccoPipeStation[] _cachedTobaccoPipeStations;
+    private float _nextStationCacheRefreshTime;
 
     private void Start()
     {
@@ -39,6 +46,8 @@ public class RaycastInteract : MonoBehaviour
         
         _minigameManager = FindObjectOfType<MinigameManager>();
         _crosshairUI = FindFirstObjectByType<AnhThoDien.UI.HUD.CrosshairUI>();
+        stationAimAssistRadius = Mathf.Max(stationAimAssistRadius, 2.8f);
+        stationAimViewportRadius = Mathf.Max(stationAimViewportRadius, 0.46f);
 
         // Tự tạo một HoldPosition nếu chưa gán trong Editor
         if (holdPosition == null && _cam != null)
@@ -210,7 +219,8 @@ public class RaycastInteract : MonoBehaviour
             if (isHit)
             {
                 _placementGhost.SetActive(true);
-                _placementGhost.transform.position = hit.point;
+                float offsetY = _currentlyHeldItem.GetHeightOffsetForRotation(currentRotation);
+                _placementGhost.transform.position = hit.point + new Vector3(0f, offsetY, 0f);
                 _placementGhost.transform.rotation = currentRotation; // Áp dụng góc xoay chuột
                 _placementGhost.transform.localScale = _currentlyHeldItem.OriginalScale;
             }
@@ -221,7 +231,7 @@ public class RaycastInteract : MonoBehaviour
             }
             // ================================
 
-            if (CustomInputManager.GetKeyDown("Interact"))
+            if (WasInteractPressed())
             {
                 // Nếu tia nhìn trúng mặt bàn/đất thì đặt tại hit.point, nếu không thì đặt lơ lửng ở vị trí tay cầm
                 Vector3 placePos = isHit ? hit.point : holdPosition.position;
@@ -236,18 +246,10 @@ public class RaycastInteract : MonoBehaviour
 
         // 2. Nếu tay đang trống, tìm đồ để nhặt/tương tác
         string promptText = "";
-        CustomerController customerTarget = FindCustomerAimTarget(ray);
-        
-        if (customerTarget != null)
-        {
-            promptText += customerTarget.GetInteractionPrompt();
+        bool isTargeting = false;
 
-            if (CustomInputManager.GetKeyDown("Interact"))
-            {
-                customerTarget.Interact();
-            }
-        }
-        else if (hasInteractionHit)
+        // Ưu tiên 1: Tương tác TRỰC TIẾP khi nhìn thẳng vào vật thể (Direct Raycast Hit)
+        if (hasInteractionHit)
         {
             hit = interactionHit;
 
@@ -256,9 +258,10 @@ public class RaycastInteract : MonoBehaviour
             if (interactable != null)
             {
                 promptText += interactable.GetInteractionPrompt();
+                isTargeting = true;
                 
                 // Nhấn phím E để tương tác
-                if (CustomInputManager.GetKeyDown("Interact"))
+                if (WasInteractPressed())
                 {
                     PickupItem pickup = hit.collider.GetComponentInParent<PickupItem>();
                     if (pickup != null)
@@ -285,13 +288,17 @@ public class RaycastInteract : MonoBehaviour
                 {
                     promptText += "<color=#AAAAAA>Món đồ này đã sửa xong (Không thể sửa thêm)</color>";
                 }
-                else if (repairable.HasRequiredParts())
-                {
-                    promptText += $"<color=#00FF00>Nhấn [F] để Sửa chữa</color>\n<color=#D7F8FF>Cần: {repairable.GetRequiredPartsText()}</color>";
-                }
                 else
                 {
-                    promptText += $"<color=#FF0000>{repairable.GetMissingPartsText()}</color>";
+                    isTargeting = true;
+                    if (repairable.HasRequiredParts())
+                    {
+                        promptText += $"<color=#00FF00>Nhấn [F] để Sửa chữa</color>\n<color=#D7F8FF>Cần: {repairable.GetRequiredPartsText()}</color>";
+                    }
+                    else
+                    {
+                        promptText += $"<color=#FF0000>{repairable.GetMissingPartsText()}</color>";
+                    }
                 }
                 
                 if (CustomInputManager.GetKeyDown("Secondary"))
@@ -300,9 +307,42 @@ public class RaycastInteract : MonoBehaviour
                 }
             }
         }
+        else
+        {
+            // Ưu tiên 2: Sử dụng Aim Assist làm fallback khi nhìn lệch ra ngoài
+            CustomerController customerTarget = FindCustomerAimTarget(ray);
+            TobaccoPipeStation tobaccoPipeTarget = customerTarget == null ? FindTobaccoPipeAimTarget(ray) : null;
+            
+            if (customerTarget != null)
+            {
+                promptText += customerTarget.GetInteractionPrompt();
+                isTargeting = true;
+
+                if (WasInteractPressed())
+                {
+                    customerTarget.Interact();
+                }
+            }
+            else if (tobaccoPipeTarget != null)
+            {
+                promptText += tobaccoPipeTarget.GetInteractionPrompt();
+                isTargeting = true;
+
+                if (WasInteractPressed())
+                {
+                    tobaccoPipeTarget.Interact();
+                }
+            }
+        }
 
         // Luôn cập nhật (hoặc xóa) chữ hiển thị trên màn hình
-        SetCrosshairTargeting(customerTarget != null);
+        if (string.IsNullOrEmpty(promptText) && WasInteractPressed() && TryInteractNearestTobaccoPipe(ray))
+        {
+            SetCrosshairTargeting(false);
+            return;
+        }
+
+        SetCrosshairTargeting(isTargeting);
 
         if (_promptText != null)
         {
@@ -501,6 +541,164 @@ public class RaycastInteract : MonoBehaviour
         }
 
         return _cachedCustomers;
+    }
+
+    private TobaccoPipeStation FindTobaccoPipeAimTarget(Ray ray)
+    {
+        TobaccoPipeStation bestStation = null;
+        float bestScore = float.MaxValue;
+
+        RaycastHit[] sphereHits = Physics.SphereCastAll(ray, stationAimAssistRadius, interactRange, interactableMask, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < sphereHits.Length; i++)
+        {
+            if (sphereHits[i].collider == null)
+            {
+                continue;
+            }
+
+            TobaccoPipeStation station = sphereHits[i].collider.GetComponentInParent<TobaccoPipeStation>();
+            if (TryGetTobaccoPipeAimScore(station, ray, out float score) && score < bestScore)
+            {
+                bestScore = score;
+                bestStation = station;
+            }
+        }
+
+        TobaccoPipeStation[] stations = GetCachedTobaccoPipeStations();
+        for (int i = 0; i < stations.Length; i++)
+        {
+            TobaccoPipeStation station = stations[i];
+            if (TryGetTobaccoPipeAimScore(station, ray, out float score) && score < bestScore)
+            {
+                bestScore = score;
+                bestStation = station;
+            }
+        }
+
+        return bestStation;
+    }
+
+    private bool TryGetTobaccoPipeAimScore(TobaccoPipeStation station, Ray ray, out float score)
+    {
+        score = 0f;
+
+        if (station == null || !station.isActiveAndEnabled || string.IsNullOrEmpty(station.GetInteractionPrompt()))
+        {
+            return false;
+        }
+
+        Vector3 aimPoint = station.GetAimAssistPoint();
+        Vector3 fromCamera = aimPoint - _cam.transform.position;
+        float distance = fromCamera.magnitude;
+        float radius = Mathf.Max(stationAimAssistRadius, station.AimAssistRadius);
+        if (distance <= 0.01f || distance > interactRange + radius)
+        {
+            return false;
+        }
+
+        float forwardDistance = Vector3.Dot(fromCamera, ray.direction);
+        if (forwardDistance <= 0f || forwardDistance > interactRange + radius * 0.25f)
+        {
+            return false;
+        }
+
+        float distanceFromAimRay = (fromCamera - ray.direction * forwardDistance).magnitude;
+        Vector3 viewportPoint = _cam.WorldToViewportPoint(aimPoint);
+        Vector2 viewportOffset = new Vector2(viewportPoint.x - 0.5f, viewportPoint.y - 0.5f);
+
+        if (viewportPoint.z <= 0f || (distanceFromAimRay > radius && viewportOffset.magnitude > stationAimViewportRadius))
+        {
+            return false;
+        }
+
+        score = viewportOffset.sqrMagnitude * 100f + distanceFromAimRay + distance * 0.01f;
+        return true;
+    }
+
+    private TobaccoPipeStation[] GetCachedTobaccoPipeStations()
+    {
+        if (_cachedTobaccoPipeStations == null || Time.time >= _nextStationCacheRefreshTime)
+        {
+            _cachedTobaccoPipeStations = FindObjectsByType<TobaccoPipeStation>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            _nextStationCacheRefreshTime = Time.time + stationCacheRefreshInterval;
+        }
+
+        return _cachedTobaccoPipeStations ?? Array.Empty<TobaccoPipeStation>();
+    }
+
+    private bool TryInteractNearestTobaccoPipe(Ray ray)
+    {
+        TobaccoPipeStation[] stations = GetCachedTobaccoPipeStations();
+        TobaccoPipeStation bestStation = null;
+        float bestScore = float.MaxValue;
+
+        for (int i = 0; i < stations.Length; i++)
+        {
+            TobaccoPipeStation station = stations[i];
+            if (TryGetTobaccoPipeFallbackScore(station, ray, out float score) && score < bestScore)
+            {
+                bestScore = score;
+                bestStation = station;
+            }
+        }
+
+        if (bestStation == null)
+        {
+            return false;
+        }
+
+        bestStation.ForceInteractionReady();
+        bestStation.Interact();
+        return true;
+    }
+
+    private bool TryGetTobaccoPipeFallbackScore(TobaccoPipeStation station, Ray ray, out float score)
+    {
+        score = 0f;
+        if (station == null || !station.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        Vector3 aimPoint = station.GetAimAssistPoint();
+        Vector3 fromCamera = aimPoint - _cam.transform.position;
+        float distance = fromCamera.magnitude;
+        float radius = Mathf.Max(Mathf.Max(stationAimAssistRadius, station.AimAssistRadius), 2.8f);
+        float range = Mathf.Max(interactRange + radius, 7.2f);
+        if (distance <= 0.01f || distance > range)
+        {
+            return false;
+        }
+
+        float forwardDistance = Vector3.Dot(fromCamera, ray.direction);
+        if (forwardDistance <= 0f)
+        {
+            return false;
+        }
+
+        float distanceFromAimRay = (fromCamera - ray.direction * forwardDistance).magnitude;
+        Vector3 viewportPoint = _cam.WorldToViewportPoint(aimPoint);
+        if (viewportPoint.z <= 0f)
+        {
+            return false;
+        }
+
+        Vector2 viewportOffset = new Vector2(viewportPoint.x - 0.5f, viewportPoint.y - 0.5f);
+        float viewportRadius = Mathf.Max(stationAimViewportRadius, 0.46f);
+        bool closeEnough = distance <= Mathf.Max(2.6f, radius);
+        bool aimedEnough = distanceFromAimRay <= radius * 1.25f || viewportOffset.magnitude <= viewportRadius;
+        if (!closeEnough && !aimedEnough)
+        {
+            return false;
+        }
+
+        score = viewportOffset.sqrMagnitude * 100f + distanceFromAimRay + distance * 0.01f;
+        return true;
+    }
+
+    private bool WasInteractPressed()
+    {
+        return Input.GetKeyDown(KeyCode.E) || CustomInputManager.GetKeyDown("Interact");
     }
 
     private void SetCrosshairTargeting(bool isTargeting)

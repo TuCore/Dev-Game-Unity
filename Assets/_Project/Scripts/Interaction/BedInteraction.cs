@@ -29,6 +29,8 @@ public class BedInteraction : MonoBehaviour, IInteractable
                 // Thay thế bằng âm thanh ngáy hoặc ngủ nếu có
                 AudioManager.Instance.PlaySFX("Tiếng ngáy"); 
             }
+
+            PlayerNeeds.EnsureInstance().RestOvernight();
             
             // Gọi bảng tổng kết ngày
             DayClock.Instance.EndDay();

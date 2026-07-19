@@ -148,7 +148,7 @@ MonoBehaviour:
   exitTarget: {fileID: 0}
   itemPrefabToDrop: {fileID: 0}
   possibleItemsToDrop:
-  - {fileID: 1270647122450903347, guid: a042fba1e83595749b41426b5f211f94, type: 3}
+  - {fileID: 6691738825227053181, guid: 01810df32745e58488bd1bd399a5c27d, type: 3}
   itemDropPoint: {fileID: 0}
   currentState: 0
 --- !u!1 &6805702366699791161

@@ -4,18 +4,12 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.AI.Navigation;
 
-[InitializeOnLoad]
 public class BakeNavMeshJob
 {
-    static BakeNavMeshJob()
-    {
-        EditorApplication.delayCall += DoBake;
-    }
-
+    [MenuItem("Tools/Navigation/Bake VietnamStreet NavMesh")]
     static void DoBake()
     {
-        if (SessionState.GetBool("NavMeshBaked", false)) return;
-        SessionState.SetBool("NavMeshBaked", true);
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
         string scenePath = "Assets/_Project/Scenes/Gameplay/VietnamStreet.unity";
         Scene scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
