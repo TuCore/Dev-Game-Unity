@@ -14,6 +14,9 @@ public class NeedsHUDUI : MonoBehaviour
         public Image Track;
         public Image Fill;
         public Color BaseColor;
+        public float TargetPercent = 1f;
+        public float DisplayedPercent = 1f;
+        public bool Initialized;
     }
 
     private RectTransform _panelRect;
@@ -23,6 +26,9 @@ public class NeedsHUDUI : MonoBehaviour
     private NeedRow _thirstRow;
     private Sprite _panelSprite;
     private Sprite _barSprite;
+    private Sprite _circleSprite;
+    private Sprite _ringSprite;
+
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void InitializeOnLoad()
@@ -49,7 +55,7 @@ public class NeedsHUDUI : MonoBehaviour
         return instance;
     }
 
-    private void Awake()
+private void Awake()
     {
         if (instance != null && instance != this)
         {
@@ -61,6 +67,8 @@ public class NeedsHUDUI : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         _panelSprite = CreateRoundedSprite(96, 18);
         _barSprite = CreateRoundedSprite(64, 18);
+        _circleSprite = CreateCircleSprite(96);
+        _ringSprite = CreateRingSprite(128, 16);
     }
 
     private void OnEnable()
@@ -128,7 +136,7 @@ public class NeedsHUDUI : MonoBehaviour
         return sceneName == "Shop_Main" || sceneName == "VietnamStreet";
     }
 
-    private void BuildOrBindUI()
+private void BuildOrBindUI()
     {
         if (!IsValidScene(SceneManager.GetActiveScene().name))
         {
@@ -146,154 +154,121 @@ public class NeedsHUDUI : MonoBehaviour
         panelObject.transform.SetParent(canvas.transform, false);
 
         _panelRect = panelObject.GetComponent<RectTransform>();
-        _panelRect.anchorMin = new Vector2(0f, 1f);
-        _panelRect.anchorMax = new Vector2(0f, 1f);
-        _panelRect.pivot = new Vector2(0f, 1f);
-        _panelRect.anchoredPosition = new Vector2(18f, -108f);
-        _panelRect.sizeDelta = new Vector2(360f, 124f);
+        _panelRect.anchorMin = new Vector2(1f, 0f);
+        _panelRect.anchorMax = new Vector2(1f, 0f);
+        _panelRect.pivot = new Vector2(1f, 0f);
+        _panelRect.anchoredPosition = new Vector2(-42f, 42f);
+        _panelRect.sizeDelta = new Vector2(204f, 72f);
         _panelRect.localScale = Vector3.one;
 
         _panelImage = GetOrAdd<Image>(panelObject);
-        _panelImage.sprite = _panelSprite;
-        _panelImage.type = Image.Type.Sliced;
-        _panelImage.color = new Color(0.018f, 0.026f, 0.036f, 0.72f);
+        _panelImage.enabled = false;
         _panelImage.raycastTarget = false;
 
         DisableGraphicEffects(panelObject);
 
         Image accent = FindOrCreateImage("NeedsHUD_Accent", panelObject.transform);
-        RectTransform accentRect = accent.rectTransform;
-        accentRect.anchorMin = new Vector2(0f, 1f);
-        accentRect.anchorMax = new Vector2(1f, 1f);
-        accentRect.pivot = new Vector2(0.5f, 1f);
-        accentRect.offsetMin = new Vector2(18f, -5f);
-        accentRect.offsetMax = new Vector2(-18f, -2f);
-        accent.sprite = _barSprite;
-        accent.type = Image.Type.Sliced;
-        accent.color = new Color(0.42f, 0.86f, 1f, 0.26f);
-        accent.raycastTarget = false;
+        accent.gameObject.SetActive(false);
 
-        _fatigueRow = BuildRow(panelObject.transform, "Fatigue", "Năng lượng", "NL", new Vector2(16f, -16f), new Color(0.36f, 0.76f, 1f, 1f));
-        _hungerRow = BuildRow(panelObject.transform, "Hunger", "Đói", "ĐÓI", new Vector2(16f, -52f), new Color(1f, 0.64f, 0.24f, 1f));
-        _thirstRow = BuildRow(panelObject.transform, "Thirst", "Khát", "KHÁT", new Vector2(16f, -88f), new Color(0.28f, 0.94f, 1f, 1f));
+        _fatigueRow = BuildRow(panelObject.transform, "Fatigue", "NL", "NL", new Vector2(0f, 4f), new Color(0.40f, 0.77f, 1f, 1f));
+        _hungerRow = BuildRow(panelObject.transform, "Hunger", "\u0110\u00F3i", "\u0110\u00D3I", new Vector2(70f, 4f), new Color(1f, 0.66f, 0.24f, 1f));
+        _thirstRow = BuildRow(panelObject.transform, "Thirst", "Kh\u00E1t", "KH\u00C1T", new Vector2(140f, 4f), new Color(0.25f, 0.92f, 1f, 1f));
 
         panelObject.SetActive(true);
     }
 
-    private NeedRow BuildRow(Transform parent, string id, string label, string chip, Vector2 position, Color fillColor)
+private NeedRow BuildRow(Transform parent, string id, string label, string chip, Vector2 position, Color fillColor)
     {
         Transform existing = parent.Find(id + "_Row");
         GameObject rowObject = existing != null ? existing.gameObject : new GameObject(id + "_Row", typeof(RectTransform));
         rowObject.transform.SetParent(parent, false);
 
         RectTransform rowRect = rowObject.GetComponent<RectTransform>();
-        rowRect.anchorMin = new Vector2(0f, 1f);
-        rowRect.anchorMax = new Vector2(1f, 1f);
-        rowRect.pivot = new Vector2(0f, 1f);
+        rowRect.anchorMin = new Vector2(0f, 0f);
+        rowRect.anchorMax = new Vector2(0f, 0f);
+        rowRect.pivot = new Vector2(0f, 0f);
         rowRect.anchoredPosition = position;
-        rowRect.sizeDelta = new Vector2(-32f, 30f);
+        rowRect.sizeDelta = new Vector2(64f, 66f);
 
         Image rowBg = FindOrCreateImage(id + "_RowBg", rowObject.transform);
         RectTransform rowBgRect = rowBg.rectTransform;
-        rowBgRect.anchorMin = Vector2.zero;
-        rowBgRect.anchorMax = Vector2.one;
-        rowBgRect.offsetMin = Vector2.zero;
-        rowBgRect.offsetMax = Vector2.zero;
-        rowBg.sprite = _panelSprite;
-        rowBg.type = Image.Type.Sliced;
-        rowBg.color = new Color(fillColor.r, fillColor.g, fillColor.b, 0.055f);
+        rowBgRect.anchorMin = new Vector2(0.5f, 0f);
+        rowBgRect.anchorMax = new Vector2(0.5f, 0f);
+        rowBgRect.pivot = new Vector2(0.5f, 0.5f);
+        rowBgRect.anchoredPosition = new Vector2(32f, 40f);
+        rowBgRect.sizeDelta = new Vector2(54f, 54f);
+        rowBg.sprite = _circleSprite;
+        rowBg.type = Image.Type.Simple;
+        rowBg.color = new Color(0.012f, 0.018f, 0.026f, 0.62f);
         rowBg.raycastTarget = false;
         rowBg.transform.SetAsFirstSibling();
 
         Image chipBg = FindOrCreateImage(id + "_Chip", rowObject.transform);
-        RectTransform chipRect = chipBg.rectTransform;
-        chipRect.anchorMin = new Vector2(0f, 0.5f);
-        chipRect.anchorMax = new Vector2(0f, 0.5f);
-        chipRect.pivot = new Vector2(0f, 0.5f);
-        chipRect.anchoredPosition = new Vector2(8f, 0f);
-        chipRect.sizeDelta = new Vector2(44f, 22f);
-        chipBg.sprite = _barSprite;
-        chipBg.type = Image.Type.Sliced;
-        chipBg.color = new Color(fillColor.r, fillColor.g, fillColor.b, 0.26f);
-        chipBg.raycastTarget = false;
+        chipBg.gameObject.SetActive(false);
 
         TextMeshProUGUI chipText = FindOrCreateText(id + "_ChipText", chipBg.transform);
-        RectTransform chipTextRect = chipText.rectTransform;
-        chipTextRect.anchorMin = Vector2.zero;
-        chipTextRect.anchorMax = Vector2.one;
-        chipTextRect.offsetMin = Vector2.zero;
-        chipTextRect.offsetMax = Vector2.zero;
-        chipText.text = chip;
-        chipText.fontSize = 11.5f;
-        chipText.fontStyle = FontStyles.Bold;
-        chipText.alignment = TextAlignmentOptions.Center;
-        chipText.textWrappingMode = TextWrappingModes.NoWrap;
-        chipText.color = Color.Lerp(fillColor, Color.white, 0.28f);
-        chipText.raycastTarget = false;
-
-        TextMeshProUGUI labelText = FindOrCreateText(id + "_Label", rowObject.transform);
-        RectTransform labelRect = labelText.rectTransform;
-        labelRect.anchorMin = new Vector2(0f, 0.5f);
-        labelRect.anchorMax = new Vector2(0f, 0.5f);
-        labelRect.pivot = new Vector2(0f, 0.5f);
-        labelRect.anchoredPosition = new Vector2(62f, 0f);
-        labelRect.sizeDelta = new Vector2(92f, 24f);
-        labelText.text = label;
-        labelText.fontSize = 13.2f;
-        labelText.fontStyle = FontStyles.Bold;
-        labelText.alignment = TextAlignmentOptions.Left;
-        labelText.textWrappingMode = TextWrappingModes.NoWrap;
-        labelText.overflowMode = TextOverflowModes.Ellipsis;
-        labelText.color = new Color(0.88f, 0.93f, 0.98f, 0.96f);
-        labelText.raycastTarget = false;
+        chipText.text = string.Empty;
+        chipText.gameObject.SetActive(false);
 
         Image barBg = FindOrCreateImage(id + "_BarBg", rowObject.transform);
         RectTransform bgRect = barBg.rectTransform;
-        bgRect.anchorMin = new Vector2(0f, 0.5f);
-        bgRect.anchorMax = new Vector2(1f, 0.5f);
-        bgRect.pivot = new Vector2(0f, 0.5f);
-        bgRect.offsetMin = new Vector2(156f, -7f);
-        bgRect.offsetMax = new Vector2(-54f, 7f);
-        barBg.sprite = _barSprite;
-        barBg.type = Image.Type.Sliced;
-        barBg.color = new Color(0.055f, 0.065f, 0.078f, 0.72f);
+        bgRect.anchorMin = new Vector2(0.5f, 0f);
+        bgRect.anchorMax = new Vector2(0.5f, 0f);
+        bgRect.pivot = new Vector2(0.5f, 0.5f);
+        bgRect.anchoredPosition = new Vector2(32f, 40f);
+        bgRect.sizeDelta = new Vector2(54f, 54f);
+        barBg.sprite = _ringSprite;
+        barBg.type = Image.Type.Simple;
+        barBg.color = new Color(1f, 1f, 1f, 0.15f);
         barBg.raycastTarget = false;
 
         Image fill = FindOrCreateImage(id + "_Fill", barBg.transform);
         RectTransform fillRect = fill.rectTransform;
-        fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(1f, 1f);
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
         fillRect.offsetMin = Vector2.zero;
         fillRect.offsetMax = Vector2.zero;
-        fill.sprite = _barSprite;
-        fill.type = Image.Type.Sliced;
-        fill.color = Color.Lerp(fillColor, Color.white, 0.06f);
+        fill.sprite = _ringSprite;
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Radial360;
+        fill.fillOrigin = (int)Image.Origin360.Top;
+        fill.fillClockwise = true;
+        fill.fillAmount = 1f;
+        fill.color = Color.Lerp(fillColor, Color.white, 0.08f);
         fill.raycastTarget = false;
 
         Image sheen = FindOrCreateImage(id + "_FillSheen", fill.transform);
-        RectTransform sheenRect = sheen.rectTransform;
-        sheenRect.anchorMin = new Vector2(0f, 0.52f);
-        sheenRect.anchorMax = Vector2.one;
-        sheenRect.offsetMin = Vector2.zero;
-        sheenRect.offsetMax = Vector2.zero;
-        sheen.sprite = _barSprite;
-        sheen.type = Image.Type.Sliced;
-        sheen.color = new Color(1f, 1f, 1f, 0.16f);
-        sheen.raycastTarget = false;
+        sheen.gameObject.SetActive(false);
 
         TextMeshProUGUI valueText = FindOrCreateText(id + "_Value", rowObject.transform);
         RectTransform valueRect = valueText.rectTransform;
-        valueRect.anchorMin = new Vector2(1f, 0.5f);
-        valueRect.anchorMax = new Vector2(1f, 0.5f);
-        valueRect.pivot = new Vector2(1f, 0.5f);
-        valueRect.anchoredPosition = new Vector2(-8f, 0f);
-        valueRect.sizeDelta = new Vector2(44f, 24f);
-        valueText.fontSize = 12.8f;
+        valueRect.anchorMin = new Vector2(0.5f, 0f);
+        valueRect.anchorMax = new Vector2(0.5f, 0f);
+        valueRect.pivot = new Vector2(0.5f, 0.5f);
+        valueRect.anchoredPosition = new Vector2(32f, 42f);
+        valueRect.sizeDelta = new Vector2(54f, 20f);
+        valueText.fontSize = 13.2f;
         valueText.fontStyle = FontStyles.Bold;
-        valueText.alignment = TextAlignmentOptions.Right;
+        valueText.alignment = TextAlignmentOptions.Center;
         valueText.textWrappingMode = TextWrappingModes.NoWrap;
-        valueText.color = new Color(0.92f, 0.95f, 1f, 0.94f);
+        valueText.color = new Color(0.95f, 0.98f, 1f, 0.96f);
         valueText.raycastTarget = false;
+
+        TextMeshProUGUI labelText = FindOrCreateText(id + "_Label", rowObject.transform);
+        RectTransform labelRect = labelText.rectTransform;
+        labelRect.anchorMin = new Vector2(0.5f, 0f);
+        labelRect.anchorMax = new Vector2(0.5f, 0f);
+        labelRect.pivot = new Vector2(0.5f, 0f);
+        labelRect.anchoredPosition = new Vector2(32f, 0f);
+        labelRect.sizeDelta = new Vector2(62f, 15f);
+        labelText.text = label;
+        labelText.fontSize = 10f;
+        labelText.fontStyle = FontStyles.Bold;
+        labelText.alignment = TextAlignmentOptions.Center;
+        labelText.textWrappingMode = TextWrappingModes.NoWrap;
+        labelText.overflowMode = TextOverflowModes.Ellipsis;
+        labelText.color = Color.Lerp(fillColor, Color.white, 0.24f);
+        labelText.raycastTarget = false;
 
         return new NeedRow
         {
@@ -336,28 +311,82 @@ public class NeedsHUDUI : MonoBehaviour
         }
 
         float clampedPercent = Mathf.Clamp01(percent);
-        RectTransform fillRect = row.Fill.rectTransform;
-        fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(clampedPercent, 1f);
-        fillRect.offsetMin = Vector2.zero;
-        fillRect.offsetMax = Vector2.zero;
+        row.TargetPercent = clampedPercent;
 
+        if (!row.Initialized)
+        {
+            row.DisplayedPercent = clampedPercent;
+            row.Initialized = true;
+            PaintRow(row, clampedPercent);
+        }
+    }
+
+    private void Update()
+    {
+        if (_panelRect == null || !_panelRect.gameObject.activeInHierarchy)
+        {
+            return;
+        }
+
+        AnimateRow(_fatigueRow);
+        AnimateRow(_hungerRow);
+        AnimateRow(_thirstRow);
+    }
+
+    private void AnimateRow(NeedRow row)
+    {
+        if (row == null || row.Fill == null || !row.Initialized)
+        {
+            return;
+        }
+
+        float t = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
+        float nextPercent = Mathf.Lerp(row.DisplayedPercent, row.TargetPercent, t);
+        if (Mathf.Abs(nextPercent - row.TargetPercent) < 0.001f)
+        {
+            nextPercent = row.TargetPercent;
+        }
+
+        if (Mathf.Approximately(nextPercent, row.DisplayedPercent))
+        {
+            return;
+        }
+
+        row.DisplayedPercent = nextPercent;
+        PaintRow(row, nextPercent);
+    }
+
+private void PaintRow(NeedRow row, float percent)
+    {
+        float clampedPercent = Mathf.Clamp01(percent);
+        row.Fill.type = Image.Type.Filled;
+        row.Fill.fillMethod = Image.FillMethod.Radial360;
+        row.Fill.fillOrigin = (int)Image.Origin360.Top;
+        row.Fill.fillClockwise = true;
+        row.Fill.fillAmount = clampedPercent;
+
+        bool isLow = clampedPercent < 0.24f;
         Color healthyColor = Color.Lerp(row.BaseColor, Color.white, 0.08f);
-        Color warningColor = new Color(1f, 0.38f, 0.28f, 1f);
-        Color targetColor = clampedPercent < 0.24f ? warningColor : healthyColor;
-        row.Fill.color = Color.Lerp(row.Fill.color, targetColor, 0.35f);
+        Color warningColor = new Color(1f, 0.34f, 0.24f, 1f);
+        Color targetColor = isLow ? warningColor : healthyColor;
+        row.Fill.color = Color.Lerp(row.Fill.color, targetColor, 0.45f);
 
         if (row.Track != null)
         {
-            row.Track.color = clampedPercent < 0.24f
-                ? new Color(0.22f, 0.08f, 0.07f, 0.72f)
-                : new Color(0.055f, 0.065f, 0.078f, 0.72f);
+            row.Track.color = isLow
+                ? new Color(1f, 0.34f, 0.24f, 0.18f)
+                : new Color(1f, 1f, 1f, 0.15f);
+        }
+
+        if (row.Label != null)
+        {
+            row.Label.color = isLow ? new Color(1f, 0.72f, 0.58f, 1f) : Color.Lerp(row.BaseColor, Color.white, 0.24f);
         }
 
         if (row.Value != null)
         {
             row.Value.text = Mathf.RoundToInt(clampedPercent * 100f) + "%";
-            row.Value.color = clampedPercent < 0.24f ? new Color(1f, 0.7f, 0.58f, 1f) : new Color(0.92f, 0.95f, 1f, 0.94f);
+            row.Value.color = isLow ? new Color(1f, 0.72f, 0.58f, 1f) : new Color(0.95f, 0.98f, 1f, 0.96f);
         }
     }
 
@@ -500,6 +529,54 @@ public class NeedsHUDUI : MonoBehaviour
             SpriteMeshType.FullRect,
             new Vector4(radius, radius, radius, radius));
     }
+
+private Sprite CreateCircleSprite(int size)
+    {
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color clear = new Color(1f, 1f, 1f, 0f);
+        float center = (size - 1) * 0.5f;
+        float radius = center - 1f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center;
+                float dy = y - center;
+                texture.SetPixel(x, y, (dx * dx) + (dy * dy) <= radius * radius ? Color.white : clear);
+            }
+        }
+
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+    }
+
+private Sprite CreateRingSprite(int size, int thickness)
+    {
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color clear = new Color(1f, 1f, 1f, 0f);
+        float center = (size - 1) * 0.5f;
+        float outer = center - 1f;
+        float inner = Mathf.Max(0f, outer - thickness);
+        float outerSqr = outer * outer;
+        float innerSqr = inner * inner;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center;
+                float dy = y - center;
+                float distanceSqr = (dx * dx) + (dy * dy);
+                texture.SetPixel(x, y, distanceSqr <= outerSqr && distanceSqr >= innerSqr ? Color.white : clear);
+            }
+        }
+
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+    }
+
+
 
     private bool IsInsideRoundedRect(int x, int y, int size, int radius)
     {

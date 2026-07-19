@@ -60,9 +60,13 @@ public class DayClock : MonoBehaviour
     private int _currentDay = 1;
     private bool _isRunning;
 
-    public float CurrentHour => Mathf.Lerp(startHour, endHour, _currentTime / dayDurationInSeconds);
+    public float CurrentHour => Mathf.Lerp(startHour, endHour, Mathf.Clamp01(_currentTime / DayDurationInSeconds));
     public int CurrentDay => _currentDay;
     public bool IsRunning => _isRunning;
+    public float DayDurationInSeconds => Mathf.Max(0.01f, dayDurationInSeconds);
+    public float StartHour => startHour;
+    public float EndHour => endHour;
+    public float GameMinutesPerRealSecond => Mathf.Max(0f, endHour - startHour) * 60f / DayDurationInSeconds;
 
     // Events
     public System.Action<float> OnTimeChanged;   
