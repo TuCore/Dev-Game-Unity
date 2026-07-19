@@ -27,6 +27,20 @@ public class DaySummaryUI : MonoBehaviour
     private Button _nextDayBtn;
     private TextMeshProUGUI _nextDayBtnText;
     private Button _vayNhanhBtn;
+    private PlayerController _summaryPlayer;
+    private PlayerCamera _summaryCamera;
+    private bool _playerWasEnabled;
+    private bool _cameraWasEnabled;
+
+    private void LateUpdate()
+    {
+        if (_panel == null || !_panel.activeInHierarchy) return;
+
+        // Mot so UI/gameplay persistent co the khoa lai chuot sau khi bang tong ket
+        // da mo. Giu con tro mo trong moi frame ke ca khi Time.timeScale = 0.
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
 
     private void Start()
     {
@@ -268,10 +282,43 @@ public class DaySummaryUI : MonoBehaviour
         Time.timeScale = 0f;
         
         _panel.SetActive(true);
+        _panel.transform.SetAsLastSibling();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        LockGameplayForSummary();
+        if (_nextDayBtn != null)
+        {
+            _nextDayBtn.Select();
+        }
         
         UpdateUIState();
+    }
+
+    private void LockGameplayForSummary()
+    {
+        _summaryPlayer = FindAnyObjectByType<PlayerController>();
+        _summaryCamera = FindAnyObjectByType<PlayerCamera>();
+
+        if (_summaryPlayer != null)
+        {
+            _playerWasEnabled = _summaryPlayer.enabled;
+            _summaryPlayer.enabled = false;
+        }
+
+        if (_summaryCamera != null)
+        {
+            _cameraWasEnabled = _summaryCamera.enabled;
+            _summaryCamera.enabled = false;
+        }
+    }
+
+    private void RestoreGameplayAfterSummary()
+    {
+        if (_summaryPlayer != null) _summaryPlayer.enabled = _playerWasEnabled;
+        if (_summaryCamera != null) _summaryCamera.enabled = _cameraWasEnabled;
+        _summaryPlayer = null;
+        _summaryCamera = null;
     }
 
     private void UpdateUIState()
@@ -381,6 +428,7 @@ public class DaySummaryUI : MonoBehaviour
 
         Time.timeScale = 1f;
 
+        RestoreGameplayAfterSummary();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
@@ -399,9 +447,10 @@ public class DaySummaryUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (DayClock.Instance != null)
+        DayClock clock = DayClock.ExistingInstance;
+        if (clock != null)
         {
-            DayClock.Instance.OnDayEnded -= ShowSummary;
+            clock.OnDayEnded -= ShowSummary;
         }
     }
 }

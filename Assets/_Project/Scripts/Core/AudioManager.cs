@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -156,6 +157,7 @@ public class AudioManager : MonoBehaviour
     {
         if (TryGetSound(soundName, out SoundEntry entry))
         {
+            if (!CanPlayInCurrentScene(entry.clip)) return;
             if (sfxSource == null) return;
             if (stopPrevious && sfxSource.isPlaying)
             {
@@ -194,7 +196,7 @@ public class AudioManager : MonoBehaviour
     /// </summary>
     public void PlaySFX(AudioClip clip, float volumeScale = 1f, float pitch = 1f, bool stopPrevious = false, float startOffset = 0f, float duration = 0f)
     {
-        if (clip != null && sfxSource != null)
+        if (clip != null && sfxSource != null && CanPlayInCurrentScene(clip))
         {
             if (stopPrevious && sfxSource.isPlaying)
             {
@@ -222,6 +224,16 @@ public class AudioManager : MonoBehaviour
                 sfxSource.PlayOneShot(clip, volumeScale);
             }
         }
+    }
+
+    private static bool CanPlayInCurrentScene(AudioClip clip)
+    {
+        if (clip == null) return false;
+
+        // Voice cua phan mo dau chi hop le trong IntroScene. Day la lop bao ve
+        // cuoi cung neu mot prefab/UI gameplay vo tinh giu tham chieu toi clip Intro.
+        bool isIntroVoice = clip.name.StartsWith("Intro_", System.StringComparison.OrdinalIgnoreCase);
+        return !isIntroVoice || SceneManager.GetActiveScene().name == "IntroScene";
     }
 
     private System.Collections.IEnumerator StopSfxAfterDuration(float duration)

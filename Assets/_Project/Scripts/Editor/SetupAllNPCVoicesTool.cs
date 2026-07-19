@@ -2,17 +2,8 @@ using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
 
-[InitializeOnLoad]
 public static class SetupAllNPCVoicesTool
 {
-    static SetupAllNPCVoicesTool()
-    {
-        EditorApplication.delayCall += () =>
-        {
-            AssignAllAudioClipsToArchetypes();
-        };
-    }
-
     [MenuItem("Tools/Tự Động Gán Giọng Đọc Cho Tất Cả NPC")]
     public static void AssignAllAudioClipsToArchetypes()
     {

@@ -93,10 +93,6 @@
             
             _currentApp = app;
             _currentApp.OpenApp();
-            if (AudioManager.Instance != null)
-            {
-                AudioManager.Instance.PlaySFX("Tiếng thông báo từ điện thoại");
-            }
         }
 
         public void CloseCurrentApp()
@@ -105,10 +101,6 @@
             {
                 _currentApp.CloseApp();
                 _currentApp = null;
-                if (AudioManager.Instance != null)
-                {
-                    AudioManager.Instance.PlaySFX("Tiếng thông báo từ điện thoại");
-                }
             }
         }
 

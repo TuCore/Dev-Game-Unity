@@ -7,10 +7,22 @@ using UnityEngine;
 public class DayClock : MonoBehaviour
 {
     private static DayClock _instance;
+    private static bool _isShuttingDown;
+
+    /// <summary>
+    /// Returns the current clock without creating one. Use this from OnDestroy/OnDisable.
+    /// </summary>
+    public static DayClock ExistingInstance => _instance;
+
     public static DayClock Instance
     {
         get
         {
+            if (_isShuttingDown)
+            {
+                return null;
+            }
+
             if (_instance == null)
             {
                 _instance = FindFirstObjectByType<DayClock>();
@@ -23,6 +35,13 @@ public class DayClock : MonoBehaviour
             }
             return _instance;
         }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        _instance = null;
+        _isShuttingDown = false;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -77,6 +96,21 @@ public class DayClock : MonoBehaviour
         if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
         {
             ResumeTime();
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        _isShuttingDown = true;
+    }
+
+    private void OnDestroy()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+
+        if (_instance == this)
+        {
+            _instance = null;
         }
     }
 

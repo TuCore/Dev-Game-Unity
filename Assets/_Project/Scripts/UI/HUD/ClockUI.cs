@@ -152,9 +152,10 @@ public class ClockUI : MonoBehaviour
     private void OnDestroy()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
-        if (DayClock.Instance != null)
+        DayClock clock = DayClock.ExistingInstance;
+        if (clock != null)
         {
-            DayClock.Instance.OnTimeChanged -= UpdateTimeDisplay;
+            clock.OnTimeChanged -= UpdateTimeDisplay;
         }
 
         MinigameManager.OnMinigameStartedGlobal -= HandleMinigameStarted;
