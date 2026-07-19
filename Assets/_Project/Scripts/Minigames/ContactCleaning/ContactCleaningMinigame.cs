@@ -176,9 +176,24 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
         }
 
         HandleToolShortcuts();
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Complete(RepairQuality.Broken, true, "Đã hủy vệ sinh.");
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Return) && _finishButton != null && _finishButton.interactable)
+        {
+            TryFinish();
+            return;
+        }
+
         UpdateToolCursor();
 
-        _timeRemaining -= Time.deltaTime;
+        // Repair minigames pause the world with timeScale = 0. The UI timer must
+        // continue to run independently from the paused gameplay clock.
+        _timeRemaining -= Time.unscaledDeltaTime;
         UpdateStatusText();
 
         if (_timeRemaining <= 0f)
@@ -266,8 +281,9 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
             Initialize(null, _difficultyLevel);
         }
 
+        _isFinishing = false;
         IsActive = true;
-        _startedAt = Time.time;
+        _startedAt = Time.unscaledTime;
 
         _previousLockMode = Cursor.lockState;
         _previousCursorVisible = Cursor.visible;
@@ -385,13 +401,15 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
         MinigameUiKit.Stretch(overlay.rectTransform);
         overlay.transform.SetAsFirstSibling();
 
-        Image header = MinigameUiKit.CreatePanel(_uiRoot.transform, "Header", _panelSprite, new Color(0.035f, 0.04f, 0.046f, 0.96f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -44f), new Vector2(1760f, 72f));
+        Image header = MinigameUiKit.CreatePanel(_uiRoot.transform, "Header", _panelSprite, new Color(0.035f, 0.04f, 0.046f, 0.96f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -44f), new Vector2(1680f, 72f));
         MinigameUiKit.AddChrome(header.transform, _solidSprite, new Color(0.92f, 0.68f, 0.22f, 0.95f));
         _titleText = MinigameUiKit.CreateText(header.transform, "Title", "VỆ SINH TIẾP ĐIỂM OXY HÓA", 28, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.95f, 0.98f, 1f, 1f));
-        MinigameUiKit.SetAnchored(_titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(32f, 0f), new Vector2(760f, 48f));
+        // SetAnchored uses a centered pivot. Offset by half the text width so
+        // left/right anchored labels remain inside the header safe area.
+        MinigameUiKit.SetAnchored(_titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(412f, 0f), new Vector2(760f, 48f));
 
         _timerText = MinigameUiKit.CreateText(header.transform, "Timer", "", 23, FontStyles.Bold, TextAlignmentOptions.Right, new Color(0.72f, 0.92f, 1f, 1f));
-        MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-32f, 0f), new Vector2(520f, 48f));
+        MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-292f, 0f), new Vector2(520f, 48f));
         _progressText = MinigameUiKit.CreateText(header.transform, "Progress", "", 23, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.84f, 0.32f, 1f));
         MinigameUiKit.SetAnchored(_progressText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(440f, 48f));
 
@@ -792,7 +810,7 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
     private RepairQuality EvaluateQuality()
     {
         float cleanRatio = GetCleanRatio();
-        float elapsed = Mathf.Max(0f, Time.time - _startedAt);
+        float elapsed = Mathf.Max(0f, Time.unscaledTime - _startedAt);
         float score = cleanRatio * 100f;
         score -= _scratchDamage * 0.82f;
         score -= Mathf.Max(0f, elapsed - 42f) * 0.22f;
@@ -844,7 +862,9 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
 
     private IEnumerator CompleteAfterDelay(RepairQuality quality)
     {
-        yield return new WaitForSeconds(0.75f);
+        // Gameplay is deliberately paused while this UI is open, so a scaled
+        // wait would never finish and would leave the minigame stuck onscreen.
+        yield return new WaitForSecondsRealtime(0.75f);
         FinishNow(quality);
     }
 
@@ -852,6 +872,7 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
     {
         ShowUI(false);
         RestoreCursor();
+        _isFinishing = false;
         OnMinigameCompleted?.Invoke(quality);
     }
 
