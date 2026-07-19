@@ -1,0 +1,13 @@
+Prefab Root: PauseMenu_Canvas
+CanvasScaler UI Scale Mode: ScaleWithScreenSize
+CanvasScaler Reference Resolution: (1920.00, 1080.00)
+CanvasScaler Match Width Or Height: 0.5
+CanvasScaler Scale Factor: 1
+Root RectTransform anchors: (0.00, 0.00) to (0.00, 0.00)
+Root RectTransform sizeDelta: (1920.00, 1080.00)
+Child BrightnessOverlay RectTransform anchors: (0.00, 0.00) to (1.00, 1.00)
+Child BrightnessOverlay RectTransform sizeDelta: (0.00, 0.00)
+Child BrightnessOverlay RectTransform localScale: (1.00, 1.00, 1.00)
+Child PausePanel RectTransform anchors: (0.00, 0.00) to (1.00, 1.00)
+Child PausePanel RectTransform sizeDelta: (0.00, 0.00)
+Child PausePanel RectTransform localScale: (1.00, 1.00, 1.00)

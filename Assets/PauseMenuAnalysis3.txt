@@ -1,0 +1,4 @@
+Child BrightnessOverlay offsetMin: (0.00, 0.00)
+Child BrightnessOverlay offsetMax: (0.00, 0.00)
+Child PausePanel offsetMin: (0.00, 0.00)
+Child PausePanel offsetMax: (0.00, 0.00)

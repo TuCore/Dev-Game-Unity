@@ -1,0 +1,1 @@
+PausePanel has Image with color: RGBA(0.000, 0.000, 0.000, 0.800)
