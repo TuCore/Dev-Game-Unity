@@ -13,6 +13,32 @@ MonoBehaviour:
   m_Name: AudioDatabase
   m_EditorClassIdentifier: Assembly-CSharp::AudioDatabase
   mappings:
+  - key: Intro_01_Narrator_TungDang2
+    clip: {fileID: 8300000, guid: 108549a57eb2ae246a8f682909783ac3, type: 3}
+  - key: Intro_02_OngMinh_Dung
+    clip: {fileID: 8300000, guid: f558fd89310184748b26b1fd3e8133a2, type: 3}
+  - key: Intro_03_Tuan_Tuan1
+    clip: {fileID: 8300000, guid: efd6f34d5b55f2f41958a5000755290c, type: 3}
+  - key: Intro_04_TuanThought_Tuan
+    clip: {fileID: 8300000, guid: f6ee4e0f3c252da4988dc94e319b9eaa, type: 3}
+  - key: Intro_05_OngMinh_Dung2
+    clip: {fileID: 8300000, guid: fdb05504bb021514d9dae0da7cf819c6, type: 3}
+  - key: Intro_06_BaLan_Emma2
+    clip: {fileID: 8300000, guid: 0f4b4409f6258f84783e6ab161f1e392, type: 3}
+  - key: Intro_07_OngMinh_Dung4
+    clip: {fileID: 8300000, guid: 9779584a6e522ac458e88918b5619ca5, type: 3}
+  - key: Intro_08_Tuan_Tuan1
+    clip: {fileID: 8300000, guid: be77b73d7a2ef4d47ab0bfdf61304b21, type: 3}
+  - key: Intro_09_TuanThought_Tuan2
+    clip: {fileID: 8300000, guid: 4996500e6d4991248808797c35e0e723, type: 3}
+  - key: Intro_10_BaLan_Emma2
+    clip: {fileID: 8300000, guid: fccd6343ea4e9bb4f9d02bffe2fc569a, type: 3}
+  - key: Intro_11_OngMinh_Dung4
+    clip: {fileID: 8300000, guid: ed06f354489dfe24b8cfd1a448196168, type: 3}
+  - key: Intro_12_Tuan_Tuan
+    clip: {fileID: 8300000, guid: d54ad822b14f5d6408a44858390b4912, type: 3}
+  - key: Intro_13_Narrator_TungDang1
+    clip: {fileID: 8300000, guid: 56c7644da53ec0046829c1ff98e97bb9, type: 3}
   - key: 666herohero-click-21156
     clip: {fileID: 8300000, guid: 4ca1c3e67f800c347944e18127d58344, type: 3}
   - key: 521590__fission9__hiking-boot-footsteps-on-stone

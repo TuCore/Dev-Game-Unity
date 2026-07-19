@@ -1,17 +1,8 @@
 using UnityEditor;
 using UnityEngine;
 
-[InitializeOnLoad]
 public static class FixNPCArchetypeAsset
 {
-    static FixNPCArchetypeAsset()
-    {
-        EditorApplication.delayCall += () =>
-        {
-            NormalizeAllNPCArchetypes();
-        };
-    }
-
     [MenuItem("Tools/Chuẩn Hóa NPCArchetype Assets (Cách 1)")]
     public static void NormalizeAllNPCArchetypes()
     {

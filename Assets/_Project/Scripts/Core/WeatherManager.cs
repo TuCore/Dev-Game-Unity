@@ -57,9 +57,10 @@ public class WeatherManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (DayClock.Instance != null)
+        DayClock clock = DayClock.ExistingInstance;
+        if (clock != null)
         {
-            DayClock.Instance.OnTimeChanged -= CheckWeatherConditions;
+            clock.OnTimeChanged -= CheckWeatherConditions;
         }
     }
 

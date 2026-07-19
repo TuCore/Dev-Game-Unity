@@ -239,9 +239,8 @@ public class CustomerController : MonoBehaviour, IInteractable
         bool stillFar = Vector3.Distance(transform.position, currentMoveDestination) > agent.stoppingDistance + 1.2f;
         bool badPath = stillFar && !agent.pathPending && (!agent.hasPath || agent.pathStatus != UnityEngine.AI.NavMeshPathStatus.PathComplete);
         bool barelyMoved = Vector3.Distance(transform.position, lastStuckCheckPosition) < 0.08f;
-        bool barelyMoving = agent.velocity.sqrMagnitude < 0.015f;
 
-        stuckTimer = (badPath || (stillFar && barelyMoved && barelyMoving && !agent.pathPending))
+        stuckTimer = (badPath || (stillFar && barelyMoved && !agent.pathPending))
             ? stuckTimer + StuckCheckInterval
             : 0f;
 
@@ -625,10 +624,13 @@ public class CustomerController : MonoBehaviour, IInteractable
             ? archetype.GetRandomGreeting(out clip) 
             : "Tôi có món đồ bị hỏng, sửa giúp tôi nhé!";
 
-        ShowCustomerDialogue(CustomerDisplayName, greeting, ShowNegotiationOptions, null, "Tiếp tục", "", clip);
+        // Gop cau chao co voice va bao gia vao mot hop thoai duy nhat.
+        // Truoc day nguoi choi phai dong hop "Tiep tuc" roi lai nhan them
+        // mot hop "Nhan sua/Tu choi", tao cam giac thong bao bi duplicate.
+        ShowNegotiationOptions(greeting, clip);
     }
 
-    private void ShowNegotiationOptions()
+    private void ShowNegotiationOptions(string greeting, AudioClip greetingClip)
     {
         // 1. Pick random item prefab
         if (possibleItemsToDrop != null && possibleItemsToDrop.Count > 0)
@@ -670,7 +672,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         int apptDay = currentHour > 15f ? currentDay + 1 : currentDay;
         float apptHour = currentHour > 15f ? 10f : currentHour + 4f;
 
-        string offer = $"Bác thợ xem giúp em con {itemName} này. Công cán gửi bác {_selectedBasePay:N0} đ. Cứ thong thả làm, đến {apptHour:00}:00 ngày {apptDay} em qua lấy hàng.";
+        string offer = $"{greeting}\n\nMón cần sửa: {itemName}. Tiền công: {_selectedBasePay:N0} đ. Hẹn lấy: {apptHour:00}:00 ngày {apptDay}.";
         
         ShowCustomerDialogue(
             CustomerDisplayName,
@@ -678,7 +680,8 @@ public class CustomerController : MonoBehaviour, IInteractable
             () => AcceptOrder(itemName, apptDay, apptHour),
             () => RefuseOrder(),
             "Nhận sửa",
-            "Từ chối"
+            "Từ chối",
+            greetingClip
         );
     }
 
@@ -720,8 +723,9 @@ public class CustomerController : MonoBehaviour, IInteractable
             CustomerQueue.Instance.AddCustomer(currentOrder);
         }
 
-        string agreement = "Cảm ơn, nhớ đúng hẹn nhé!";
-        ShowCustomerDialogue(CustomerDisplayName, agreement, LeaveStore, null, "Đóng");
+        // Nut "Nhan sua" da dong DialogueUI truoc khi goi AcceptOrder.
+        // Khong mo them hop thoai cam on cho moi NPC; ket thuc giao dich ngay.
+        LeaveStore();
     }
 
     private void ProcessPickup()

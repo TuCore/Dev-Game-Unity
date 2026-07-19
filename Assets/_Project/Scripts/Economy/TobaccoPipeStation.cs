@@ -104,6 +104,8 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
         }
     }
 
+
+
     public void ConfigureStation(string newStationName, float newPrice, float newCooldownSeconds)
     {
         stationName = string.IsNullOrWhiteSpace(newStationName) ? stationName : newStationName;
@@ -115,9 +117,6 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
     {
         useCooldown = false;
         enableDirectInteractFallback = true;
-        aimAssistRadius = Mathf.Max(aimAssistRadius, 1.8f);
-        directInteractRange = Mathf.Max(directInteractRange, 6.5f);
-        directInteractViewportRadius = Mathf.Max(directInteractViewportRadius, 0.46f);
         EnsureInteractionArea();
     }
 
@@ -208,6 +207,12 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
 
     private void Awake()
     {
+        // Tự động thu nhỏ vùng chọn của tẩu thuốc vì mô hình tẩu thuốc rất nhỏ
+        interactionAreaSize = new Vector3(0.5f, 0.5f, 0.5f);
+        interactionAreaCenter = new Vector3(0f, 0.1f, 0f);
+        aimAssistRadius = 0.5f;
+        directInteractViewportRadius = 0.15f;
+
         ForceInteractionReady();
         EnsureInteractionArea();
         EnsureVisual();
@@ -645,12 +650,24 @@ public class TobaccoPipeStation : MonoBehaviour, IInteractable
     {
         GameObject area = GetOrCreateArea();
         area.layer = gameObject.layer;
-        area.transform.localPosition = interactionAreaCenter;
+
+        // Tính toán localScale và localPosition dựa trên lossyScale của cha để giữ kích thước thực tế trong thế giới luôn chuẩn (ví dụ: 0.5m)
+        Vector3 lossy = transform.lossyScale;
+        float lx = Mathf.Max(0.001f, Mathf.Abs(lossy.x));
+        float ly = Mathf.Max(0.001f, Mathf.Abs(lossy.y));
+        float lz = Mathf.Max(0.001f, Mathf.Abs(lossy.z));
+
+        area.transform.localPosition = new Vector3(
+            interactionAreaCenter.x / lx,
+            interactionAreaCenter.y / ly,
+            interactionAreaCenter.z / lz);
+
         area.transform.localRotation = Quaternion.identity;
+
         area.transform.localScale = new Vector3(
-            Mathf.Max(0.2f, interactionAreaSize.x),
-            Mathf.Max(0.2f, interactionAreaSize.y),
-            Mathf.Max(0.2f, interactionAreaSize.z));
+            Mathf.Max(0.2f, interactionAreaSize.x) / lx,
+            Mathf.Max(0.2f, interactionAreaSize.y) / ly,
+            Mathf.Max(0.2f, interactionAreaSize.z) / lz);
 
         BoxCollider box = area.GetComponent<BoxCollider>();
         if (box == null)

@@ -83,7 +83,9 @@ namespace AnhThoDien.UI.Menu
             
             PlayerController.ResetLoadState();
 
-            LoadingScreenManager.LoadScene("IntroScene");
+            // IntroScene rất nhẹ và chính nó đã đảm nhiệm phần mở đầu.
+            // Tải trực tiếp để không chèn màn hình loading giữa Main Menu và Intro.
+            SceneManager.LoadScene("IntroScene");
         }
 
 

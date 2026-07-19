@@ -8,37 +8,12 @@ using DevGameUnity.NPC;
 
 namespace DevGameUnity.EditorTools
 {
-    [InitializeOnLoad]
     public static class SetupRemindNpcTool
     {
         private const string FbxPath = "Assets/_Project/Art/models/Characters/TripoStreetNpc/Remind/tripo_convert_b50c198b-73bb-43a1-b7be-ba3eb01904f1.fbx";
         private const string ControllerPath = "Assets/_Project/Prefabs/NPC/RemindController.controller";
         private const string PrefabPath = "Assets/_Project/Prefabs/NPC/Remind.prefab";
         private const string VietnamStreetScenePath = "Assets/_Project/Scenes/Gameplay/VietnamStreet.unity";
-        private const string SessionKey = "DevGameUnity.SetupRemindNpcTool.AutoDone";
-
-        static SetupRemindNpcTool()
-        {
-            EditorApplication.delayCall += AutoSetupOnLoad;
-        }
-
-        private static void AutoSetupOnLoad()
-        {
-            if (SessionState.GetBool(SessionKey, false) || EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                return;
-            }
-
-            SessionState.SetBool(SessionKey, true);
-            SetupRemind(false);
-
-            // Nếu scene hiện tại đang là VietnamStreet và chưa có Remind thì tự động thêm luôn
-            if (SceneManager.GetActiveScene().path.Replace("\\", "/") == VietnamStreetScenePath)
-            {
-                AddRemindToSceneIfMissing(false);
-            }
-        }
-
         [MenuItem("Tools/Thêm Remind Vào Đường Phố (VietnamStreet)")]
         public static void MenuSetupAndAddRemind()
         {

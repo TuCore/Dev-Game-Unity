@@ -1,7 +1,9 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
+[DefaultExecutionOrder(10000)]
 public class DaySummaryUI : MonoBehaviour
 {
     private GameObject _panel;
@@ -27,6 +29,31 @@ public class DaySummaryUI : MonoBehaviour
     private Button _nextDayBtn;
     private TextMeshProUGUI _nextDayBtnText;
     private Button _vayNhanhBtn;
+    private PlayerController _summaryPlayer;
+    private PlayerCamera _summaryCamera;
+    private bool _playerWasEnabled;
+    private bool _cameraWasEnabled;
+    private Canvas _summaryCanvas;
+    private GraphicRaycaster _summaryRaycaster;
+    private CanvasGroup _summaryCanvasGroup;
+
+    private void LateUpdate()
+    {
+        if (_panel == null || !_panel.activeInHierarchy) return;
+
+        // Mot so UI/gameplay persistent co the khoa lai chuot sau khi bang tong ket
+        // da mo. Giu con tro mo trong moi frame ke ca khi Time.timeScale = 0.
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (_summaryCanvasGroup != null)
+        {
+            _summaryCanvasGroup.interactable = true;
+            _summaryCanvasGroup.blocksRaycasts = true;
+        }
+
+        EnsureInteractiveEventSystem();
+    }
 
     private void Start()
     {
@@ -39,30 +66,35 @@ public class DaySummaryUI : MonoBehaviour
 
     private void CreateUI()
     {
-        Canvas canvas = null;
-        GameObject existingCanvas = GameObject.Find("HUD_Canvas");
-        if (existingCanvas != null) canvas = existingCanvas.GetComponent<Canvas>();
-        
-        if (canvas == null)
-        {
-            GameObject newCanvasObj = new GameObject("DaySummary_Canvas");
-            canvas = newCanvasObj.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 999;
-            newCanvasObj.AddComponent<UnityEngine.UI.CanvasScaler>().uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            newCanvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
-        }
+        // Keep this modal on its own persistent, high-priority canvas. Sharing
+        // HUD_Canvas allowed phone/tutorial overlays to consume its raycasts
+        // after returning from the street scene.
+        // Keep the overlay at the scene root. A ScreenSpaceOverlay canvas nested
+        // below the persistent DayClock could keep its graphics at depth -1,
+        // which made the visible buttons impossible to raycast.
+        GameObject canvasObject = new GameObject("DaySummary_Canvas", typeof(RectTransform));
+        DontDestroyOnLoad(canvasObject);
 
-        if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
-        {
-            GameObject eventSystemObj = new GameObject("EventSystem");
-            eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            eventSystemObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-        }
+        _summaryCanvas = canvasObject.AddComponent<Canvas>();
+        _summaryCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _summaryCanvas.overrideSorting = true;
+        _summaryCanvas.sortingOrder = 3000;
+
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        _summaryRaycaster = canvasObject.AddComponent<GraphicRaycaster>();
+        _summaryCanvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        _summaryCanvasGroup.interactable = true;
+        _summaryCanvasGroup.blocksRaycasts = true;
+
+        EnsureInteractiveEventSystem();
 
         // 1. Fullscreen Background
         _panel = new GameObject("DaySummaryPanel");
-        _panel.transform.SetParent(canvas.transform, false);
+        _panel.transform.SetParent(_summaryCanvas.transform, false);
         _panel.SetActive(false);
 
         RectTransform panelRect = _panel.AddComponent<RectTransform>();
@@ -111,6 +143,7 @@ public class DaySummaryUI : MonoBehaviour
         _headerText.fontSize = 54;
         _headerText.fontStyle = FontStyles.Bold;
         _headerText.alignment = TextAlignmentOptions.Center;
+        _headerText.raycastTarget = false;
         _headerText.color = new Color(1f, 0.95f, 0.8f); // Hơi vàng nhẹ sang trọng
         _headerText.text = "TỔNG KẾT NGÀY";
 
@@ -190,6 +223,7 @@ public class DaySummaryUI : MonoBehaviour
         _nextDayBtnText.fontStyle = FontStyles.Bold;
         _nextDayBtnText.alignment = TextAlignmentOptions.Center;
         _nextDayBtnText.color = Color.white;
+        _nextDayBtnText.raycastTarget = false;
 
         // Button 2 (Vay Nhanh)
         GameObject vayBtnObj = new GameObject("VayNhanhButton");
@@ -226,6 +260,37 @@ public class DaySummaryUI : MonoBehaviour
         vayText.fontStyle = FontStyles.Bold;
         vayText.alignment = TextAlignmentOptions.Center;
         vayText.color = Color.white;
+        vayText.raycastTarget = false;
+    }
+
+    private void EnsureInteractiveEventSystem()
+    {
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+        {
+            eventSystem = FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
+        }
+
+        if (eventSystem == null)
+        {
+            GameObject eventSystemObject = new GameObject("EventSystem");
+            eventSystem = eventSystemObject.AddComponent<EventSystem>();
+            eventSystemObject.AddComponent<StandaloneInputModule>();
+        }
+        else
+        {
+            if (!eventSystem.gameObject.activeSelf)
+            {
+                eventSystem.gameObject.SetActive(true);
+            }
+
+            if (eventSystem.GetComponent<BaseInputModule>() == null)
+            {
+                eventSystem.gameObject.AddComponent<StandaloneInputModule>();
+            }
+        }
+
+        eventSystem.enabled = true;
     }
 
     private void CreateRow(Transform parent, string titleText, out GameObject rowObj, out TextMeshProUGUI valueText, int fontSize = 30, bool isBold = false)
@@ -248,6 +313,7 @@ public class DaySummaryUI : MonoBehaviour
         label.text = titleText;
         label.fontSize = fontSize;
         label.color = new Color(0.9f, 0.9f, 0.9f);
+        label.raycastTarget = false;
         if (isBold) label.fontStyle = FontStyles.Bold;
         label.alignment = TextAlignmentOptions.Left;
 
@@ -258,6 +324,7 @@ public class DaySummaryUI : MonoBehaviour
         valueText.fontSize = fontSize;
         if (isBold) valueText.fontStyle = FontStyles.Bold;
         valueText.alignment = TextAlignmentOptions.Right;
+        valueText.raycastTarget = false;
     }
 
     private void ShowSummary()
@@ -268,10 +335,57 @@ public class DaySummaryUI : MonoBehaviour
         Time.timeScale = 0f;
         
         _panel.SetActive(true);
+        _panel.transform.SetAsLastSibling();
+        if (_summaryCanvas != null)
+        {
+            _summaryCanvas.enabled = true;
+            _summaryCanvas.sortingOrder = 3000;
+        }
+        if (_summaryRaycaster != null) _summaryRaycaster.enabled = true;
+        if (_summaryCanvasGroup != null)
+        {
+            _summaryCanvasGroup.interactable = true;
+            _summaryCanvasGroup.blocksRaycasts = true;
+        }
+
+        EnsureInteractiveEventSystem();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        LockGameplayForSummary();
+        // Do not pre-select a button on the same frame the player presses the
+        // bed interaction key. The EventSystem can treat that same submit press
+        // as a click and immediately close the summary again. Mouse raycasts do
+        // not require a selected object.
+        EventSystem.current?.SetSelectedGameObject(null);
         
         UpdateUIState();
+    }
+
+    private void LockGameplayForSummary()
+    {
+        _summaryPlayer = FindAnyObjectByType<PlayerController>();
+        _summaryCamera = FindAnyObjectByType<PlayerCamera>();
+
+        if (_summaryPlayer != null)
+        {
+            _playerWasEnabled = _summaryPlayer.enabled;
+            _summaryPlayer.enabled = false;
+        }
+
+        if (_summaryCamera != null)
+        {
+            _cameraWasEnabled = _summaryCamera.enabled;
+            _summaryCamera.enabled = false;
+        }
+    }
+
+    private void RestoreGameplayAfterSummary()
+    {
+        if (_summaryPlayer != null) _summaryPlayer.enabled = _playerWasEnabled;
+        if (_summaryCamera != null) _summaryCamera.enabled = _cameraWasEnabled;
+        _summaryPlayer = null;
+        _summaryCamera = null;
     }
 
     private void UpdateUIState()
@@ -381,6 +495,7 @@ public class DaySummaryUI : MonoBehaviour
 
         Time.timeScale = 1f;
 
+        RestoreGameplayAfterSummary();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
@@ -397,11 +512,28 @@ public class DaySummaryUI : MonoBehaviour
         }
     }
 
+    public void HideSummary()
+    {
+        if (_panel != null)
+        {
+            _panel.SetActive(false);
+        }
+        if (_summaryCanvas != null)
+        {
+            _summaryCanvas.enabled = false;
+        }
+    }
+
     private void OnDestroy()
     {
-        if (DayClock.Instance != null)
+        DayClock clock = DayClock.ExistingInstance;
+        if (clock != null)
         {
-            DayClock.Instance.OnDayEnded -= ShowSummary;
+            clock.OnDayEnded -= ShowSummary;
+        }
+        if (_summaryCanvas != null)
+        {
+            Destroy(_summaryCanvas.gameObject);
         }
     }
 }

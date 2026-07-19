@@ -26,13 +26,19 @@ public class IntroSequenceController : MonoBehaviour
     public float typeSpeed = 0.03f;
     public string nextSceneName = "Shop_Main";
 
+    [Header("Voice Synchronization")]
+    public bool syncTextToVoice = true;
+    public bool autoAdvance = false;
+    [Min(0f)] public float delayBetweenLines = 0.35f;
+
     [Header("Dialogue Content")]
     public DialogueLine[] lines;
 
     private int currentLineIndex = 0;
     private bool isTyping = false;
     private AudioSource audioSource;
-    private Coroutine typingCoroutine;
+    private Coroutine dialogueCoroutine;
+    private bool revealCurrentLine;
 
     void Start()
     {
@@ -60,23 +66,15 @@ public class IntroSequenceController : MonoBehaviour
         {
             if (isTyping)
             {
-                // Force finish typing immediately
-                StopCoroutine(typingCoroutine);
+                // Reveal the current sentence immediately. The voice keeps playing,
+                // and auto-advance still waits for it to finish.
+                revealCurrentLine = true;
                 dialogueText.text = lines[currentLineIndex].text;
                 isTyping = false;
             }
             else
             {
-                // Move to next line
-                currentLineIndex++;
-                if (currentLineIndex < lines.Length)
-                {
-                    StartDialogueLine(currentLineIndex);
-                }
-                else
-                {
-                    EndSequence();
-                }
+                AdvanceLine();
             }
         }
     }
@@ -94,29 +92,120 @@ public class IntroSequenceController : MonoBehaviour
             speakerNameText.text = line.characterName + ":";
         }
 
-        // Play Audio
-        audioSource.Stop();
-        if (line.voiceClip != null)
+        if (dialogueCoroutine != null)
         {
-            audioSource.PlayOneShot(line.voiceClip);
+            StopCoroutine(dialogueCoroutine);
         }
 
-        if (typingCoroutine != null) StopCoroutine(typingCoroutine);
-        typingCoroutine = StartCoroutine(TypeSentence(line.text));
+        audioSource.Stop();
+        dialogueCoroutine = StartCoroutine(PlayDialogueLine(index));
     }
 
-    IEnumerator TypeSentence(string sentence)
+    IEnumerator PlayDialogueLine(int index)
+    {
+        DialogueLine line = lines[index];
+        revealCurrentLine = false;
+
+        if (line.voiceClip != null)
+        {
+            audioSource.clip = line.voiceClip;
+            audioSource.Play();
+        }
+
+        if (syncTextToVoice && line.voiceClip != null && !string.IsNullOrEmpty(line.text))
+        {
+            yield return TypeSentenceSyncedToVoice(line.text, line.voiceClip.length);
+        }
+        else
+        {
+            yield return TypeSentence(line.text, typeSpeed);
+        }
+
+        if (!autoAdvance)
+        {
+            yield break;
+        }
+
+        if (line.voiceClip != null)
+        {
+            while (audioSource.isPlaying && currentLineIndex == index)
+            {
+                yield return null;
+            }
+        }
+
+        if (delayBetweenLines > 0f)
+        {
+            yield return new WaitForSecondsRealtime(delayBetweenLines);
+        }
+
+        if (currentLineIndex == index)
+        {
+            dialogueCoroutine = null;
+            AdvanceLine();
+        }
+    }
+
+    IEnumerator TypeSentenceSyncedToVoice(string sentence, float clipLength)
     {
         dialogueText.text = "";
         isTyping = true;
-        
+        int visibleCharacterCount = 0;
+
+        while (audioSource.isPlaying && !revealCurrentLine)
+        {
+            float progress = clipLength > 0f
+                ? Mathf.Clamp01(audioSource.time / clipLength)
+                : 1f;
+            int targetCharacterCount = Mathf.Clamp(
+                Mathf.FloorToInt(progress * sentence.Length),
+                0,
+                sentence.Length);
+
+            if (targetCharacterCount != visibleCharacterCount)
+            {
+                visibleCharacterCount = targetCharacterCount;
+                dialogueText.text = sentence.Substring(0, visibleCharacterCount);
+            }
+
+            yield return null;
+        }
+
+        dialogueText.text = sentence;
+        isTyping = false;
+    }
+
+    IEnumerator TypeSentence(string sentence, float secondsPerCharacter)
+    {
+        dialogueText.text = "";
+        isTyping = true;
+
         foreach (char letter in sentence.ToCharArray())
         {
+            if (revealCurrentLine)
+            {
+                break;
+            }
+
             dialogueText.text += letter;
-            yield return new WaitForSeconds(typeSpeed);
+            yield return new WaitForSecondsRealtime(secondsPerCharacter);
         }
-        
+
+        dialogueText.text = sentence;
         isTyping = false;
+    }
+
+    void AdvanceLine()
+    {
+        currentLineIndex++;
+        if (currentLineIndex < lines.Length)
+        {
+            StartDialogueLine(currentLineIndex);
+        }
+        else
+        {
+            EndSequence();
+        }
     }
 
     void EndSequence()
