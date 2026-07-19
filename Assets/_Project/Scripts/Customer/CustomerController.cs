@@ -239,9 +239,8 @@ public class CustomerController : MonoBehaviour, IInteractable
         bool stillFar = Vector3.Distance(transform.position, currentMoveDestination) > agent.stoppingDistance + 1.2f;
         bool badPath = stillFar && !agent.pathPending && (!agent.hasPath || agent.pathStatus != UnityEngine.AI.NavMeshPathStatus.PathComplete);
         bool barelyMoved = Vector3.Distance(transform.position, lastStuckCheckPosition) < 0.08f;
-        bool barelyMoving = agent.velocity.sqrMagnitude < 0.015f;
 
-        stuckTimer = (badPath || (stillFar && barelyMoved && barelyMoving && !agent.pathPending))
+        stuckTimer = (badPath || (stillFar && barelyMoved && !agent.pathPending))
             ? stuckTimer + StuckCheckInterval
             : 0f;
 

@@ -60,36 +60,40 @@ public class PickupItem : MonoBehaviour, IInteractable
         transform.localScale = _originalScale * scaleMultiplier;
     }
 
-    public float GetHeightOffsetForRotation(Quaternion rotation)
+    private float GetLocalBottomY()
     {
         if (_col == null) return 0f;
-        
-        // Lưu trữ tạm thời trạng thái hiện tại
-        Vector3 tempPos = transform.position;
-        Quaternion tempRot = transform.rotation;
-        Vector3 tempScale = transform.localScale;
-        Transform tempParent = transform.parent;
-        bool tempColEnabled = _col.enabled;
 
-        // Áp dụng trạng thái thả tạm thời để tính toán bounding box
-        transform.SetParent(_originalParent);
-        transform.localScale = _originalScale;
-        transform.rotation = rotation;
-        transform.position = Vector3.zero;
-        _col.enabled = true;
+        if (_col is BoxCollider box)
+        {
+            return box.center.y - box.size.y / 2f;
+        }
+        else if (_col is SphereCollider sphere)
+        {
+            return sphere.center.y - sphere.radius;
+        }
+        else if (_col is CapsuleCollider capsule)
+        {
+            // Capsule direction: 0 = X, 1 = Y, 2 = Z
+            int direction = capsule.direction;
+            float height = capsule.height;
+            float radius = capsule.radius;
+            float offset = (direction == 1) ? height / 2f : radius;
+            return capsule.center.y - offset;
+        }
+        else if (_col is MeshCollider meshCol && meshCol.sharedMesh != null)
+        {
+            return meshCol.sharedMesh.bounds.min.y;
+        }
 
-        // Tính toán offset từ tâm (pivot) đến điểm thấp nhất của collider
-        float bottomY = _col.bounds.min.y;
-        float offsetY = -bottomY; // Vì vị trí tạm thời có Y = 0, nên offset = -bottomY
+        return 0f;
+    }
 
-        // Phục hồi lại trạng thái cũ
-        transform.SetParent(tempParent);
-        transform.position = tempPos;
-        transform.rotation = tempRot;
-        transform.localScale = tempScale;
-        _col.enabled = tempColEnabled;
-
-        return offsetY;
+    public float GetHeightOffsetForRotation(Quaternion rotation)
+    {
+        // Vì vật thể luôn đứng thẳng (chỉ xoay quanh trục Y), 
+        // khoảng cách từ tâm đến đáy theo phương thẳng đứng (trục Y) là không đổi và bằng:
+        return -GetLocalBottomY() * _originalScale.y;
     }
 
     public void Drop(Vector3 placePosition, Quaternion placeRotation)
@@ -103,21 +107,14 @@ public class PickupItem : MonoBehaviour, IInteractable
         // Sử dụng góc xoay mới (đã được xoay bằng chuột)
         transform.rotation = placeRotation;
 
-        // Bật lại collider để hệ thống tính toán chính xác bounds
+        // Bật lại collider
         if (_col != null)
         {
             _col.enabled = true;
         }
 
-        // Tính toán offset nâng vật thể lên mặt bàn/đất
-        float offsetY = 0f;
-        if (_col != null)
-        {
-            transform.position = placePosition; // Đặt tạm thời để tính bounds
-            float bottomY = _col.bounds.min.y;
-            float pivotY = transform.position.y;
-            offsetY = pivotY - bottomY;
-        }
+        // Tính toán offset nâng vật thể lên mặt bàn/đất dựa trên local bottom và original scale
+        float offsetY = GetHeightOffsetForRotation(placeRotation);
 
         // Đưa vật thể đến đúng vị trí mặt bàn/đất đã nâng offset
         transform.position = placePosition + new Vector3(0f, offsetY, 0f);
