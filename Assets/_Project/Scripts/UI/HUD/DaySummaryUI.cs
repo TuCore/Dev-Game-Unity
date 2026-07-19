@@ -512,12 +512,28 @@ public class DaySummaryUI : MonoBehaviour
         }
     }
 
+    public void HideSummary()
+    {
+        if (_panel != null)
+        {
+            _panel.SetActive(false);
+        }
+        if (_summaryCanvas != null)
+        {
+            _summaryCanvas.enabled = false;
+        }
+    }
+
     private void OnDestroy()
     {
         DayClock clock = DayClock.ExistingInstance;
         if (clock != null)
         {
             clock.OnDayEnded -= ShowSummary;
+        }
+        if (_summaryCanvas != null)
+        {
+            Destroy(_summaryCanvas.gameObject);
         }
     }
 }

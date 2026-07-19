@@ -72,6 +72,13 @@ public class ConsumableVendor : MonoBehaviour, IInteractable
 
     private void Awake()
     {
+        string normalizedName = string.IsNullOrEmpty(itemName) ? "" : itemName.ToLowerInvariant();
+        if (preset == ConsumablePreset.TraDa || normalizedName.Contains("trà") || normalizedName.Contains("tra"))
+        {
+            // Tự động thu nhỏ vùng chọn của ấm trà vì mô hình ấm trà rất nhỏ
+            interactionAreaSize = new Vector3(0.5f, 0.5f, 0.5f);
+            interactionAreaCenter = new Vector3(0f, 0.15f, 0f);
+        }
         EnsureInteractionArea();
     }
 
@@ -203,12 +210,24 @@ public class ConsumableVendor : MonoBehaviour, IInteractable
     {
         GameObject areaObject = GetOrCreateInteractionAreaObject();
         areaObject.layer = gameObject.layer;
-        areaObject.transform.localPosition = interactionAreaCenter;
+
+        // Tính toán localScale và localPosition dựa trên lossyScale của cha để giữ kích thước thực tế trong thế giới luôn chuẩn (ví dụ: 0.5m)
+        Vector3 lossy = transform.lossyScale;
+        float lx = Mathf.Max(0.001f, Mathf.Abs(lossy.x));
+        float ly = Mathf.Max(0.001f, Mathf.Abs(lossy.y));
+        float lz = Mathf.Max(0.001f, Mathf.Abs(lossy.z));
+
+        areaObject.transform.localPosition = new Vector3(
+            interactionAreaCenter.x / lx,
+            interactionAreaCenter.y / ly,
+            interactionAreaCenter.z / lz);
+
         areaObject.transform.localRotation = Quaternion.identity;
+
         areaObject.transform.localScale = new Vector3(
-            Mathf.Max(0.2f, interactionAreaSize.x),
-            Mathf.Max(0.2f, interactionAreaSize.y),
-            Mathf.Max(0.2f, interactionAreaSize.z));
+            Mathf.Max(0.2f, interactionAreaSize.x) / lx,
+            Mathf.Max(0.2f, interactionAreaSize.y) / ly,
+            Mathf.Max(0.2f, interactionAreaSize.z) / lz);
 
         BoxCollider box = areaObject.GetComponent<BoxCollider>();
         if (box == null)

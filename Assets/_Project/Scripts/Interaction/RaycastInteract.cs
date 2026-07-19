@@ -11,8 +11,8 @@ public class RaycastInteract : MonoBehaviour
     [SerializeField] private float customerCacheRefreshInterval = 0.2f;
 
     [Header("Station Aim Assist")]
-    [SerializeField] private float stationAimAssistRadius = 2.8f;
-    [SerializeField] private float stationAimViewportRadius = 0.46f;
+    [SerializeField] private float stationAimAssistRadius = 0.6f; // Giảm từ 2.8m xuống 0.6m để tránh tranh chấp vùng chọn
+    [SerializeField] private float stationAimViewportRadius = 0.15f; // Giảm từ 0.46 xuống 0.15
     [SerializeField] private float stationCacheRefreshInterval = 0.25f;
 
     [Header("Cấu hình tương tác")]
@@ -219,7 +219,8 @@ public class RaycastInteract : MonoBehaviour
             if (isHit)
             {
                 _placementGhost.SetActive(true);
-                _placementGhost.transform.position = hit.point;
+                float offsetY = _currentlyHeldItem.GetHeightOffsetForRotation(currentRotation);
+                _placementGhost.transform.position = hit.point + new Vector3(0f, offsetY, 0f);
                 _placementGhost.transform.rotation = currentRotation; // Áp dụng góc xoay chuột
                 _placementGhost.transform.localScale = _currentlyHeldItem.OriginalScale;
             }
@@ -245,28 +246,10 @@ public class RaycastInteract : MonoBehaviour
 
         // 2. Nếu tay đang trống, tìm đồ để nhặt/tương tác
         string promptText = "";
-        CustomerController customerTarget = FindCustomerAimTarget(ray);
-        TobaccoPipeStation tobaccoPipeTarget = customerTarget == null ? FindTobaccoPipeAimTarget(ray) : null;
-        
-        if (customerTarget != null)
-        {
-            promptText += customerTarget.GetInteractionPrompt();
+        bool isTargeting = false;
 
-            if (WasInteractPressed())
-            {
-                customerTarget.Interact();
-            }
-        }
-        else if (tobaccoPipeTarget != null)
-        {
-            promptText += tobaccoPipeTarget.GetInteractionPrompt();
-
-            if (WasInteractPressed())
-            {
-                tobaccoPipeTarget.Interact();
-            }
-        }
-        else if (hasInteractionHit)
+        // Ưu tiên 1: Tương tác TRỰC TIẾP khi nhìn thẳng vào vật thể (Direct Raycast Hit)
+        if (hasInteractionHit)
         {
             hit = interactionHit;
 
@@ -275,6 +258,7 @@ public class RaycastInteract : MonoBehaviour
             if (interactable != null)
             {
                 promptText += interactable.GetInteractionPrompt();
+                isTargeting = true;
                 
                 // Nhấn phím E để tương tác
                 if (WasInteractPressed())
@@ -304,18 +288,49 @@ public class RaycastInteract : MonoBehaviour
                 {
                     promptText += "<color=#AAAAAA>Món đồ này đã sửa xong (Không thể sửa thêm)</color>";
                 }
-                else if (repairable.HasRequiredParts())
-                {
-                    promptText += $"<color=#00FF00>Nhấn [F] để Sửa chữa</color>\n<color=#D7F8FF>Cần: {repairable.GetRequiredPartsText()}</color>";
-                }
                 else
                 {
-                    promptText += $"<color=#FF0000>{repairable.GetMissingPartsText()}</color>";
+                    isTargeting = true;
+                    if (repairable.HasRequiredParts())
+                    {
+                        promptText += $"<color=#00FF00>Nhấn [F] để Sửa chữa</color>\n<color=#D7F8FF>Cần: {repairable.GetRequiredPartsText()}</color>";
+                    }
+                    else
+                    {
+                        promptText += $"<color=#FF0000>{repairable.GetMissingPartsText()}</color>";
+                    }
                 }
                 
                 if (CustomInputManager.GetKeyDown("Secondary"))
                 {
                     repairable.StartRepair();
+                }
+            }
+        }
+        else
+        {
+            // Ưu tiên 2: Sử dụng Aim Assist làm fallback khi nhìn lệch ra ngoài
+            CustomerController customerTarget = FindCustomerAimTarget(ray);
+            TobaccoPipeStation tobaccoPipeTarget = customerTarget == null ? FindTobaccoPipeAimTarget(ray) : null;
+            
+            if (customerTarget != null)
+            {
+                promptText += customerTarget.GetInteractionPrompt();
+                isTargeting = true;
+
+                if (WasInteractPressed())
+                {
+                    customerTarget.Interact();
+                }
+            }
+            else if (tobaccoPipeTarget != null)
+            {
+                promptText += tobaccoPipeTarget.GetInteractionPrompt();
+                isTargeting = true;
+
+                if (WasInteractPressed())
+                {
+                    tobaccoPipeTarget.Interact();
                 }
             }
         }
@@ -327,7 +342,7 @@ public class RaycastInteract : MonoBehaviour
             return;
         }
 
-        SetCrosshairTargeting(customerTarget != null || tobaccoPipeTarget != null);
+        SetCrosshairTargeting(isTargeting);
 
         if (_promptText != null)
         {
