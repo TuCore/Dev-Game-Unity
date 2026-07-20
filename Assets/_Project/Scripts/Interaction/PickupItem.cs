@@ -60,31 +60,70 @@ public class PickupItem : MonoBehaviour, IInteractable
         transform.localScale = _originalScale * scaleMultiplier;
     }
 
+    private float GetLocalBottomY()
+    {
+        if (_col == null) return 0f;
+
+        if (_col is BoxCollider box)
+        {
+            return box.center.y - box.size.y / 2f;
+        }
+        else if (_col is SphereCollider sphere)
+        {
+            return sphere.center.y - sphere.radius;
+        }
+        else if (_col is CapsuleCollider capsule)
+        {
+            // Capsule direction: 0 = X, 1 = Y, 2 = Z
+            int direction = capsule.direction;
+            float height = capsule.height;
+            float radius = capsule.radius;
+            float offset = (direction == 1) ? height / 2f : radius;
+            return capsule.center.y - offset;
+        }
+        else if (_col is MeshCollider meshCol && meshCol.sharedMesh != null)
+        {
+            return meshCol.sharedMesh.bounds.min.y;
+        }
+
+        return 0f;
+    }
+
+    public float GetHeightOffsetForRotation(Quaternion rotation)
+    {
+        // Vì vật thể luôn đứng thẳng (chỉ xoay quanh trục Y), 
+        // khoảng cách từ tâm đến đáy theo phương thẳng đứng (trục Y) là không đổi và bằng:
+        return -GetLocalBottomY() * _originalScale.y;
+    }
+
     public void Drop(Vector3 placePosition, Quaternion placeRotation)
     {
         // Thả vật thể về Parent cũ
         transform.SetParent(_originalParent);
         
-        // Đưa vật thể đến đúng vị trí mặt bàn/đất mà tia nhìn đang chiếu tới
-        transform.position = placePosition;
-
         // Trả lại kích thước thật
         transform.localScale = _originalScale;
         
         // Sử dụng góc xoay mới (đã được xoay bằng chuột)
         transform.rotation = placeRotation;
 
+        // Bật lại collider
+        if (_col != null)
+        {
+            _col.enabled = true;
+        }
+
+        // Tính toán offset nâng vật thể lên mặt bàn/đất dựa trên local bottom và original scale
+        float offsetY = GetHeightOffsetForRotation(placeRotation);
+
+        // Đưa vật thể đến đúng vị trí mặt bàn/đất đã nâng offset
+        transform.position = placePosition + new Vector3(0f, offsetY, 0f);
+
         // Bật lại vật lý nhưng giữ ở trạng thái Kinematic để nó dính chặt vào mặt bàn/đất (không bị rơi)
         if (_rb != null)
         {
             _rb.isKinematic = true;
             _rb.useGravity = false;
-        }
-
-        // Bật lại collider
-        if (_col != null)
-        {
-            _col.enabled = true;
         }
     }
 }

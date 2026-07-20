@@ -10,7 +10,7 @@ public class EconomyManager : MonoBehaviour
 
 
     [Header("Cấu hình Kinh tế")]
-    [SerializeField] private float startingCash = 50000f;   // VNĐ khởi đầu
+    [SerializeField] private float startingCash = 500000f;   // VNĐ khởi đầu
 
     [Header("Chi phí sinh hoạt hàng ngày")]
     [SerializeField] private float dailyRent = 15000f;       // Tiền trọ
@@ -18,7 +18,7 @@ public class EconomyManager : MonoBehaviour
     [SerializeField] private float dailyWater = 3000f;        // Tiền nước
 
     [Header("Cấu hình Tín dụng (Vay trả góp)")]
-    [SerializeField] private float loanAmount = 100000f;     // Gói vay mặc định
+    [SerializeField] private float loanAmount = 1000000f;     // Gói vay mặc định
     [SerializeField] private int loanTermDays = 5;           // Kỳ hạn trả
     [SerializeField] private float loanInterestRate = 0.20f; // Lãi suất tổng cộng (20%)
     [SerializeField] private float penaltyFee = 50000f;      // Phạt mỗi ngày trễ hạn
@@ -49,11 +49,11 @@ public class EconomyManager : MonoBehaviour
     public bool HasActiveLoan => _currentDebt > 0;
 
     // Events
-    public System.Action<float> OnCashChanged;        
-    public System.Action<float> OnCashEarned;         
-    public System.Action<float> OnCashSpent;          
-    public System.Action<float> OnDebtChanged;        
-    public System.Action OnBankrupt;                   
+    public System.Action<float> OnCashChanged;
+    public System.Action<float> OnCashEarned;
+    public System.Action<float> OnCashSpent;
+    public System.Action<float> OnDebtChanged;
+    public System.Action OnBankrupt;
 
     private void Awake()
     {
@@ -62,9 +62,17 @@ public class EconomyManager : MonoBehaviour
             Destroy(this);
             return;
         }
-        
+
         Instance = this;
         DontDestroyOnLoad(this.gameObject);
+
+        if (gameObject.GetComponent<GameOverUI>() == null)
+        {
+            gameObject.AddComponent<GameOverUI>();
+        }
+
+        if (startingCash == 50000f) startingCash = 500000f;
+        if (loanAmount == 100000f) loanAmount = 1000000f;
 
         _currentCash = startingCash;
         _dailyIncome = 0f;
@@ -81,7 +89,7 @@ public class EconomyManager : MonoBehaviour
         OnCashEarned?.Invoke(amount);
         OnCashChanged?.Invoke(_currentCash);
     }
-    
+
     public void ResetDailyIncome()
     {
         _dailyIncome = 0f;
@@ -90,7 +98,7 @@ public class EconomyManager : MonoBehaviour
     public bool SpendCash(float amount)
     {
         if (amount <= 0) return false;
-        if (_currentCash < amount) return false; 
+        if (_currentCash < amount) return false;
 
         _currentCash -= amount;
         OnCashSpent?.Invoke(amount);
@@ -104,7 +112,7 @@ public class EconomyManager : MonoBehaviour
     public void TakeLoan()
     {
         if (HasActiveLoan) return; // Chỉ được 1 khoản vay
-        
+
         _currentCash += loanAmount;
         _currentDebt = loanAmount + (loanAmount * loanInterestRate);
         _remainingTermDays = loanTermDays;
@@ -119,7 +127,7 @@ public class EconomyManager : MonoBehaviour
     {
         if (_currentDebt <= 0) return false;
         if (_currentCash < _currentDebt) return false;
-        
+
         _currentCash -= _currentDebt;
         _currentDebt = 0;
         _remainingTermDays = 0;
@@ -142,14 +150,14 @@ public class EconomyManager : MonoBehaviour
         {
             // Trượt đóng tiền trọ -> Bị đuổi -> Game Over
             OnBankrupt?.Invoke();
-            return false; 
+            return false;
         }
-        
+
         // 2. Trừ tiền góp (nếu có nợ)
         if (HasActiveLoan)
         {
             float installment = DailyInstallment;
-            
+
             if (_currentCash >= installment)
             {
                 // Trả thành công
@@ -157,7 +165,7 @@ public class EconomyManager : MonoBehaviour
                 _currentDebt -= installment;
                 _remainingTermDays--;
                 _penaltyDays = 0; // Trả được nợ thì xoá số ngày phạt trước đó
-                
+
                 OnCashChanged?.Invoke(_currentCash);
                 OnDebtChanged?.Invoke(_currentDebt);
             }
@@ -168,7 +176,7 @@ public class EconomyManager : MonoBehaviour
                 _currentDebt += penaltyFee;
                 OnDebtChanged?.Invoke(_currentDebt);
                 Debug.Log($"[EconomyManager] Không đủ tiền góp! Bị phạt {penaltyFee:N0}đ. Tổng nợ mới: {_currentDebt:N0}đ");
-                
+
                 if (IsBankrupt)
                 {
                     OnBankrupt?.Invoke();
@@ -185,7 +193,7 @@ public class EconomyManager : MonoBehaviour
                 OnDebtChanged?.Invoke(_currentDebt);
             }
         }
-        
+
         Debug.Log($"[EconomyManager] Chi phí ngày đã trừ. Còn lại: {_currentCash:N0}đ");
         return true;
     }

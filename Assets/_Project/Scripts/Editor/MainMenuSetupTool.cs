@@ -106,7 +106,9 @@ namespace AnhThoDien.EditorTools
             menuUI.settingsPanel = settingsPanel;
 
             SettingsUI settingsUI = settingsPanel.AddComponent<SettingsUI>();
-            settingsUI.btnClose = btnCloseSettings;
+            SerializedObject settingsSO = new SerializedObject(settingsUI);
+            settingsSO.FindProperty("btnClose").objectReferenceValue = btnCloseSettings;
+            settingsSO.ApplyModifiedProperties();
 
             settingsPanel.SetActive(false); // Hide by default
 

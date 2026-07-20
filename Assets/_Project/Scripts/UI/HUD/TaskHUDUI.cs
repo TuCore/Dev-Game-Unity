@@ -72,10 +72,18 @@ public class TaskHUDUI : MonoBehaviour
         }
     }
 
+    private bool IsValidScene(string sceneName)
+    {
+        return sceneName == "Shop_Main" || sceneName == "VietnamStreet";
+    }
+
     private void Start()
     {
-        BuildOrBindUI();
-        Refresh();
+        if (IsValidScene(SceneManager.GetActiveScene().name))
+        {
+            BuildOrBindUI();
+            Refresh();
+        }
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -85,7 +93,7 @@ public class TaskHUDUI : MonoBehaviour
         taskText = null;
         panelImage = null;
 
-        if (scene.name == "VietnamStreet")
+        if (IsValidScene(scene.name))
         {
             BuildOrBindUI();
             Refresh();
@@ -94,6 +102,8 @@ public class TaskHUDUI : MonoBehaviour
 
     private void BuildOrBindUI()
     {
+        if (!IsValidScene(SceneManager.GetActiveScene().name)) return;
+
         Canvas canvas = FindHudCanvas();
         if (canvas == null)
         {

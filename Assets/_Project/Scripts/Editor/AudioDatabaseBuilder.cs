@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class AudioDatabaseBuilder
 {
-    [InitializeOnLoadMethod]
+    [MenuItem("Tools/Audio/Rebuild Audio Database")]
     public static void Build()
     {
         string resourcesPath = "Assets/_Project/Resources";

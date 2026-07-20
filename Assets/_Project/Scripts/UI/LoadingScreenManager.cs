@@ -7,6 +7,10 @@ using TMPro;
 public class LoadingScreenManager : MonoBehaviour
 {
     private static LoadingScreenManager _instance;
+    private bool _isLoading;
+
+    public static bool IsLoading => _instance != null && _instance._isLoading;
+
     public static LoadingScreenManager Instance
     {
         get
@@ -25,6 +29,7 @@ public class LoadingScreenManager : MonoBehaviour
     private TextMeshProUGUI _progressText;
     private RectTransform _runnerIconRect;
     private RectTransform _barFillRect;
+    private TextMeshProUGUI _messageText;
     
     // Tạo giao diện loading
     private void CreateLoadingUI()
@@ -87,11 +92,25 @@ public class LoadingScreenManager : MonoBehaviour
         textRect.offsetMin = Vector2.zero;
         textRect.offsetMax = Vector2.zero;
 
+        // Message Text
+        GameObject msgObj = new GameObject("MessageText");
+        msgObj.transform.SetParent(canvasObj.transform, false);
+        _messageText = msgObj.AddComponent<TextMeshProUGUI>();
+        _messageText.text = "Đang tải...";
+        _messageText.fontSize = 40;
+        _messageText.alignment = TextAlignmentOptions.Center;
+        _messageText.color = Color.white;
+        RectTransform msgRect = msgObj.GetComponent<RectTransform>();
+        msgRect.anchorMin = new Vector2(0, 0.6f);
+        msgRect.anchorMax = new Vector2(1, 0.8f);
+        msgRect.offsetMin = Vector2.zero;
+        msgRect.offsetMax = Vector2.zero;
+
         // Runner Icon
         GameObject runnerObj = new GameObject("RunnerIcon");
         runnerObj.transform.SetParent(barBgObj.transform, false);
         TextMeshProUGUI runnerText = runnerObj.AddComponent<TextMeshProUGUI>();
-        runnerText.text = "🏃"; // Emoji người chạy
+        runnerText.text = ">";
         runnerText.fontSize = 60;
         runnerText.alignment = TextAlignmentOptions.Center;
         runnerText.color = Color.white;
@@ -106,40 +125,48 @@ public class LoadingScreenManager : MonoBehaviour
         _loadingCanvas.SetActive(false);
     }
 
-    public static void LoadScene(string sceneName)
+    public static void LoadScene(string sceneName, string message = "Đang di chuyển...")
     {
-        Instance.StartCoroutine(Instance.LoadSceneAsyncRoutine(sceneName));
+        if (Instance._isLoading)
+        {
+            return;
+        }
+
+        Instance.StartCoroutine(Instance.LoadSceneAsyncRoutine(sceneName, message));
     }
 
-    private IEnumerator LoadSceneAsyncRoutine(string sceneName)
+    private IEnumerator LoadSceneAsyncRoutine(string sceneName, string message)
     {
+        _isLoading = true;
         CreateLoadingUI();
         _loadingCanvas.SetActive(true);
 
         Time.timeScale = 1f; // Đảm bảo không bị pause
         _progressText.text = "0%";
+        if (_messageText != null) _messageText.text = message;
         
         _barFillRect.anchorMax = new Vector2(0f, 1f);
         _runnerIconRect.anchorMin = new Vector2(0f, 1f);
         _runnerIconRect.anchorMax = new Vector2(0f, 1f);
 
+        // Cho Canvas một frame để được render trước khi bắt đầu tải scene nặng.
+        yield return null;
+
         // Bắt đầu load scene ngầm
         AsyncOperation op = SceneManager.LoadSceneAsync(sceneName);
-        op.allowSceneActivation = false; 
-
-        float simulatedProgress = 0f;
-        float loadTime = 2.0f; // Thời gian tối thiểu giả định 2 giây
-        float timer = 0f;
-
-        while (timer < loadTime || op.progress < 0.9f)
+        if (op == null)
         {
-            timer += Time.deltaTime;
-            
-            simulatedProgress = Mathf.Clamp01(timer / loadTime);
-            
-            // Unity trả về op.progress từ 0 đến 0.9
-            float sceneProgress = op.progress / 0.9f;
-            float targetProgress = Mathf.Min(simulatedProgress, sceneProgress);
+            Debug.LogError("[LoadingScreenManager] Không thể tải scene: " + sceneName);
+            _loadingCanvas.SetActive(false);
+            _isLoading = false;
+            yield break;
+        }
+
+        op.allowSceneActivation = false;
+
+        while (op.progress < 0.9f)
+        {
+            float targetProgress = Mathf.Clamp01(op.progress / 0.9f);
 
             // Cập nhật UI
             _barFillRect.anchorMax = new Vector2(targetProgress, 1f);
@@ -157,13 +184,19 @@ public class LoadingScreenManager : MonoBehaviour
         _runnerIconRect.anchorMin = new Vector2(1f, 1f);
         _runnerIconRect.anchorMax = new Vector2(1f, 1f);
         _progressText.text = "100%";
-        
-        yield return new WaitForSeconds(0.5f); // Nghỉ 0.5s để người chơi thấy 100%
+
+        // Hiển thị 100% trong đúng một frame, không ép người chơi chờ giả thêm 2.5 giây.
+        yield return null;
 
         // Hoàn tất tải cảnh
         op.allowSceneActivation = true;
 
-        yield return new WaitForEndOfFrame();
+        while (!op.isDone)
+        {
+            yield return null;
+        }
+
         _loadingCanvas.SetActive(false);
+        _isLoading = false;
     }
 }

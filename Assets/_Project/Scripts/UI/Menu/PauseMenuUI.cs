@@ -28,6 +28,8 @@ namespace AnhThoDien.UI.Menu
 
         private void Start()
         {
+            FixCanvasScaler();
+
             if (pausePanel != null) pausePanel.SetActive(false);
 
             if (btnSave != null) btnSave.onClick.AddListener(OnSaveClicked);
@@ -60,6 +62,19 @@ namespace AnhThoDien.UI.Menu
                 sliderBrightness.value = PlayerPrefs.GetFloat("GameBrightness", 1f);
                 sliderBrightness.onValueChanged.AddListener(OnBrightnessChanged);
                 OnBrightnessChanged(sliderBrightness.value); // Apply immediately
+            }
+        }
+
+        private void FixCanvasScaler()
+        {
+            CanvasScaler scaler = GetComponentInParent<CanvasScaler>();
+            if (scaler == null) scaler = GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920, 1080);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
             }
         }
 

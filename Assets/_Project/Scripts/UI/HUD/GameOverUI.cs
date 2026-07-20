@@ -6,6 +6,7 @@ using TMPro;
 public class GameOverUI : MonoBehaviour
 {
     private GameObject _panel;
+    private Canvas _gameOverCanvas;
 
     private void Start()
     {
@@ -18,15 +19,27 @@ public class GameOverUI : MonoBehaviour
 
     private void CreateUI()
     {
-        Canvas canvas = null;
-        GameObject existingCanvas = GameObject.Find("HUD_Canvas");
-        if (existingCanvas != null) canvas = existingCanvas.GetComponent<Canvas>();
-        else canvas = FindFirstObjectByType<Canvas>();
+        GameObject canvasObject = new GameObject("GameOver_Canvas", typeof(RectTransform));
+        DontDestroyOnLoad(canvasObject);
 
-        if (canvas == null) return;
+        _gameOverCanvas = canvasObject.AddComponent<Canvas>();
+        _gameOverCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _gameOverCanvas.overrideSorting = true;
+        _gameOverCanvas.sortingOrder = 4000; // Trực tiếp đè lên DaySummary (3000)
+
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        canvasObject.AddComponent<GraphicRaycaster>();
+        
+        CanvasGroup group = canvasObject.AddComponent<CanvasGroup>();
+        group.interactable = true;
+        group.blocksRaycasts = true;
 
         _panel = new GameObject("GameOverPanel");
-        _panel.transform.SetParent(canvas.transform, false);
+        _panel.transform.SetParent(_gameOverCanvas.transform, false);
         _panel.SetActive(false); // Hide by default
 
         RectTransform panelRect = _panel.AddComponent<RectTransform>();
@@ -105,17 +118,22 @@ public class GameOverUI : MonoBehaviour
 
     private void ShowGameOver()
     {
+        if (_panel == null) CreateUI();
         if (_panel == null) return;
         
         // Hide DaySummary if it's open
         DaySummaryUI daySummary = FindFirstObjectByType<DaySummaryUI>();
         if (daySummary != null)
         {
-            daySummary.gameObject.SetActive(false); 
+            daySummary.HideSummary(); 
         }
 
         Time.timeScale = 0f;
         _panel.SetActive(true);
+        if (_gameOverCanvas != null)
+        {
+            _gameOverCanvas.enabled = true;
+        }
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -123,7 +141,26 @@ public class GameOverUI : MonoBehaviour
     private void OnRestartClicked()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
+        // Xóa lưu trữ để bắt đầu lại từ ngày 1
+        PlayerPrefs.DeleteKey("Money");
+        PlayerPrefs.DeleteKey("CurrentDay");
+        PlayerPrefs.DeleteKey("TutorialShown");
+        PlayerPrefs.SetInt("IsNewGame", 1);
+        PlayerPrefs.SetInt("HasSaveGame", 1);
+        PlayerPrefs.Save();
+
+        // Xoá các Singleton đang giữ trạng thái cũ
+        if (EconomyManager.Instance != null) Destroy(EconomyManager.Instance.gameObject);
+        if (DayClock.Instance != null) Destroy(DayClock.Instance.gameObject);
+        if (CustomerQueue.Instance != null) Destroy(CustomerQueue.Instance.gameObject);
+        if (ToastNotificationManager.Instance != null) Destroy(ToastNotificationManager.Instance.gameObject);
+
+        // Reset cờ kiểm tra lần đầu ra phố
+        BedInteraction.hasVisitedStreetFirstTime = false;
+
+        // Về phòng ngủ (Shop_Main)
+        LoadingScreenManager.LoadScene("Shop_Main");
     }
 
     private void OnDestroy()
@@ -131,6 +168,10 @@ public class GameOverUI : MonoBehaviour
         if (EconomyManager.Instance != null)
         {
             EconomyManager.Instance.OnBankrupt -= ShowGameOver;
+        }
+        if (_gameOverCanvas != null)
+        {
+            Destroy(_gameOverCanvas.gameObject);
         }
     }
 }

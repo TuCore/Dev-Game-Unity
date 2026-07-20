@@ -7,10 +7,22 @@ using UnityEngine;
 public class DayClock : MonoBehaviour
 {
     private static DayClock _instance;
+    private static bool _isShuttingDown;
+
+    /// <summary>
+    /// Returns the current clock without creating one. Use this from OnDestroy/OnDisable.
+    /// </summary>
+    public static DayClock ExistingInstance => _instance;
+
     public static DayClock Instance
     {
         get
         {
+            if (_isShuttingDown)
+            {
+                return null;
+            }
+
             if (_instance == null)
             {
                 _instance = FindFirstObjectByType<DayClock>();
@@ -23,6 +35,13 @@ public class DayClock : MonoBehaviour
             }
             return _instance;
         }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        _instance = null;
+        _isShuttingDown = false;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -41,9 +60,13 @@ public class DayClock : MonoBehaviour
     private int _currentDay = 1;
     private bool _isRunning;
 
-    public float CurrentHour => Mathf.Lerp(startHour, endHour, _currentTime / dayDurationInSeconds);
+    public float CurrentHour => Mathf.Lerp(startHour, endHour, Mathf.Clamp01(_currentTime / DayDurationInSeconds));
     public int CurrentDay => _currentDay;
     public bool IsRunning => _isRunning;
+    public float DayDurationInSeconds => Mathf.Max(0.01f, dayDurationInSeconds);
+    public float StartHour => startHour;
+    public float EndHour => endHour;
+    public float GameMinutesPerRealSecond => Mathf.Max(0f, endHour - startHour) * 60f / DayDurationInSeconds;
 
     // Events
     public System.Action<float> OnTimeChanged;   
@@ -74,9 +97,41 @@ public class DayClock : MonoBehaviour
     private void Start()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        MinigameManager.OnMinigameStartedGlobal += HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal += HandleMinigameCompleted;
         if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
         {
             ResumeTime();
+        }
+    }
+
+    private void HandleMinigameStarted(IMinigame minigame)
+    {
+        PauseTime();
+    }
+
+    private void HandleMinigameCompleted(RepairQuality quality)
+    {
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            ResumeTime();
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        _isShuttingDown = true;
+    }
+
+    private void OnDestroy()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        MinigameManager.OnMinigameStartedGlobal -= HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal -= HandleMinigameCompleted;
+
+        if (_instance == this)
+        {
+            _instance = null;
         }
     }
 
@@ -84,6 +139,7 @@ public class DayClock : MonoBehaviour
     {
         if (scene.name == "VietnamStreet")
         {
+            BedInteraction.hasVisitedStreetFirstTime = true;
             ResumeTime();
         }
         else
@@ -109,7 +165,16 @@ public class DayClock : MonoBehaviour
     public void StartDay()
     {
         _currentTime = 0f;
-        _isRunning = true;
+        
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            _isRunning = true;
+        }
+        else
+        {
+            _isRunning = false;
+        }
+
         OnDayStarted?.Invoke();
     }
 

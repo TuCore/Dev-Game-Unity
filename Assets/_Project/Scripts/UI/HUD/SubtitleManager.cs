@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 [System.Serializable]
 public class SubtitleEntry
@@ -66,6 +67,37 @@ public class SubtitleManager : MonoBehaviour
         }
         _instance = this;
         CreateSubtitleUI();
+        SceneManager.activeSceneChanged += HandleActiveSceneChanged;
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.activeSceneChanged -= HandleActiveSceneChanged;
+        if (_instance == this) _instance = null;
+    }
+
+    private void HandleActiveSceneChanged(Scene previousScene, Scene nextScene)
+    {
+        if (nextScene.name == "Shop_Main") return;
+
+        // SubtitleManager la DontDestroyOnLoad, vi vay coroutine Intro cung co the
+        // song qua scene. Huy no khi roi phong ngu de khong ro audio Intro ra pho.
+        if (_currentSequenceCoroutine != null)
+        {
+            StopCoroutine(_currentSequenceCoroutine);
+            _currentSequenceCoroutine = null;
+        }
+        if (_currentSubtitleCoroutine != null)
+        {
+            StopCoroutine(_currentSubtitleCoroutine);
+            _currentSubtitleCoroutine = null;
+        }
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
+
+        if (previousScene.name == "Shop_Main" && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.StopAmbience();
+        }
     }
 
     private void CreateSubtitleUI()
@@ -171,13 +203,8 @@ public class SubtitleManager : MonoBehaviour
         yield return StartCoroutine(AnimateSubtitle("Anh Thợ Điện (Tự nhủ)", "Hôm nay phải ráng sửa đồ thật cẩn thận, tích góp tiền nâng cấp đồ nghề mới được!", 3.5f, "Tiếng gõ phím"));
         yield return new WaitForSeconds(0.5f);
 
-        // 3. Kết thúc sequence
-        if (AudioManager.Instance != null)
-        {
-            AudioManager.Instance.PlaySFX("Tiếng mở cửa");
-        }
-
-        _subtitlePanel.SetActive(false);
+        // 3. Kết thúc sequence. Âm thanh cửa chỉ phát khi người chơi tương tác với cửa.
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
         onComplete?.Invoke();
     }
 
@@ -200,12 +227,14 @@ public class SubtitleManager : MonoBehaviour
             yield return StartCoroutine(AnimateSubtitle(entry.speaker, entry.message, entry.duration, entry.sfxName));
             yield return new WaitForSeconds(0.3f);
         }
-        _subtitlePanel.SetActive(false);
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
         onComplete?.Invoke();
     }
 
     private IEnumerator AnimateSubtitle(string speaker, string message, float duration, string sfxName = null)
     {
+        if (_subtitlePanel == null) yield break;
+
         _subtitlePanel.SetActive(true);
         _speakerText.text = string.IsNullOrEmpty(speaker) ? "" : $"[{speaker}]";
         _messageText.text = "";
@@ -222,12 +251,13 @@ public class SubtitleManager : MonoBehaviour
 
         for (int i = 0; i <= totalChars; i++)
         {
+            if (_messageText == null) yield break;
             _messageText.text = message.Substring(0, i);
             yield return new WaitForSeconds(typeDelay);
         }
 
         // Giữ phụ đề trên màn hình cho hết thời lượng
         yield return new WaitForSeconds(Mathf.Max(1f, duration * 0.6f));
-        _subtitlePanel.SetActive(false);
+        if (_subtitlePanel != null) _subtitlePanel.SetActive(false);
     }
 }

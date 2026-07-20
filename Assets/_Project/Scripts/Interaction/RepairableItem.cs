@@ -2,13 +2,30 @@ using UnityEngine;
 using System.Collections.Generic;
 using Minigames.Diagnosis;
 
-public enum MinigameType { Soldering, Diagnosis }
+public enum MinigameType { Diagnosis = 1, PolarityWiring = 3, ContactCleaning = 4, ComponentReplacement = 5 }
 
 public class RepairableItem : MonoBehaviour
 {
+    [System.Serializable]
+    public class MinigameWeight
+    {
+        public MinigameType minigameType = MinigameType.PolarityWiring;
+        [Min(0f)] public float weight = 1f;
+    }
+
     [Header("Minigame Settings")]
     [Tooltip("Chọn loại minigame để chơi khi sửa món đồ này")]
-    [SerializeField] private MinigameType minigameToPlay = MinigameType.Soldering;
+    [SerializeField] private MinigameType minigameToPlay = MinigameType.PolarityWiring;
+    [Tooltip("Use per-item weighted minigame selection.")]
+    [SerializeField] private bool useWeightedMinigameSelection = true;
+    [Tooltip("Per-item minigame spawn weights. Weight 0 means never pick.")]
+    [SerializeField] private List<MinigameWeight> minigameWeights = new List<MinigameWeight>
+    {
+        new MinigameWeight { minigameType = MinigameType.PolarityWiring, weight = 1f },
+        new MinigameWeight { minigameType = MinigameType.ContactCleaning, weight = 1f },
+        new MinigameWeight { minigameType = MinigameType.Diagnosis, weight = 1f },
+        new MinigameWeight { minigameType = MinigameType.ComponentReplacement, weight = 1f }
+    };
     [Tooltip("Danh sách lỗi có thể xuất hiện trên đồ vật này")]
     [SerializeField] private List<string> faultPool = new List<string> { "Đứt dây", "Cháy tụ", "Hỏng IC" };
     
@@ -44,14 +61,109 @@ public class RepairableItem : MonoBehaviour
     // Đơn hàng liên kết với vật phẩm này
     public CustomerOrder linkedOrder;
 
+    private void Reset()
+    {
+        ResetDefaultMinigameWeights();
+    }
+
+    private void OnValidate()
+    {
+        if (minigameWeights == null || minigameWeights.Count == 0)
+        {
+            ResetDefaultMinigameWeights();
+        }
+    }
+
     public bool CanBeRepaired()
     {
         return _currentRepairs < maxRepairs;
     }
 
+    public MinigameType PickRandomMinigame(MinigameType fallback)
+    {
+        int hasPlayedFirst = UnityEngine.PlayerPrefs.GetInt("HasPlayedFirstMinigame", 0);
+        if (hasPlayedFirst == 0)
+        {
+            return MinigameType.Diagnosis;
+        }
+
+        if (fallback == MinigameType.Diagnosis)
+        {
+            fallback = MinigameType.PolarityWiring;
+        }
+
+        if (!useWeightedMinigameSelection || minigameWeights == null || minigameWeights.Count == 0)
+        {
+            return IsSupportedMinigame(fallback) ? fallback : MinigameType.PolarityWiring;
+        }
+
+        float totalWeight = 0f;
+        for (int i = 0; i < minigameWeights.Count; i++)
+        {
+            MinigameWeight entry = minigameWeights[i];
+            if (entry == null || !IsSupportedMinigame(entry.minigameType))
+            {
+                continue;
+            }
+
+            totalWeight += Mathf.Max(0f, entry.weight);
+        }
+
+        if (totalWeight <= 0f)
+        {
+            return IsSupportedMinigame(fallback) ? fallback : MinigameType.PolarityWiring;
+        }
+
+        float roll = UnityEngine.Random.Range(0f, totalWeight);
+        for (int i = 0; i < minigameWeights.Count; i++)
+        {
+            MinigameWeight entry = minigameWeights[i];
+            if (entry == null || !IsSupportedMinigame(entry.minigameType))
+            {
+                continue;
+            }
+
+            float weight = Mathf.Max(0f, entry.weight);
+            if (weight <= 0f)
+            {
+                continue;
+            }
+
+            if (roll <= weight)
+            {
+                if (entry.minigameType == MinigameType.Diagnosis)
+                    return MinigameType.PolarityWiring;
+                return entry.minigameType;
+            }
+
+            roll -= weight;
+        }
+
+        return fallback != MinigameType.Diagnosis ? fallback : MinigameType.PolarityWiring;
+    }
+
+    private bool IsSupportedMinigame(MinigameType minigame)
+    {
+        return minigame == MinigameType.PolarityWiring
+            || minigame == MinigameType.ContactCleaning
+            || minigame == MinigameType.Diagnosis
+            || minigame == MinigameType.ComponentReplacement;
+    }
+
+    private void ResetDefaultMinigameWeights()
+    {
+        minigameWeights = new List<MinigameWeight>
+        {
+            new MinigameWeight { minigameType = MinigameType.PolarityWiring, weight = 1f },
+            new MinigameWeight { minigameType = MinigameType.ContactCleaning, weight = 1f },
+            new MinigameWeight { minigameType = MinigameType.Diagnosis, weight = 1f },
+            new MinigameWeight { minigameType = MinigameType.ComponentReplacement, weight = 1f }
+        };
+    }
+
     public void SetRandomizedProperties(MinigameType minigame, int diff, float reward, bool randomizeParts = true)
     {
-        minigameToPlay = minigame;
+        minigameToPlay = IsSupportedMinigame(minigame) ? minigame : MinigameType.PolarityWiring;
         difficultyLevel = Mathf.Clamp(diff, 1, 5);
         baseReward = reward;
 
@@ -92,17 +204,78 @@ public class RepairableItem : MonoBehaviour
             }
 
             IMinigame targetMinigame = null;
-            if (minigameToPlay == MinigameType.Soldering)
+            if (minigameToPlay == MinigameType.Diagnosis)
             {
-                targetMinigame = FindObjectOfType<SolderingMinigame>(true);
+                targetMinigame = FindObjectOfType<MultimeterDiagnosisMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject prefab = Resources.Load<GameObject>("Prefabs/Minigames/Diagnosis/MultimeterDiagnosisMinigamePrefab");
+#if UNITY_EDITOR
+                    if (prefab == null)
+                    {
+                        prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/Minigames/Diagnosis/MultimeterDiagnosisMinigamePrefab.prefab");
+                    }
+#endif
+                    if (prefab != null)
+                    {
+                        GameObject instance = Instantiate(prefab);
+                        instance.name = "MultimeterDiagnosisMinigame_Root";
+                        targetMinigame = instance.GetComponentInChildren<MultimeterDiagnosisMinigame>(true);
+                    }
+                }
+
+                if (targetMinigame == null)
+                {
+                    GameObject generatedMinigame = new GameObject("MultimeterDiagnosisMinigame_Root");
+                    targetMinigame = generatedMinigame.AddComponent<MultimeterDiagnosisMinigame>();
+                }
             }
-            else if (minigameToPlay == MinigameType.Diagnosis)
+            else if (minigameToPlay == MinigameType.PolarityWiring)
             {
-                targetMinigame = FindObjectOfType<DiagnosisMinigame>(true);
+                targetMinigame = FindObjectOfType<PolarityWiringMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject wiringRoot = new GameObject("PolarityWiringMinigame_Root");
+                    targetMinigame = wiringRoot.AddComponent<PolarityWiringMinigame>();
+                }
+            }
+            else if (minigameToPlay == MinigameType.ContactCleaning)
+            {
+                targetMinigame = FindObjectOfType<ContactCleaningMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject cleaningRoot = new GameObject("ContactCleaningMinigame_Root");
+                    targetMinigame = cleaningRoot.AddComponent<ContactCleaningMinigame>();
+                }
+            }
+            else if (minigameToPlay == MinigameType.ComponentReplacement)
+            {
+                targetMinigame = FindObjectOfType<ComponentReplacementMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject replacementRoot = new GameObject("ComponentReplacementMinigame_Root");
+                    targetMinigame = replacementRoot.AddComponent<ComponentReplacementMinigame>();
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[RepairableItem] Minigame value {minigameToPlay} is no longer supported. Falling back to PolarityWiring.");
+                minigameToPlay = MinigameType.PolarityWiring;
+                targetMinigame = FindObjectOfType<PolarityWiringMinigame>(true);
+                if (targetMinigame == null)
+                {
+                    GameObject wiringRoot = new GameObject("PolarityWiringMinigame_Root");
+                    targetMinigame = wiringRoot.AddComponent<PolarityWiringMinigame>();
+                }
             }
             
             if (targetMinigame != null)
             {
+                if (targetMinigame is ContactCleaningMinigame contactCleaning)
+                {
+                    contactCleaning.SetRepairContext(linkedOrder != null ? linkedOrder.itemName : "", gameObject.name);
+                }
+
                 // Đăng ký sự kiện hoàn thành minigame
                 manager.OnMinigameCompleted += OnRepairDone;
                 manager.StartMinigame(targetMinigame, faultPool, difficultyLevel);
@@ -216,11 +389,11 @@ public class RepairableItem : MonoBehaviour
         int safeMin = Mathf.Clamp(minRandomRequiredParts, 1, pool.Count);
         int safeMax = Mathf.Clamp(maxRandomRequiredParts, safeMin, pool.Count);
         int difficultyMax = Mathf.Clamp(difficultyLevel, safeMin, safeMax);
-        int count = Random.Range(safeMin, difficultyMax + 1);
+        int count = UnityEngine.Random.Range(safeMin, difficultyMax + 1);
 
         for (int i = 0; i < count; i++)
         {
-            int index = Random.Range(0, pool.Count);
+            int index = UnityEngine.Random.Range(0, pool.Count);
             requiredParts.Add(pool[index]);
             pool.RemoveAt(index);
         }

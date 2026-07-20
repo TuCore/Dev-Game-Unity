@@ -10,6 +10,16 @@ public class PlayerCamera : MonoBehaviour
         mouseSensitivity = value;
     }
 
+    /// <summary>
+    /// Đồng bộ góc xoay camera từ bên ngoài (khi khôi phục vị trí/góc nhìn sau minigame)
+    /// </summary>
+    public void SyncRotation(Quaternion localRotation)
+    {
+        transform.localRotation = localRotation;
+        Vector3 euler = localRotation.eulerAngles;
+        xRotation = euler.x > 180f ? euler.x - 360f : euler.x;
+    }
+
     [Header("Cấu hình Camera")]
     [Tooltip("Chiều cao của camera so với mặt đất (thân người)")]
     [SerializeField] private float cameraHeight = 1.85f; // Nâng lên 1.85 thay vì 1.6 như cũ

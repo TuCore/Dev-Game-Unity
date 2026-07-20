@@ -81,7 +81,6 @@ public class CustomerController : MonoBehaviour, IInteractable
             agent.acceleration = Mathf.Max(agent.acceleration, 12f);
             agent.angularSpeed = Mathf.Max(agent.angularSpeed, 360f);
             agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
-            agent.isStopped = false;
         }
 
         // TẮT CHẶN: Đảm bảo Rigidbody không đánh lộn với NavMeshAgent gây văng tung tóe (teleport)
@@ -240,9 +239,8 @@ public class CustomerController : MonoBehaviour, IInteractable
         bool stillFar = Vector3.Distance(transform.position, currentMoveDestination) > agent.stoppingDistance + 1.2f;
         bool badPath = stillFar && !agent.pathPending && (!agent.hasPath || agent.pathStatus != UnityEngine.AI.NavMeshPathStatus.PathComplete);
         bool barelyMoved = Vector3.Distance(transform.position, lastStuckCheckPosition) < 0.08f;
-        bool barelyMoving = agent.velocity.sqrMagnitude < 0.015f;
 
-        stuckTimer = (badPath || (stillFar && barelyMoved && barelyMoving && !agent.pathPending))
+        stuckTimer = (badPath || (stillFar && barelyMoved && !agent.pathPending))
             ? stuckTimer + StuckCheckInterval
             : 0f;
 
@@ -330,6 +328,17 @@ public class CustomerController : MonoBehaviour, IInteractable
         this.hasInteracted = false;
         this.hasConvergedToQueue = false;
         if (!storeLine.Contains(this)) storeLine.Add(this);
+    }
+
+    public bool IsHandlingReturningOrder(CustomerOrder order)
+    {
+        if (order == null || currentOrder != order)
+        {
+            return false;
+        }
+
+        return currentState == CustomerState.ReturningForPickup
+            || currentState == CustomerState.WaitingForPickup;
     }
 
     public void SetAmbientWalker(Transform pointA, Transform pointB, bool startAtA)
@@ -561,11 +570,6 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
     }
 
-    private void OnDestroy()
-    {
-        if (storeLine.Contains(this)) storeLine.Remove(this);
-    }
-
     private string CustomerDisplayName
     {
         get
@@ -576,11 +580,11 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
     }
 
-    private void ShowCustomerDialogue(string npcName, string text, System.Action onPrimary = null, System.Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "")
+    private void ShowCustomerDialogue(string npcName, string text, System.Action onPrimary = null, System.Action onSecondary = null, string primaryText = "Tiếp tục", string secondaryText = "", AudioClip clip = null)
     {
         if (DialogueUI.Instance != null)
         {
-            DialogueUI.Instance.ShowDialogue(npcName, text, onPrimary, onSecondary, primaryText, secondaryText, this);
+            DialogueUI.Instance.ShowDialogue(npcName, text, onPrimary, onSecondary, primaryText, secondaryText, this, clip);
         }
     }
 
@@ -615,14 +619,18 @@ public class CustomerController : MonoBehaviour, IInteractable
 
     private void StartNegotiation()
     {
-        string greeting = (archetype != null && archetype.greetingDialogues != null && archetype.greetingDialogues.Count > 0)
-            ? archetype.greetingDialogues[Random.Range(0, archetype.greetingDialogues.Count)] 
+        AudioClip clip = null;
+        string greeting = (archetype != null)
+            ? archetype.GetRandomGreeting(out clip) 
             : "Tôi có món đồ bị hỏng, sửa giúp tôi nhé!";
 
-        ShowCustomerDialogue(CustomerDisplayName, greeting, ShowNegotiationOptions);
+        // Gop cau chao co voice va bao gia vao mot hop thoai duy nhat.
+        // Truoc day nguoi choi phai dong hop "Tiep tuc" roi lai nhan them
+        // mot hop "Nhan sua/Tu choi", tao cam giac thong bao bi duplicate.
+        ShowNegotiationOptions(greeting, clip);
     }
 
-    private void ShowNegotiationOptions()
+    private void ShowNegotiationOptions(string greeting, AudioClip greetingClip)
     {
         // 1. Pick random item prefab
         if (possibleItemsToDrop != null && possibleItemsToDrop.Count > 0)
@@ -634,8 +642,30 @@ public class CustomerController : MonoBehaviour, IInteractable
             _selectedItemPrefab = itemPrefabToDrop;
         }
 
-        // 2. Randomize properties
-        _selectedMinigame = (Random.value > 0.5f) ? MinigameType.Soldering : MinigameType.Diagnosis;
+        // 2. Randomize properties across repair minigames.
+        int hasPlayedFirst = UnityEngine.PlayerPrefs.GetInt("HasPlayedFirstMinigame", 0);
+        float roll = Random.value;
+
+        if (hasPlayedFirst == 0)
+        {
+            _selectedMinigame = MinigameType.Diagnosis;
+        }
+        else
+        {
+            // Phân bổ đều cho 3 minigame còn lại, KHÔNG cho ra Diagnosis nữa
+            if (roll < 0.33f)
+            {
+                _selectedMinigame = MinigameType.PolarityWiring;
+            }
+            else if (roll < 0.67f)
+            {
+                _selectedMinigame = MinigameType.ContactCleaning;
+            }
+            else
+            {
+                _selectedMinigame = MinigameType.ComponentReplacement;
+            }
+        }
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
 
@@ -648,7 +678,7 @@ public class CustomerController : MonoBehaviour, IInteractable
         int apptDay = currentHour > 15f ? currentDay + 1 : currentDay;
         float apptHour = currentHour > 15f ? 10f : currentHour + 4f;
 
-        string offer = $"Bác thợ xem giúp em con {itemName} này. Công cán gửi bác {_selectedBasePay:N0} đ. Cứ thong thả làm, đến {apptHour:00}:00 ngày {apptDay} em qua lấy hàng.";
+        string offer = $"{greeting}\n\nMón cần sửa: {itemName}. Tiền công: {_selectedBasePay:N0} đ. Hẹn lấy: {apptHour:00}:00 ngày {apptDay}.";
         
         ShowCustomerDialogue(
             CustomerDisplayName,
@@ -656,18 +686,28 @@ public class CustomerController : MonoBehaviour, IInteractable
             () => AcceptOrder(itemName, apptDay, apptHour),
             () => RefuseOrder(),
             "Nhận sửa",
-            "Từ chối"
+            "Từ chối",
+            greetingClip
         );
     }
 
     private void RefuseOrder()
     {
-        string angry = "Thế thì thôi vậy, tôi mang ra tiệm khác!";
-        ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Đóng");
+        AudioClip clip = null;
+        string angry = (archetype != null)
+            ? archetype.GetRandomLeaving(out clip)
+            : "Thế thì thôi vậy, tôi mang ra tiệm khác!";
+        ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Đóng", "", clip);
     }
 
     private void AcceptOrder(string itemName, int apptDay, float apptHour)
     {
+        if (CustomerQueue.Instance != null && !CustomerQueue.Instance.CanAcceptMoreOrders)
+        {
+            ShowCustomerDialogue(CustomerDisplayName, "Hôm nay tiệm đang nhiều đồ quá, bác quay lại sau giúp em nha.", LeaveStore, null, "Đóng");
+            return;
+        }
+
         currentOrder = new CustomerOrder(archetype.archetypeName, itemName, archetype.personality, _selectedDifficulty, _selectedBasePay, apptDay, apptHour);
         
         if (_selectedItemPrefab != null && itemDropPoint != null)
@@ -677,7 +717,15 @@ public class CustomerController : MonoBehaviour, IInteractable
             if (repairable != null)
             {
                 repairable.linkedOrder = currentOrder;
+                _selectedMinigame = repairable.PickRandomMinigame(_selectedMinigame);
                 repairable.SetRandomizedProperties(_selectedMinigame, _selectedDifficulty, _selectedBasePay);
+                
+                if (UnityEngine.PlayerPrefs.GetInt("HasPlayedFirstMinigame", 0) == 0)
+                {
+                    UnityEngine.PlayerPrefs.SetInt("HasPlayedFirstMinigame", 1);
+                    UnityEngine.PlayerPrefs.Save();
+                }
+
                 Debug.Log($"[CustomerController] Repair profile: minigame={_selectedMinigame}, difficulty={_selectedDifficulty}, requiredParts={repairable.GetRequiredPartsText()}, reward={_selectedBasePay}");
                 Debug.Log($"[CustomerController] Đã tạo món đồ. Minigame: {_selectedMinigame}, Độ khó: {_selectedDifficulty}, Giá: {_selectedBasePay}");
             }
@@ -688,8 +736,9 @@ public class CustomerController : MonoBehaviour, IInteractable
             CustomerQueue.Instance.AddCustomer(currentOrder);
         }
 
-        string agreement = "Cảm ơn, nhớ đúng hẹn nhé!";
-        ShowCustomerDialogue(CustomerDisplayName, agreement, LeaveStore, null, "Đóng");
+        // Nut "Nhan sua" da dong DialogueUI truoc khi goi AcceptOrder.
+        // Khong mo them hop thoai cam on cho moi NPC; ket thuc giao dich ngay.
+        LeaveStore();
     }
 
     private void ProcessPickup()
@@ -702,8 +751,9 @@ public class CustomerController : MonoBehaviour, IInteractable
 
         if (currentOrder.isCompleted)
         {
-            string satisfied = (archetype != null && archetype.satisfiedDialogues != null && archetype.satisfiedDialogues.Count > 0)
-                ? archetype.satisfiedDialogues[Random.Range(0, archetype.satisfiedDialogues.Count)] 
+            AudioClip clip = null;
+            string satisfied = (archetype != null)
+                ? archetype.GetRandomSatisfied(out clip) 
                 : "Cảm ơn cậu nhé, đồ sửa tốt lắm!";
             
             // Khách trả tiền
@@ -729,7 +779,7 @@ public class CustomerController : MonoBehaviour, IInteractable
                 }
             }
 
-            ShowCustomerDialogue(CustomerDisplayName, satisfied, LeaveStore);
+            ShowCustomerDialogue(CustomerDisplayName, satisfied, LeaveStore, null, "Tiếp tục", "", clip);
         }
         else
         {
@@ -737,14 +787,16 @@ public class CustomerController : MonoBehaviour, IInteractable
             {
                 // Dễ tính: cho thêm thời gian
                 currentOrder.appointmentDay += 1;
+                currentOrder.hasSpawnedReturning = false;
                 ShowCustomerDialogue(CustomerDisplayName, "Chưa xong à? Thôi cứ làm đi, mai tôi quay lại lấy.", LeaveStore);
                 hasInteracted = false; // Reset for next time
             }
             else
             {
                 // Khách khó tính: Tức giận, huỷ đơn, trừ danh tiếng
-                string angry = (archetype != null && archetype.unsatisfiedDialogues != null && archetype.unsatisfiedDialogues.Count > 0)
-                    ? archetype.unsatisfiedDialogues[Random.Range(0, archetype.unsatisfiedDialogues.Count)] 
+                AudioClip clip = null;
+                string angry = (archetype != null)
+                    ? archetype.GetRandomUnsatisfied(out clip) 
                     : "Làm ăn chậm chạp quá, tôi lấy lại đồ!";
                 
                 currentOrder.isFailed = true;
@@ -767,7 +819,7 @@ public class CustomerController : MonoBehaviour, IInteractable
                     }
                 }
 
-                ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore);
+                ShowCustomerDialogue(CustomerDisplayName, angry, LeaveStore, null, "Tiếp tục", "", clip);
             }
         }
     }
@@ -780,6 +832,19 @@ public class CustomerController : MonoBehaviour, IInteractable
         if (exitTarget != null)
         {
             TrySetDestination(exitTarget.position, 12f);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (storeLine.Contains(this)) storeLine.Remove(this);
+
+        if (currentOrder != null
+            && !currentOrder.isPickedUp
+            && !currentOrder.isFailed
+            && (currentState == CustomerState.ReturningForPickup || currentState == CustomerState.WaitingForPickup || currentState == CustomerState.Leaving))
+        {
+            currentOrder.hasSpawnedReturning = false;
         }
     }
 }

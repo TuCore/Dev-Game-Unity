@@ -8,12 +8,9 @@ using DevGameUnity.NPC;
 
 namespace DevGameUnity.EditorTools
 {
-    [InitializeOnLoad]
     public static class SetupTripoStreetNpcsTool
     {
         private const string VietnamStreetScenePath = "Assets/_Project/Scenes/Gameplay/VietnamStreet.unity";
-        private const string SessionKey = "DevGameUnity.SetupTripoStreetNpcsTool.AutoDone_V1";
-
         private struct NpcConfig
         {
             public string displayName;
@@ -78,27 +75,6 @@ namespace DevGameUnity.EditorTools
                 movementSpeed = 1.65f
             }
         };
-
-        static SetupTripoStreetNpcsTool()
-        {
-            EditorApplication.delayCall += AutoSetupOnLoad;
-        }
-
-        private static void AutoSetupOnLoad()
-        {
-            if (SessionState.GetBool(SessionKey, false) || EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                return;
-            }
-
-            SessionState.SetBool(SessionKey, true);
-            SetupAll(false);
-
-            if (SceneManager.GetActiveScene().path.Replace("\\", "/") == VietnamStreetScenePath)
-            {
-                AddAllToSceneIfMissing(false);
-            }
-        }
 
         [MenuItem("Tools/Thêm 5 NPC mới (HK15, Nam 1-3, Áo bà ba) Vào Đường Phố (VietnamStreet)")]
         public static void MenuSetupAndAddAll()
