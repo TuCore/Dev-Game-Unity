@@ -16,15 +16,15 @@ public class PlayerNeeds : MonoBehaviour
     [SerializeField] private float startingHunger = 100f;
     [SerializeField] private float startingThirst = 100f;
 
-    [Header("Giảm theo thời gian (điểm / phút thật)")]
-    [SerializeField] private float fatigueDrainPerMinute = 4.5f;
-    [SerializeField] private float hungerDrainPerMinute = 2.4f;
-    [SerializeField] private float thirstDrainPerMinute = 3.6f;
-    [SerializeField] private float walkingFatigueMultiplier = 1.25f;
-    [SerializeField] private float walkingThirstMultiplier = 1.1f;
-    [SerializeField] private float runningFatigueMultiplier = 2.1f;
-    [SerializeField] private float runningHungerMultiplier = 1.12f;
-    [SerializeField] private float runningThirstMultiplier = 1.55f;
+    [Header("Giảm theo thời gian (điểm / phút trong game)")]
+    [SerializeField] private float fatigueDrainPerMinute = 0.08f;
+    [SerializeField] private float hungerDrainPerMinute = 0.045f;
+    [SerializeField] private float thirstDrainPerMinute = 0.065f;
+    [SerializeField] private float walkingFatigueMultiplier = 1.2f;
+    [SerializeField] private float walkingThirstMultiplier = 1.12f;
+    [SerializeField] private float runningFatigueMultiplier = 2.25f;
+    [SerializeField] private float runningHungerMultiplier = 1.15f;
+    [SerializeField] private float runningThirstMultiplier = 1.75f;
     [SerializeField] private bool drainOnlyInGameplayScenes = true;
     [SerializeField] private bool pauseDrainDuringMinigame = true;
 
@@ -46,7 +46,6 @@ public class PlayerNeeds : MonoBehaviour
     private float _nextWarningTime;
     private float _temporaryFatigueDrainMultiplier = 1f;
     private float _temporaryFatigueDrainUntil;
-
     public float MaxNeedValue => maxNeedValue;
     public float CurrentFatigue => _currentFatigue;
     public float CurrentHunger => _currentHunger;
@@ -95,14 +94,19 @@ public class PlayerNeeds : MonoBehaviour
         ResetNeeds();
     }
 
-    private void Update()
+private void Update()
     {
         if (!ShouldDrain())
         {
             return;
         }
 
-        float minuteDelta = Time.deltaTime / 60f;
+        float minuteDelta = GetDrainMinuteDelta();
+        if (minuteDelta <= 0f)
+        {
+            return;
+        }
+
         GetActivityMultipliers(out float fatigueMultiplier, out float hungerMultiplier, out float thirstMultiplier);
 
         DrainNeeds(
@@ -136,7 +140,7 @@ public class PlayerNeeds : MonoBehaviour
             || (thirstAmount > 0f && _currentThirst < maxNeedValue);
     }
 
-    public void RestOvernight()
+public void RestOvernight()
     {
         ClearTemporaryFatigueDrainMultiplier();
         SetNeeds(
@@ -145,7 +149,7 @@ public class PlayerNeeds : MonoBehaviour
             _currentThirst - Mathf.Max(0f, overnightThirstLoss));
     }
 
-    public void ResetNeeds()
+public void ResetNeeds()
     {
         ClearTemporaryFatigueDrainMultiplier();
         SetNeeds(startingFatigue, startingHunger, startingThirst);
@@ -228,6 +232,16 @@ public class PlayerNeeds : MonoBehaviour
         return true;
     }
 
+private float GetDrainMinuteDelta()
+    {
+        DayClock clock = DayClock.ExistingInstance;
+        if (clock == null || !clock.IsRunning || !IsGameplayScene(SceneManager.GetActiveScene().name))
+        {
+            return Time.deltaTime / 60f;
+        }
+
+        return clock.GameMinutesPerRealSecond * Time.deltaTime;
+    }
     private void GetActivityMultipliers(out float fatigueMultiplier, out float hungerMultiplier, out float thirstMultiplier)
     {
         fatigueMultiplier = 1f;

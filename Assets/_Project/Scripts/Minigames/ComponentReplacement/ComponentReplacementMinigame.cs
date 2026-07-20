@@ -155,7 +155,7 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
 
         HandleToolShortcuts();
 
-        _timeRemaining -= Time.deltaTime;
+        // _timeRemaining -= Time.deltaTime;
         UpdateStatusText();
 
         if (_timeRemaining <= 0f)
@@ -256,13 +256,13 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
         Image header = MinigameUiKit.CreatePanel(_uiRoot.transform, "Header", _panelSprite, new Color(0.035f, 0.04f, 0.046f, 0.98f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -44f), new Vector2(1760f, 72f));
         MinigameUiKit.AddChrome(header.transform, _solidSprite, new Color(1f, 0.45f, 0.18f, 0.95f));
         TextMeshProUGUI title = MinigameUiKit.CreateText(header.transform, "Title", "THAY LINH KIỆN CHÁY", 29, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.95f, 0.98f, 1f, 1f));
-        MinigameUiKit.SetAnchored(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(32f, 0f), new Vector2(620f, 48f));
+        MinigameUiKit.SetAnchored(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(342f, 0f), new Vector2(620f, 48f));
 
         _progressText = MinigameUiKit.CreateText(header.transform, "Progress", "", 23, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.84f, 0.32f, 1f));
         MinigameUiKit.SetAnchored(_progressText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520f, 48f));
 
         _timerText = MinigameUiKit.CreateText(header.transform, "Timer", "", 23, FontStyles.Bold, TextAlignmentOptions.Right, new Color(0.72f, 0.92f, 1f, 1f));
-        MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-32f, 0f), new Vector2(620f, 48f));
+        MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-342f, 0f), new Vector2(620f, 48f));
 
         Image boardPanel = MinigameUiKit.CreatePanel(_uiRoot.transform, "BoardPanel", _panelSprite, new Color(0.018f, 0.024f, 0.027f, 0.98f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(640f, -18f), new Vector2(1210f, 820f));
         _boardRect = boardPanel.rectTransform;
@@ -291,6 +291,36 @@ public class ComponentReplacementMinigame : MonoBehaviour, IMinigame
 
         _finishButton = MinigameUiKit.CreateButton(_uiRoot.transform, "FinishButton", "KIỂM TRA", _panelSprite, new Color(0.12f, 0.42f, 0.28f, 1f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-160f, 58f), new Vector2(220f, 56f), TryFinish);
         MinigameUiKit.CreateButton(_uiRoot.transform, "CancelButton", "HỦY", _panelSprite, new Color(0.35f, 0.09f, 0.08f, 1f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(130f, 58f), new Vector2(170f, 56f), () => Complete(RepairQuality.Broken, true, "Đã hủy thay linh kiện."));
+        MinigameHintOverlay hintOverlay = MinigameHintOverlay.Attach(_uiRoot.transform, _panelSprite, _solidSprite, "GỢI Ý", GetHintText, new Color(1f, 0.45f, 0.18f, 1f));
+        MinigameUiKit.CreateButton(_uiRoot.transform, "HintButton", "GỢI Ý", _panelSprite, new Color(0.12f, 0.24f, 0.34f, 1f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(330f, 58f), new Vector2(170f, 56f), hintOverlay.Show);
+    }
+
+    private string GetHintText()
+    {
+        if (_tasks.Count == 0)
+        {
+            return "Chưa có linh kiện nào. Hãy bắt đầu minigame lại.";
+        }
+
+        List<string> lines = new List<string>();
+        lines.Add("Cách giải lượt này (thực hiện theo thứ tự từng linh kiện):");
+        
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            ComponentTask task = _tasks[i];
+            lines.Add($"- {task.Label}:");
+            lines.Add("  1. Dùng mỏ hàn (phím 1) kéo vào từng chân để làm chảy thiếc.");
+            lines.Add("  2. Dùng hút thiếc (phím 2) kéo vào từng chân để làm sạch lỗ.");
+            lines.Add("  3. Dùng nhíp (phím 3) kéo vào thân để gắp linh kiện cháy ra.");
+            
+            string orientationHint = task.NeedsOrientation ? $" (nhấn phím R để xoay đúng {task.CorrectRotation} độ trước khi thả)" : "";
+            lines.Add($"  4. Chọn linh kiện mới (phím 4), kéo vào vùng trống{orientationHint}.");
+            lines.Add("  5. Dùng mỏ hàn kéo vào từng chân để hàn lại.");
+            lines.Add("");
+        }
+
+        lines.Add("Làm xong tất cả linh kiện thì bấm KIỂM TRA.");
+        return string.Join("\n", lines);
     }
 
     private void BuildToolPanel(Transform parent)

@@ -81,6 +81,17 @@ public class RepairableItem : MonoBehaviour
 
     public MinigameType PickRandomMinigame(MinigameType fallback)
     {
+        int hasPlayedFirst = UnityEngine.PlayerPrefs.GetInt("HasPlayedFirstMinigame", 0);
+        if (hasPlayedFirst == 0)
+        {
+            return MinigameType.Diagnosis;
+        }
+
+        if (fallback == MinigameType.Diagnosis)
+        {
+            fallback = MinigameType.PolarityWiring;
+        }
+
         if (!useWeightedMinigameSelection || minigameWeights == null || minigameWeights.Count == 0)
         {
             return IsSupportedMinigame(fallback) ? fallback : MinigameType.PolarityWiring;
@@ -120,13 +131,15 @@ public class RepairableItem : MonoBehaviour
 
             if (roll <= weight)
             {
+                if (entry.minigameType == MinigameType.Diagnosis)
+                    return MinigameType.PolarityWiring;
                 return entry.minigameType;
             }
 
             roll -= weight;
         }
 
-        return MinigameType.PolarityWiring;
+        return fallback != MinigameType.Diagnosis ? fallback : MinigameType.PolarityWiring;
     }
 
     private bool IsSupportedMinigame(MinigameType minigame)

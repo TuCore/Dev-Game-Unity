@@ -45,13 +45,14 @@ public class MoneyUI : MonoBehaviour
                 rect.anchorMax = new Vector2(1f, 1f);
                 rect.pivot = new Vector2(1f, 1f);
                 rect.anchoredPosition = new Vector2(-30, -30); // Cách góc phải
-                rect.sizeDelta = new Vector2(400, 60);
+                rect.sizeDelta = new Vector2(800, 60);
 
                 _moneyText = textObj.AddComponent<TextMeshProUGUI>();
                 _moneyText.fontSize = 42;
                 _moneyText.alignment = TextAlignmentOptions.Right;
                 _moneyText.color = new Color(0.2f, 0.9f, 0.2f); // Màu xanh lá mạ
                 _moneyText.fontStyle = FontStyles.Bold;
+                _moneyText.enableWordWrapping = false;
                 
                 UnityEngine.UI.Outline outline = textObj.AddComponent<UnityEngine.UI.Outline>();
                 outline.effectColor = Color.black;
@@ -110,12 +111,13 @@ public class MoneyUI : MonoBehaviour
         
         // Vị trí xuất phát thấp hơn tiền hiện tại một chút
         rect.anchoredPosition = _moneyText.rectTransform.anchoredPosition + new Vector2(0, -50);
-        rect.sizeDelta = new Vector2(400, 60);
+        rect.sizeDelta = new Vector2(800, 60);
 
         TextMeshProUGUI floatText = floatObj.AddComponent<TextMeshProUGUI>();
         floatText.fontSize = 36;
         floatText.alignment = TextAlignmentOptions.Right;
         floatText.fontStyle = FontStyles.Bold;
+        floatText.enableWordWrapping = false;
 
         if (amount > 0)
         {
