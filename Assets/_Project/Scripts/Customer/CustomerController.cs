@@ -643,22 +643,28 @@ public class CustomerController : MonoBehaviour, IInteractable
         }
 
         // 2. Randomize properties across repair minigames.
+        int hasPlayedFirst = UnityEngine.PlayerPrefs.GetInt("HasPlayedFirstMinigame", 0);
         float roll = Random.value;
-        if (roll < 0.28f)
-        {
-            _selectedMinigame = MinigameType.PolarityWiring;
-        }
-        else if (roll < 0.52f)
-        {
-            _selectedMinigame = MinigameType.ContactCleaning;
-        }
-        else if (roll < 0.78f)
+
+        if (hasPlayedFirst == 0)
         {
             _selectedMinigame = MinigameType.Diagnosis;
         }
         else
         {
-            _selectedMinigame = MinigameType.ComponentReplacement;
+            // Phân bổ đều cho 3 minigame còn lại, KHÔNG cho ra Diagnosis nữa
+            if (roll < 0.33f)
+            {
+                _selectedMinigame = MinigameType.PolarityWiring;
+            }
+            else if (roll < 0.67f)
+            {
+                _selectedMinigame = MinigameType.ContactCleaning;
+            }
+            else
+            {
+                _selectedMinigame = MinigameType.ComponentReplacement;
+            }
         }
         _selectedDifficulty = Random.Range(1, 4); // Độ khó 1, 2, 3
         _selectedBasePay = Random.Range(20, 101) * 1000f; // Giá 20k đến 100k
@@ -713,6 +719,13 @@ public class CustomerController : MonoBehaviour, IInteractable
                 repairable.linkedOrder = currentOrder;
                 _selectedMinigame = repairable.PickRandomMinigame(_selectedMinigame);
                 repairable.SetRandomizedProperties(_selectedMinigame, _selectedDifficulty, _selectedBasePay);
+                
+                if (UnityEngine.PlayerPrefs.GetInt("HasPlayedFirstMinigame", 0) == 0)
+                {
+                    UnityEngine.PlayerPrefs.SetInt("HasPlayedFirstMinigame", 1);
+                    UnityEngine.PlayerPrefs.Save();
+                }
+
                 Debug.Log($"[CustomerController] Repair profile: minigame={_selectedMinigame}, difficulty={_selectedDifficulty}, requiredParts={repairable.GetRequiredPartsText()}, reward={_selectedBasePay}");
                 Debug.Log($"[CustomerController] Đã tạo món đồ. Minigame: {_selectedMinigame}, Độ khó: {_selectedDifficulty}, Giá: {_selectedBasePay}");
             }

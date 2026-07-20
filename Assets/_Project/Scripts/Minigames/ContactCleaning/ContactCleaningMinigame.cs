@@ -193,7 +193,7 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
 
         // Repair minigames pause the world with timeScale = 0. The UI timer must
         // continue to run independently from the paused gameplay clock.
-        _timeRemaining -= Time.unscaledDeltaTime;
+        // _timeRemaining -= Time.unscaledDeltaTime;
         UpdateStatusText();
 
         if (_timeRemaining <= 0f)
@@ -443,6 +443,32 @@ public class ContactCleaningMinigame : MonoBehaviour, IMinigame
 
         _finishButton = MinigameUiKit.CreateButton(_uiRoot.transform, "FinishButton", "KI\u1ec2M TRA", _panelSprite, new Color(0.12f, 0.42f, 0.28f, 1f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-160f, 58f), new Vector2(220f, 56f), TryFinish);
         MinigameUiKit.CreateButton(_uiRoot.transform, "CancelButton", "H\u1ee6Y", _panelSprite, new Color(0.35f, 0.09f, 0.08f, 1f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(130f, 58f), new Vector2(170f, 56f), () => Complete(RepairQuality.Broken, true, "\u0110\u00e3 h\u1ee7y v\u1ec7 sinh."));
+        MinigameHintOverlay hintOverlay = MinigameHintOverlay.Attach(_uiRoot.transform, _panelSprite, _solidSprite, "GỢI Ý", GetHintText, new Color(0.92f, 0.68f, 0.22f, 1f));
+        MinigameUiKit.CreateButton(_uiRoot.transform, "HintButton", "GỢI Ý", _panelSprite, new Color(0.12f, 0.24f, 0.34f, 1f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(330f, 58f), new Vector2(170f, 56f), hintOverlay.Show);
+    }
+
+    private string GetHintText()
+    {
+        if (_profile == null)
+        {
+            return "Chưa có cấu hình bài test. Hãy bắt đầu minigame lại.";
+        }
+
+        List<string> lines = new List<string>();
+        lines.Add("Cách giải lượt này:");
+        lines.Add("- Mục tiêu: " + _profile.GuideText);
+        lines.Add("");
+        lines.Add("Mẹo chọn dụng cụ:");
+        lines.Add(_profile.ToolAdvice);
+        
+        lines.Add("");
+        lines.Add("Hướng dẫn chung:");
+        lines.Add("- Cồn IPA (phím 1): Làm lỏng vết bẩn, an toàn nhất.");
+        lines.Add("- Gôm tiếp điểm (phím 2): Chà vết bẩn nhẹ.");
+        lines.Add("- Bàn chải đồng (phím 3): Chà vết bẩn cứng đầu.");
+        lines.Add("- Giấy nhám (phím 4): Chà mảng cháy, rất dễ làm trầy xước.");
+        lines.Add("Vết bẩn sạch sẽ báo 'SẠCH' màu xanh.");
+        return string.Join("\n", lines);
     }
 
     private void BuildToolPanel(Transform parent)

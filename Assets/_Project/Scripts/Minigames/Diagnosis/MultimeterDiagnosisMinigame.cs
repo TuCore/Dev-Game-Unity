@@ -216,7 +216,7 @@ namespace Minigames.Diagnosis
                 return;
             }
 
-            _timeRemaining -= Time.deltaTime;
+            // _timeRemaining -= Time.deltaTime;
             UpdateStatusText();
 
             if (_timeRemaining <= 0f)
@@ -324,16 +324,16 @@ namespace Minigames.Diagnosis
             overlay.raycastTarget = false;
             overlay.transform.SetAsFirstSibling();
 
-            GameObject header = CreatePanel("Header", _uiRoot.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -42f), new Vector2(1840f, 70f), new Color(0.035f, 0.04f, 0.045f, 0.94f));
+            GameObject header = CreatePanel("Header", _uiRoot.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -42f), new Vector2(1760f, 70f), new Color(0.035f, 0.04f, 0.045f, 0.94f));
             MinigameUiKit.AddChrome(header.transform, _solidSprite, new Color(0.14f, 0.76f, 1f, 0.95f));
             _titleText = AddText(header.transform, "DÒ LỖI BẰNG ĐỒNG HỒ ĐO", 27, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.96f, 0.99f, 1f, 1f));
-            SetAnchored(_titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(28f, 0f), new Vector2(620f, 44f));
+            SetAnchored(_titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(354f, 0f), new Vector2(620f, 44f));
             _timerText = AddText(header.transform, "", 24, FontStyles.Bold, TextAlignmentOptions.Right, new Color(0.65f, 0.9f, 1f, 1f));
-            SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-28f, 0f), new Vector2(420f, 44f));
+            SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-254f, 0f), new Vector2(420f, 44f));
             _evidenceText = AddText(header.transform, "", 21, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.83f, 0.3f, 1f));
             SetAnchored(_evidenceText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520f, 44f));
 
-            GameObject boardPanel = CreatePanel("BoardPanel", _uiRoot.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(620f, -12f), new Vector2(1180f, 885f), new Color(0.022f, 0.028f, 0.03f, 0.96f));
+            GameObject boardPanel = CreatePanel("BoardPanel", _uiRoot.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(650f, -12f), new Vector2(1180f, 885f), new Color(0.022f, 0.028f, 0.03f, 0.96f));
             MinigameUiKit.AddChrome(boardPanel.transform, _solidSprite, new Color(0.14f, 0.76f, 1f, 0.5f));
             _symptomText = AddText(boardPanel.transform, "", 20, FontStyles.Normal, TextAlignmentOptions.Left, new Color(0.86f, 0.94f, 0.92f, 1f));
             SetAnchored(_symptomText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -42f), new Vector2(1110f, 52f));
@@ -352,12 +352,12 @@ namespace Minigames.Diagnosis
 
             BuildBoardVisuals();
 
-            GameObject toolPanel = CreatePanel("ToolPanel", _uiRoot.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-310f, -12f), new Vector2(570f, 885f), new Color(0.025f, 0.028f, 0.033f, 0.97f));
+            GameObject toolPanel = CreatePanel("ToolPanel", _uiRoot.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-330f, -12f), new Vector2(570f, 885f), new Color(0.025f, 0.028f, 0.033f, 0.97f));
             MinigameUiKit.AddChrome(toolPanel.transform, _solidSprite, new Color(0.14f, 0.76f, 1f, 0.5f));
             BuildToolPanel(toolPanel.transform);
 
             _feedbackText = AddText(_uiRoot.transform, "", 26, FontStyles.Bold, TextAlignmentOptions.Center, Color.white);
-            SetAnchored(_feedbackText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 42f), new Vector2(1060f, 44f));
+            SetAnchored(_feedbackText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 54f), new Vector2(1060f, 44f));
 
             ShowUI(false);
         }
@@ -403,8 +403,34 @@ namespace Minigames.Diagnosis
             _historyText = AddText(historyPanel.transform, "", 15, FontStyles.Normal, TextAlignmentOptions.TopLeft, new Color(0.78f, 0.9f, 0.92f, 1f));
             SetAnchored(_historyText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(470f, 108f));
 
-            _submitButton = CreateTextButton(parent, "KẾT LUẬN LỖI", new Vector2(-93f, -810f), new Vector2(300f, 58f), SubmitDiagnosis);
-            CreateTextButton(parent, "HỦY", new Vector2(190f, -810f), new Vector2(125f, 58f), () => Fail("Bạn đã hủy lượt dò lỗi."));
+            _submitButton = CreateTextButton(parent, "KẾT LUẬN LỖI", new Vector2(-140f, -810f), new Vector2(240f, 58f), SubmitDiagnosis);
+            MinigameHintOverlay hintOverlay = MinigameHintOverlay.Attach(_uiRoot.transform, _buttonSprite, _solidSprite, "GỢI Ý", GetHintText, new Color(0.14f, 0.76f, 1f, 1f));
+            CreateTextButton(parent, "GỢI Ý", new Vector2(55f, -810f), new Vector2(110f, 58f), hintOverlay.Show);
+            CreateTextButton(parent, "HỦY", new Vector2(190f, -810f), new Vector2(110f, 58f), () => Fail("Bạn đã hủy lượt dò lỗi."));
+        }
+
+        private string GetHintText()
+        {
+            if (_activeCase == null)
+            {
+                return "Chưa có bài test nào. Hãy bắt đầu minigame lại.";
+            }
+
+            List<string> lines = new List<string>();
+            lines.Add("Cách giải lượt này:");
+            lines.Add("- Lỗi: " + _activeCase.Title);
+            lines.Add("- Linh kiện hỏng: " + _activeCase.CorrectComponentId);
+            lines.Add("");
+            lines.Add("Bằng chứng cần tìm:");
+            for (int i = 0; i < _activeCase.EvidenceRules.Count; i++)
+            {
+                EvidenceRule rule = _activeCase.EvidenceRules[i];
+                lines.Add("- Đo " + ModeShortName(rule.Mode) + " tại " + PointLabel(rule.RedPoint) + " và " + PointLabel(rule.BlackPoint));
+            }
+
+            lines.Add("");
+            lines.Add("Làm đúng các bước đo trên, sau đó bấm chọn linh kiện " + _activeCase.CorrectComponentId + " rồi bấm KẾT LUẬN LỖI.");
+            return string.Join("\n", lines);
         }
 
         private void BuildBoardVisuals()
@@ -967,8 +993,8 @@ namespace Minigames.Diagnosis
                 }
 
                 bool match = rule.IgnorePolarity
-                    ? SamePair(red, black, rule.RedPoint, rule.BlackPoint)
-                    : red == rule.RedPoint && black == rule.BlackPoint;
+                    ? ((PointsMatch(red, rule.RedPoint) && PointsMatch(black, rule.BlackPoint)) || (PointsMatch(red, rule.BlackPoint) && PointsMatch(black, rule.RedPoint)))
+                    : PointsMatch(red, rule.RedPoint) && PointsMatch(black, rule.BlackPoint);
 
                 if (!match)
                 {
@@ -1515,6 +1541,15 @@ namespace Minigames.Diagnosis
         private bool IsGround(string point)
         {
             return point == "GND" || point == "GND2";
+        }
+
+        private bool PointsMatch(string point, string expected)
+        {
+            if (expected == "GND" || expected == "GND2")
+            {
+                return IsGround(point);
+            }
+            return point == expected;
         }
 
         private void EnsureSprites()

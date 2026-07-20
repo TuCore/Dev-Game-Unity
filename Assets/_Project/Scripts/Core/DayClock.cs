@@ -97,6 +97,21 @@ public class DayClock : MonoBehaviour
     private void Start()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        MinigameManager.OnMinigameStartedGlobal += HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal += HandleMinigameCompleted;
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
+        {
+            ResumeTime();
+        }
+    }
+
+    private void HandleMinigameStarted(IMinigame minigame)
+    {
+        PauseTime();
+    }
+
+    private void HandleMinigameCompleted(RepairQuality quality)
+    {
         if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "VietnamStreet")
         {
             ResumeTime();
@@ -111,6 +126,8 @@ public class DayClock : MonoBehaviour
     private void OnDestroy()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        MinigameManager.OnMinigameStartedGlobal -= HandleMinigameStarted;
+        MinigameManager.OnMinigameCompletedGlobal -= HandleMinigameCompleted;
 
         if (_instance == this)
         {

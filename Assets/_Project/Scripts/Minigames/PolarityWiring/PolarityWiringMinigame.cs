@@ -112,7 +112,7 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
             return;
         }
 
-        _timeRemaining -= Time.deltaTime;
+        // _timeRemaining -= Time.deltaTime;
         UpdateStatusText();
 
         if (_timeRemaining <= 0f)
@@ -204,10 +204,10 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
         Image header = MinigameUiKit.CreatePanel(_uiRoot.transform, "Header", _panelSprite, new Color(0.035f, 0.04f, 0.046f, 0.96f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -44f), new Vector2(1760f, 72f));
         MinigameUiKit.AddChrome(header.transform, _solidSprite, new Color(0.1f, 0.72f, 1f, 0.95f));
         _titleText = MinigameUiKit.CreateText(header.transform, "Title", "\u0110\u1ea4U D\u00c2Y \u0110\u00daNG C\u1ef0C", 28, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.95f, 0.98f, 1f, 1f));
-        MinigameUiKit.SetAnchored(_titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(32f, 0f), new Vector2(620f, 48f));
+        MinigameUiKit.SetAnchored(_titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(342f, 0f), new Vector2(620f, 48f));
 
         _timerText = MinigameUiKit.CreateText(header.transform, "Timer", "", 23, FontStyles.Bold, TextAlignmentOptions.Right, new Color(0.72f, 0.92f, 1f, 1f));
-        MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-32f, 0f), new Vector2(580f, 48f));
+        MinigameUiKit.SetAnchored(_timerText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-322f, 0f), new Vector2(580f, 48f));
 
         _progressText = MinigameUiKit.CreateText(header.transform, "Progress", "", 23, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.84f, 0.32f, 1f));
         MinigameUiKit.SetAnchored(_progressText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(420f, 48f));
@@ -243,6 +243,30 @@ public class PolarityWiringMinigame : MonoBehaviour, IMinigame
 
         _submitButton = MinigameUiKit.CreateButton(_uiRoot.transform, "FinishButton", "KI\u1ec2M TRA", _panelSprite, new Color(0.12f, 0.42f, 0.28f, 1f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-160f, 58f), new Vector2(220f, 56f), TryFinish);
         MinigameUiKit.CreateButton(_uiRoot.transform, "CancelButton", "H\u1ee6Y", _panelSprite, new Color(0.35f, 0.09f, 0.08f, 1f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(130f, 58f), new Vector2(170f, 56f), () => Fail("\u0110\u00e3 h\u1ee7y l\u01b0\u1ee3t n\u1ed1i d\u00e2y."));
+        MinigameHintOverlay hintOverlay = MinigameHintOverlay.Attach(_uiRoot.transform, _panelSprite, _solidSprite, "GỢI Ý", GetHintText, new Color(0.1f, 0.72f, 1f, 1f));
+        MinigameUiKit.CreateButton(_uiRoot.transform, "HintButton", "GỢI Ý", _panelSprite, new Color(0.12f, 0.24f, 0.34f, 1f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(330f, 58f), new Vector2(170f, 56f), hintOverlay.Show);
+    }
+
+    private string GetHintText()
+    {
+        if (_tasks.Count == 0)
+        {
+            return "Chưa có dây nào được tạo. Hãy bắt đầu minigame lại.";
+        }
+
+        List<string> lines = new List<string>();
+        lines.Add("Cách giải lượt này: kéo từng dây vào đúng cọc bên phải.");
+        lines.Add("");
+
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            WireTask task = _tasks[i];
+            lines.Add("- " + task.WireLabel + " -> " + task.TerminalLabel);
+        }
+
+        lines.Add("");
+        lines.Add("Kéo đầu dây, thả gần đúng cọc để dây tự snap vào. Nếu nối nhầm, kéo lại dây đó sang cọc đúng rồi bấm KIỂM TRA.");
+        return string.Join("\n", lines);
     }
 
     private void BuildTasks(List<string> faults)

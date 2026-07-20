@@ -257,7 +257,8 @@ public class RaycastInteract : MonoBehaviour
             IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
             if (interactable != null)
             {
-                promptText += interactable.GetInteractionPrompt();
+                string ip = interactable.GetInteractionPrompt();
+                if (!string.IsNullOrEmpty(ip)) promptText += $"[E] {ip}";
                 isTargeting = true;
                 
                 // Nhấn phím E để tương tác
@@ -315,7 +316,8 @@ public class RaycastInteract : MonoBehaviour
             
             if (customerTarget != null)
             {
-                promptText += customerTarget.GetInteractionPrompt();
+                string ip = customerTarget.GetInteractionPrompt();
+                if (!string.IsNullOrEmpty(ip)) promptText += $"[E] {ip}";
                 isTargeting = true;
 
                 if (WasInteractPressed())
@@ -325,7 +327,8 @@ public class RaycastInteract : MonoBehaviour
             }
             else if (tobaccoPipeTarget != null)
             {
-                promptText += tobaccoPipeTarget.GetInteractionPrompt();
+                string ip = tobaccoPipeTarget.GetInteractionPrompt();
+                if (!string.IsNullOrEmpty(ip)) promptText += $"[E] {ip}";
                 isTargeting = true;
 
                 if (WasInteractPressed())
